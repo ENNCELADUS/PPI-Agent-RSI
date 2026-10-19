@@ -7,9 +7,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 Research project: LLM-based scientific agents for membrane protein–protein interaction (PPI)
 discovery, then recursive self-improvement (RSI) of the agent workflow and, later, the PPI predictor
 under sparse experimental feedback. `docs/introduction.md` is the motivation (three research
-directions), `docs/initial_baseline.md` the baseline design, `docs/literature.md` the related work
-(PDFs in `literature/`, git-ignored except `literature/README.md`). When a change alters behaviour a
-doc describes, update that doc in the same change.
+directions), `docs/initial_baseline.md` the baseline design, `docs/literature.md` the related work,
+`docs/research-reports/<date>-<slug>.md` dated deep-research reports (notes behind them in
+`research_notes/`). PDFs live in `literature/<topic>/` (`ppi`, `science-agents`, `self-improvement`,
+`feedback-benchmarks`), git-ignored except the index `literature/README.md`. When a change alters
+behaviour a doc describes, update that doc in the same change.
 
 **Core thesis — do not let it drift:** measure a *fixed*, expert-designed agent before building any
 RSI. Failure modes must come out of evaluation, never be assumed in advance.
@@ -28,13 +30,17 @@ RSI. Failure modes must come out of evaluation, never be assumed in advance.
   web/literature retrieval or is closed-world.
 - **Predictor:** none yet. A trained predictor is added later as a tool; never
   vendor or retrain DIPPI here.
-- **Future:** survey public PPI benchmarks for agents to complement the private one.
+- **Public benchmarks (surveyed, not built):** `docs/research-reports/2026-10-19-public-ppi-benchmarks.md`.
+  Every public PPI label is retrievable online, so public tracks run **closed-world** only: PRING human
+  test subgraphs; BioDiscoveryAgent screens (feedback-loop calibration); SKEMPI 2.0 via the
+  `ppi-mutation-ddg` component split (perturbation); a post-cutoff IntAct/BioGRID slice (to build).
+  Agents often ignore revealed labels, so every feedback run needs permuted-label and no-feedback arms.
 
 ## Project rules
 
 - No formalism gates: no digest pinning, contract verifiers, eligibility ceremony or any check that
   blocks a run. Record provenance and proceed.
-- Regularly update the CLAUDE.md and README.md of this repo. Replace deprecated text directly with 
+- Update the CLAUDE.md and README.md of this repo every conversation. Replace deprecated text directly with 
   new ones. Keep these documents concise. Don't keep backward compatible unless explicitly asked.
 - **Private data stays private.** Never commit, push, upload or send TMP data to external services,
   except to the LLM the agent is configured to call. `data/` is git-ignored.

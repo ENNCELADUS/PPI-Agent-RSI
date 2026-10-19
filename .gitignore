@@ -1,5 +1,5 @@
 literature/*
-!literature/README.md
+docs/research-reports
 data/
 .venv/
 __pycache__/
