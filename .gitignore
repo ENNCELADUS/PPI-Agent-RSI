@@ -1,0 +1,6 @@
+literature/*
+!literature/README.md
+data/
+.venv/
+__pycache__/
+.DS_Store
