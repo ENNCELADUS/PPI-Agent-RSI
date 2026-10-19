@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Fetch each public PPI source to a temp file (resumable), filter it to TMP
 # proteins with extract_public.py, then delete the raw file.
-# Usage: fetch_public.sh <source> [<source> ...]   (run `idmap` first)
+# Usage: fetch_public.sh <source> [<source> ...]   (run `idmap string_alias` first)
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 TMPDIR_DL="${TMPDIR_DL:-$HERE/../../data/TMP/public_db/_download}"
@@ -10,12 +10,15 @@ mkdir -p "$TMPDIR_DL"
 url_of() {
   case "$1" in
     idmap)   echo "https://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/idmapping/by_organism/HUMAN_9606_idmapping.dat.gz" ;;
-    string)  echo "https://stringdb-downloads.org/download/protein.links.v12.0/9606.protein.links.v12.0.txt.gz" ;;
+    string_alias) echo "https://stringdb-downloads.org/download/protein.aliases.v12.5/9606.protein.aliases.v12.5.txt.gz" ;;
+    string)  echo "https://stringdb-downloads.org/download/protein.links.v12.5/9606.protein.links.v12.5.txt.gz" ;;
     biogrid) echo "https://downloads.thebiogrid.org/Download/BioGRID/Latest-Release/BIOGRID-ORGANISM-LATEST.tab3.zip" ;;
     intact)  echo "https://ftp.ebi.ac.uk/pub/databases/intact/current/psimitab/species/human.zip" ;;
     hippie)  echo "https://cbdm-01.zdv.uni-mainz.de/~mschaefer/hippie/HIPPIE-current.mitab.txt" ;;
     huri)    echo "https://www.interactome-atlas.org/data/HI-union.tsv" ;;
     bioplex) echo "https://bioplex.hms.harvard.edu/data/BioPlex_293T_Network_10K_Dec_2019.tsv https://bioplex.hms.harvard.edu/data/BioPlex_HCT116_Network_5.5K_Dec_2019.tsv" ;;
+    negatome) echo "https://mips.helmholtz-muenchen.de/proj/ppi/negatome/manual_stringent.txt https://mips.helmholtz-muenchen.de/proj/ppi/negatome/combined_stringent.txt" ;;
+    intact_negative) echo "https://ftp.ebi.ac.uk/pub/databases/intact/current/psimitab/intact_negative.txt" ;;
     corum)   echo "https://mips.helmholtz-muenchen.de/fastapi-corum/public/file/download_current_file?file_id=human&file_format=txt" ;;
     *) echo "unknown source $1" >&2; return 1 ;;
   esac
@@ -54,9 +57,11 @@ for src in "$@"; do
   if [ "$src" = bioplex ]; then
     # Concatenate both cell lines under one header.
     { cat "${files[0]}"; tail -n +2 "${files[1]}"; } | python3 "$HERE/extract_public.py" "$src"
+  elif [ "$src" = negatome ]; then
+    cat "${files[@]}" | python3 "$HERE/extract_public.py" "$src"
   else
     decode "${files[0]}" "$src" | python3 "$HERE/extract_public.py" "$src"
   fi
-  rm -f "${files[@]}"
+  [ "${KEEP_DOWNLOADS:-0}" = 1 ] || rm -f "${files[@]}"
 done
-rmdir "$TMPDIR_DL" 2>/dev/null || true
+[ "${KEEP_DOWNLOADS:-0}" = 1 ] || rmdir "$TMPDIR_DL" 2>/dev/null || true

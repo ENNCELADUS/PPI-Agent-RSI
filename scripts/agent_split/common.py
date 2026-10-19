@@ -1,8 +1,11 @@
 """Shared paths and ID normalization for the agent-benchmark split.
 
-Every protein is mapped to a gene-level node: Entrez GeneID when UniProt
-knows one, otherwise the bare UniProt accession. Pairs are compared as
-unordered node pairs, so isoforms and TrEMBL entries of the same gene match.
+Every protein expands to the set of gene-level nodes it may stand for:
+Entrez GeneIDs from UniProt, plus the Entrez ID of its STRING protein (which
+also resolves TrEMBL/secondary accessions), else its STRING protein ID, else
+the bare accession. A pair is
+matched against a database if any node combination of the two proteins is in
+it, so multi-gene proteins (e.g. histone H4) and isoforms are not missed.
 """
 import csv
 import gzip
@@ -12,8 +15,10 @@ ROOT = Path(__file__).resolve().parents[2]
 TMP = ROOT / "data" / "TMP"
 RAW = TMP / "raw"
 PUBLIC = TMP / "public_db"
+PUBLIC_NEG = PUBLIC / "negative"  # experimentally tested non-interactions
 OUT = TMP / "agent_split"
-IDMAP = PUBLIC / "uniprot_idmap.tsv.gz"
+IDMAP = PUBLIC / "uniprot_idmap.map.gz"
+STRING_ALIAS = PUBLIC / "string_alias.map.gz"
 
 RAW_FILES = {
     "pretrain_pos": (RAW / "homo_positive_train.txt", "\t"),
@@ -28,26 +33,45 @@ def strip_isoform(acc):
     return acc.split("-", 1)[0].strip()
 
 
-def load_idmap():
-    """Return (acc->gene, string_id->acc, ensg->[acc])."""
-    acc2gene, string2acc, ensg2acc = {}, {}, {}
-    with gzip.open(IDMAP, "rt") as f:
-        for acc, kind, value in csv.reader(f, delimiter="\t"):
-            if kind == "GeneID":
-                # Keep the smallest GeneID so the mapping is deterministic.
-                if acc not in acc2gene or int(value) < int(acc2gene[acc]):
-                    acc2gene[acc] = value
-            elif kind == "STRING":
-                string2acc[value] = acc
-            elif kind == "Ensembl":
-                ensg2acc.setdefault(value.split(".", 1)[0], []).append(acc)
-    return acc2gene, string2acc, ensg2acc
+class IdMap:
+    """acc -> gene nodes, ENSP -> gene nodes, ENSG -> accs."""
 
+    def __init__(self):
+        self.acc2genes, self.ensg2accs = {}, {}
+        string2accs = {}
+        with gzip.open(IDMAP, "rt") as f:
+            for acc, kind, value in csv.reader(f, delimiter="\t"):
+                if kind == "GeneID":
+                    self.acc2genes.setdefault(acc, set()).add(f"g{value}")
+                elif kind == "STRING":
+                    string2accs.setdefault(value, set()).add(acc)
+                elif kind == "Ensembl":
+                    self.ensg2accs.setdefault(value.split(".", 1)[0], []).append(acc)
+        self.ensp2genes = {}
+        with gzip.open(STRING_ALIAS, "rt") as f:
+            for ensp, kind, value in csv.reader(f, delimiter="\t"):
+                if kind == "entrez":
+                    self.ensp2genes.setdefault(ensp, set()).add(f"g{value}")
+                else:
+                    string2accs.setdefault(ensp, set()).add(value)
+        # Fold both directions together: an accession gains its STRING gene,
+        # a STRING protein gains the genes of all its accessions. A STRING
+        # protein with no Entrez gene stands for itself.
+        for ensp, accs in string2accs.items():
+            genes = set(self.ensp2genes.get(ensp, ()))
+            for acc in accs:
+                genes |= self.acc2genes.get(acc, set())
+            genes = genes or {ensp}
+            self.ensp2genes[ensp] = genes
+            for acc in accs:
+                self.acc2genes.setdefault(acc, set()).update(genes)
 
-def node_of(acc, acc2gene):
-    acc = strip_isoform(acc)
-    gene = acc2gene.get(acc)
-    return f"g{gene}" if gene else acc
+    def acc_nodes(self, acc):
+        acc = strip_isoform(acc)
+        return self.acc2genes.get(acc) or {acc}
+
+    def ensp_nodes(self, ensp):
+        return self.ensp2genes.get(ensp) or {ensp}
 
 
 def raw_universe():
