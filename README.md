@@ -26,7 +26,7 @@ fixed, expert-designed agent baseline before building any RSI.
   debugging the agent before it sees the private test set. Its 1:1 train and val splits form the agent's
   reference KB; the test proteins are the wave-discovery candidates. An anonymised-ID arm
   measures memorisation. Its numbers are never reported. See the [design](docs/superpowers/specs/2026-10-23-pring-sandbox-design.md).
-- **Wave discovery benchmark (designed, not built):** the agent searches all pairs among the sandbox's test
+- **Wave discovery benchmark (data and predictor scores built, agent harness not):** the agent searches all pairs among the sandbox's test
   proteins in 10 waves of 200 picks, seeing only the hits among its own picks, against no-feedback and
   permuted-feedback arms. See the [design](docs/superpowers/specs/2026-10-23-pring-wave-discovery-design.md).
 - **Other public tracks (surveyed):** [2026-10-19 survey](docs/research-reports/2026-10-19-public-ppi-benchmarks.md):

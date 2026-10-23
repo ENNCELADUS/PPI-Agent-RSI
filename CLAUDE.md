@@ -20,15 +20,14 @@ Replace this section on every update; history lives in git and the specs.
   KB (public positives, tested and PRING-sampled negatives); `test.csv` is the 1:1 held-out pool whose positives
   have no evidence in any public PPI database. No validation split.
 - **PRING dev sandbox (built):** `build_pring_sandbox` → `data/PRING/`
-  ([design](docs/superpowers/specs/2026-10-23-pring-sandbox-design.md)). Internal and closed-world, for
-  debugging the agent before it touches `test.csv`. 1:1 labelled train/val in `hidden/` (val doubles as the
-  predictor's validation set) form the KB; `hidden/test_positives.csv` holds the wave-discovery hits.
-  The agent gets `sandbox/` or `sandbox/anon/` (memorisation arm), never `hidden/`.
-- **Wave discovery (not built,** [spec](docs/superpowers/specs/2026-10-23-pring-wave-discovery-design.md)**):** all
-  2.04M pairs among the 2,018 test proteins (1.48% hits); each wave predictor + agent pick 200 unknown pairs,
-  the oracle reveals their hits; 10 waves × 10 replicates, true/permuted/no-feedback/random-pick arms. Open:
-  predictor checkpoint, pinned LLM, web retrieval for the private run (public tracks are closed-world).
-- **Predictor:** motif-graph's B0 `best.pt` on H20 (wave spec), being vendored. Never vendor or retrain DIPPI.
+  ([design](docs/superpowers/specs/2026-10-23-pring-sandbox-design.md)). Internal, closed-world, for debugging
+  before `test.csv`. 1:1 train/val in `hidden/` (val = predictor validation) form the KB; `test_positives.csv`
+  holds the wave hits. The agent gets `sandbox/` or `sandbox/anon/` (memorisation arm), never `hidden/`.
+- **Wave discovery (harness not built,** [spec](docs/superpowers/specs/2026-10-23-pring-wave-discovery-design.md)**):**
+  all 2.04M pairs among the 2,018 test proteins (1.48% hits); each wave predictor + agent pick 200 unknown pairs,
+  the oracle reveals their hits; 10 waves × 10 replicates, true/permuted/no-feedback/random-pick arms. Predictor:
+  B0 vendored in `src/predictor/` (bit-exact), logits for every candidate cached in `data/PRING/predictor/`.
+  Open: pinned LLM, web retrieval for the private run (public tracks closed-world). Never vendor/retrain DIPPI.
 - **Other public tracks (surveyed):** `docs/research-reports/2026-10-19-public-ppi-benchmarks.md` —
   BioDiscoveryAgent screens, SKEMPI 2.0 via `ppi-mutation-ddg`, and a post-cutoff IntAct/BioGRID slice.
 
@@ -66,8 +65,9 @@ uv run python -m src.eval.score <labels.csv> <ranking.csv>  # private test.csv (
   provenance and proceed. The builders' asserts against silent wrong artifacts fail closed and stay.
 - **Private data stays private:** never commit, push, upload or send TMP data anywhere except the LLM the agent
   is configured to call. `/data/` is git-ignored and no data is tracked.
-- Sync code between machines through Git only; never rsync/scp/tar working trees. GPU work (the later predictor)
-  runs on H20 (`ssh -p 30838 root@10.15.171.204`): finish local work, commit, push, end with the launch command.
+- Sync code between machines through Git only; never rsync/scp/tar working trees. GPU work runs on H20 (`ssh -p
+  30757 root@10.15.171.204`, 4 GPUs; push to `/2023533015/PPI-Agent-RSI`): finish local work, commit, push, end
+  with the launch command; cap `OMP_NUM_THREADS` (uncapped jobs stall on the shared CPUs).
 - Merge finished branch or worktree work into `main` once suite and lint pass, review is adjudicated and any
   data-dependent path has run on real data; push `main`, delete the branch. Conventional Commits.
 - Codex review only when the user asks: from Bash, fresh `CODEX_HOME` with only `auth.json` and a `config.toml`

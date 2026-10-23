@@ -112,6 +112,19 @@ Hit ratio (hits / all 30,128) is reported but not headline: its ceiling is 6.6%.
 - An oracle module reads `hidden/` and answers submitted pairs; the agent harness never imports it.
 - A run log per wave: the submitted 200 with all output fields, oracle results, tool calls and cost.
 
+## Predictor (built 2026-10-23)
+B0 (`b0_v31`), the motif-graph project's no-topology trunk (V3.1 over per-residue ESM-3 features), chosen by
+the user. Checkpoint on H20: `/2023533015/topology-conditioned-inductive-edge-prediction/outputs/split_seed42/
+b0_v31/best.pt` (checkpoint id `7e78609f8c904284`, epoch 8, 2026-09-09). Trained on PRING BFS train positives
+with 1:5 sampled negatives, selected on V_val (a node-held-out region of train); PRING val and test were never
+trained on, so the sandbox's val split is clean for calibration.
+- Vendored inference in `src/predictor/` reproduces the reference test scores bit for bit (64,038 rows, max
+  abs logit diff 0). All 2,037,171 rows of `candidate_test_edges.txt` were scored once on 4 GPUs (container
+  30757, ~1 min of GPU time at ~92% utilisation); the cached logits are `data/PRING/predictor/
+  pring_candidates.tsv.gz` with provenance in `.meta.json`. `predict_ppi` reads them.
+- Logits are bf16-quantised (3,376 distinct values), so rankings have ties: break them by canonical pair id.
+- The raw sigmoid is fitted to a 1:5 stream: recalibrate p_uv on val with a prevalence correction to 1.48%.
+
 ## Reuse on the private split
 The same harness later runs on the private TMP split, whose data may reach only the locally deployed LLM.
 So the LLM is called through one OpenAI-compatible chat endpoint (DeepSeek's API and a local vLLM server
@@ -124,16 +137,6 @@ How the agent re-ranks 1,000 pairs (batched prompts, shortlists, tool design); f
 normalisation; LLM sampling settings, provided each replicate is seeded and logged.
 
 ## Open, needed before runs (not before building the data and harness)
-- **Predictor checkpoint (found 2026-10-23, user to confirm):** the motif-graph project's no-topology trunk
-  B0 (`b0_v31`, V3.1 trunk over per-residue ESM-3 features), on H20 at
-  `/2023533015/topology-conditioned-inductive-edge-prediction/outputs/split_seed42/b0_v31/best.pt`
-  (sha256 `925f6ab0…`, epoch 8 of 13, 2026-09-09). Trained on PRING BFS train positives with 1:5 sampled
-  negatives; checkpoint and threshold selected on V_val, a node-held-out region carved out of train. PRING's
-  val and test were not trained on, so the sandbox's val split stays clean for calibration. No scores over
-  the 2.04M candidates exist for it (the older candidate scores are gone): they must be computed once on
-  H20 with `python -m src.score_universe score --pairs candidate`, since the ESM-3 features live only
-  there. Its raw sigmoid is fitted to a 1:5 stream, so p_uv needs recalibration on val with a prevalence
-  correction to 1.48%. A checkpoint that saw test pairs would invalidate every arm.
 - **Pinned LLM:** model and version (candidate: the latest DeepSeek API).
 
 ## Later, optional
