@@ -21,14 +21,14 @@ Replace this section on every update; history lives in git and the specs.
   have no evidence in any public PPI database. No validation split.
 - **PRING dev sandbox (built):** `build_pring_sandbox` → `data/PRING/`
   ([design](docs/superpowers/specs/2026-10-23-pring-sandbox-design.md)). Internal and closed-world, for
-  debugging the agent before it touches `test.csv`. Two 1:1 pools of 500 + 500: inductive (PRING's
-  protein-disjoint test) and transductive (held-out KB pairs, like the private split). The agent gets
-  `sandbox/` or `sandbox/anon/` (memorisation arm), never `hidden/`. Baselines: random-level on the inductive
-  pool; L3 reaches 0.97 P@250 on the transductive pool, the bar for KB use.
-- **Agent baseline (not built):** global top-N from an unlabeled pool, then reveal some labels and re-rank with
-  the same fixed procedure, under true, permuted and no-feedback arms. Open: which LLM is pinned, which labels
-  are revealed per round, and whether the private run gets web retrieval (public tracks are closed-world only).
-- **Predictor:** none yet; added later as a tool. Never vendor or retrain DIPPI here.
+  debugging the agent before it touches `test.csv`. 1:1 labelled train/val in `hidden/` (val doubles as the
+  predictor's validation set) form the KB; `hidden/test_positives.csv` holds the wave-discovery hits.
+  The agent gets `sandbox/` or `sandbox/anon/` (memorisation arm), never `hidden/`.
+- **Wave discovery (not built,** [spec](docs/superpowers/specs/2026-10-23-pring-wave-discovery-design.md)**):** all
+  2.04M pairs among the 2,018 test proteins (1.48% hits); each wave predictor + agent pick 200 unknown pairs,
+  the oracle reveals their hits; 10 waves × 10 replicates, true/permuted/no-feedback/random-pick arms. Open:
+  predictor checkpoint, pinned LLM, web retrieval for the private run (public tracks are closed-world).
+- **Predictor:** motif-graph's B0 `best.pt` on H20 (wave spec), being vendored. Never vendor or retrain DIPPI.
 - **Other public tracks (surveyed):** `docs/research-reports/2026-10-19-public-ppi-benchmarks.md` —
   BioDiscoveryAgent screens, SKEMPI 2.0 via `ppi-mutation-ddg`, and a post-cutoff IntAct/BioGRID slice.
 
@@ -47,8 +47,7 @@ src/data/builders/fetch_public.sh string biogrid intact hippie bioplex corum neg
 uv run python -m src.data.builders.build_agent_split  # ~30 s, ~3 GB RAM, deterministic
 python3 -m src.eval.verify_live_string 100 7 1        # n, seed, label: sampled test pairs vs live STRING
 uv run python -m src.data.builders.build_pring_sandbox  # ~1 s; inputs and fetch commands in its docstring
-uv run python -m src.baselines.topology               # degree + L3 rankings, scored
-uv run python -m src.eval.score <labels.csv> <ranking.csv>  # hidden/<pool>.csv or the private test.csv
+uv run python -m src.eval.score <labels.csv> <ranking.csv>  # private test.csv (sandbox pools: not built)
 ```
 
 - `fetch_public.sh` resumes downloads (`curl -C -`; this network drops long transfers, IntAct is 1.1 GB), pipes
@@ -76,7 +75,8 @@ uv run python -m src.eval.score <labels.csv> <ranking.csv>  # hidden/<pool>.csv 
   background `codex review --base <sha>` to a file and adjudicate findings against the code.
 - Ask when intent is ambiguous; do not re-ask what a doc or earlier decision settles.
 - `graphify-out/` (git-ignored; `.graphifyignore` drops `/data/`, `literature/`) maps the repo: query it before a
-  change, run `/graphify . --update` after edits, rebuild in full after moves or deletions.
+  change, run `/graphify . --update` after edits, rebuild in full after moves or deletions. Check health on the
+  built `graph.json`: the raw extraction lists stdlib imports as dangling (they become stub nodes), ignore those.
 
 ## Architecture
 
@@ -97,8 +97,10 @@ live in `src/data/builders/`; `tests/` mirrors `src`. Each builder's docstring i
 - **PRING sampling (`negatives.pring_negatives`):** both ends drawn from the positive-endpoint multiset
   (degree-preserving), redrawn until not self/same-gene, not known, not drawn. Test is sampled first and rejects
   any public evidence; train rejects TMP positives, curated DBs, STRING > 700 and all test pairs.
-- **PRING sandbox:** KB = PRING BFS train pairs minus self pairs and the held-out positives (37,700 pos /
-  42,944 neg); transductive negatives reject every PRING positive and KB pair.
+- **PRING sandbox:** PRING BFS splits minus self pairs (match PRING's GitHub release). KB-side tested negatives
+  (114) join train; train/val filled to 1:1 from PRING negatives (38,200 / 9,562 positives, 7,856 proteins).
+  Candidates: all 2,035,153 pairs among the 2,018 test proteins (`candidate` = 1), 30,128 hits.
+  `annotations.tsv`: UniProt + GO minus sentences naming another gene and GO protein-binding/complex terms.
 
 ## Pitfalls and claim boundaries
 

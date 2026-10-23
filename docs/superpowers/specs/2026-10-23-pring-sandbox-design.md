@@ -1,6 +1,9 @@
 # PRING dev sandbox — design
 
-**Status:** built (`src/data/builders/build_pring_sandbox.py`, `src/eval/score.py`, `src/baselines/topology.py`; outputs in git-ignored `data/PRING/`).
+**Status:** KB built (`src/data/builders/build_pring_sandbox.py`; outputs in git-ignored `data/PRING/`). The
+first inductive and transductive candidate pools and their degree/L3 baselines were removed on 2026-10-23
+(not the design the user asked for). They are replaced by the wave discovery benchmark over all pairs among
+the test proteins ([design](2026-10-23-pring-wave-discovery-design.md)).
 
 ## Why
 The agent baseline is not built, and the private TMP test set must not be spent on debugging it. The
@@ -22,43 +25,36 @@ Wang et al., "Search-Time Contamination in Deep Research Agents" (arXiv 2606.052
   no-feedback arms, with replicates.
 
 ## Contamination protocol
-1. **Split.** Inductive pool: PRING's node-disjoint BFS test proteins (≤ 40% identity to train); none is in
-   the KB. Transductive pool: held-out KB positives, removed from the KB; negatives PRING-sampled over their
-   endpoints, rejecting every PRING positive and every KB pair. Self pairs dropped everywhere (PRING keeps
-   them as positives, so a self pair in a pool would be a guaranteed positive). Never use PRING
-   `*_ratio5_exclusive.txt` (negatives leak across the node split). Identical ID format for both classes;
-   pool rows shuffled (PRING's `candidate_test_edges.txt` lists positives first).
-2. **Search time.** Closed-world: the agent gets only `sandbox/` and fixed tools. Labels, permuted labels and
-   the anon-ID map sit in `hidden/`. The protein table has no UniProt interaction, subunit or function text
-   (PRING took positives partly from UniProt). The harness must log every tool call (2606.05241).
+1. **Split.** PRING's BFS train/val/test, self pairs dropped (PRING keeps them as positives). Tested
+   negatives (Negatome 2.0, IntAct negative) with both ends on the KB side of the protein split join train
+   (114); others and PRING positives are skipped. Train and val are then filled to 1:1
+   with a seeded sample of PRING's own negatives (which almost never coincide with tested ones: 1 of 85k).
+   The KB is train + val (val also serves as the predictor's validation set); PRING's node split keeps
+   test proteins out of it (≤ 40% identity to train), and the builder asserts it. Never use PRING
+   `*_ratio5_exclusive.txt` (negatives leak across the node split).
+2. **Search time.** Closed-world: the agent gets only `sandbox/` and fixed tools. Labels and the anon-ID map
+   sit in `hidden/`. Per-protein annotation is allowed (user decision 2026-10-23: everything but the
+   label), minus interaction-derived fields: UniProt interaction and subunit text, GO terms with IPI
+   evidence, complex membership (PRING took positives partly from UniProt). The harness must log every
+   tool call (2606.05241).
    Audit-only defences cannot rescue a web-enabled run: STC papers found leaks in 1–4% of QA items, but
    every public PPI positive is in a database by construction.
-3. **Pretraining.** Not preventable for pre-cutoff public labels; measured as the named-vs-anonymised gap on
-   the same pool, next to the KB degree-product (popularity) baseline.
+3. **Pretraining.** Not preventable for pre-cutoff public labels; measured as the named-vs-anonymised gap.
 
 ## Package
-- `sandbox/`: `proteins.tsv` (accession, gene, protein_name, sequence), `kb.csv`
-  (`uniprotID_A,uniprotID_B,isInteraction,evidence`), `pool_inductive.csv`, `pool_transductive.csv`
-  (`uniprotID_A,uniprotID_B`); `sandbox/anon/` the same with random opaque IDs and sequences only.
-- `hidden/`: `<pool>.csv` and `<pool>_permuted.csv` labels (also under `hidden/anon/`), `anon_map.tsv`.
-- Column names follow the private split, so the harness and `src.eval.score` run unchanged on it once the private
-  `test.csv` is split into a pool and a hidden labels file.
+- `sandbox/`: `proteins.tsv` (accession, gene, protein_name, candidate, sequence; KB and test proteins) and
+  `kb.csv`
+  (`uniprotID_A,uniprotID_B,isInteraction,evidence`; 47,762 pos / 47,762 neg over 7,856 proteins; `evidence`
+  is `pring`, `negatome` or `intact_negative`); `sandbox/anon/` the same with random opaque IDs and sequences
+  only. `hidden/anon_map.tsv` maps them back. `annotations.tsv` (and an anon copy): per-protein UniProt and
+  GO annotation minus interaction-derived text and terms (rules in the wave discovery design).
+- `hidden/{train,val}.csv`: the 1:1 labelled splits (38,200 / 9,562 positives); `hidden/test_positives.csv`:
+  the 30,128 PRING positives among test proteins (wave-discovery hits; test is no longer balanced).
+- Column names follow the private split, so the harness and `src.eval.score` run unchanged on both.
 - Protein names come from one bulk all-human UniProt download, so the same table serves the TMP proteins
   without sending a TMP list out.
-- BFS split only; 500 positives + 500 negatives per pool; seed 0; rebuild is byte-identical.
-
-## First results (baselines, 2026-10-23)
-| Pool | Method | P@50 | P@100 | P@250 |
-|---|---|---|---|---|
-| inductive | degree / L3 | 0.46 | 0.45 | 0.46 |
-| transductive | degree | 0.90 | 0.82 | 0.58 |
-| transductive | L3 | 1.00 | 0.98 | 0.97 |
-
-The inductive baselines sit at random (test proteins have no KB edges), which confirms the split. On the
-transductive pool, L3 over the KB nearly solves the task: PRING-sampled negatives over held-out endpoints
-rarely share network neighbourhoods. An agent that uses the KB must beat L3 there, or its KB use is just L3.
+- Seed 0; rebuild is byte-identical.
 
 ## Left open
-Reveal policy (which labels are revealed per round), decided with the harness. Skipped: TMP-stratified
-metrics, DFS/RW splits, PRING graph-reconstruction metrics, feedback-round scoring, degree matching to the
-private pool, post-cutoff temporal slice.
+Candidate space and reveal policy: see the wave discovery design. Skipped: TMP-stratified metrics, DFS/RW
+splits, PRING graph-reconstruction metrics, post-cutoff temporal slice.

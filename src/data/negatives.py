@@ -1,5 +1,5 @@
 """PRING negative sampling (Zheng et al. 2025, data_process/graph_gen/negative_sample.py,
-after Bernett et al. 2024), shared by the agent split and the PRING sandbox.
+after Bernett et al. 2024), used by the agent split.
 
 Both proteins are drawn from the multiset of the positives' endpoints, so negatives keep the
 positives' degree distribution; the second is redrawn until the pair is not a self or same-gene

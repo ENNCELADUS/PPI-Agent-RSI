@@ -1,12 +1,62 @@
 # Initial Baseline: Fixed Scientific Agent and PPI Predictor
 
-The initial baseline can be a **fixed scientific agent built around an expert-designed workflow and a trained PPI predictor**, evaluated on held-out experimental data. Its purpose is to measure performance and identify failure modes before developing recursive self-improvement (RSI).
+**Goal.** Within a limited experimental budget, the agent should make progressively more accurate PPI
+predictions and find valuable interactions more efficiently. At this stage the agent's prompts, tools and
+workflow stay fixed: the first question is whether a fixed agent can use experimental feedback at all.
+Failure modes come out of this evaluation; they are not assumed in advance. Only then does recursive
+self-improvement (RSI) start.
 
-- **Task:** Rank candidate protein pairs under specified biological contexts and interventions, identifying interactions and intervention-sensitive PPIs.
-- **System:** A pinned LLM follows an expert-defined workflow: obtain PPI predictions → retrieve contextual evidence → compare candidates → produce rankings and predicted responses. Prompts, tools, and predictor parameters remain fixed.
-- **Data:** Use public information and designated private development data as inputs. Hold out unpublished experimental outcomes, including matched reference–intervention measurements where available. Exclude those outcomes from predictor training and workflow design.
-- **Evaluation:** First assess predictions and rankings without feedback. Then reveal a limited number of existing measurements and let the same fixed procedure reassess the remaining candidates. This evaluates how effectively the agent uses new evidence without requiring new experiments.
-- **Metrics:** Evaluate interaction-ranking quality, intervention-response prediction, calibration, and discoveries per revealed measurement. Report results separately for familiar versus held-out receptors or contexts, and for complete versus missing modalities.
-- **Failure analysis:** Examine errors attributable to the predictor, context mismatch, conflicting evidence, missing modalities, and ineffective use of feedback. Compare against the predictor alone or inspect individual pipeline stages to identify bottlenecks.
+## Task: static PPI discovery
 
-**Expected deliverable:** A measured baseline and a reproducible set of failure cases indicating where workflow-level or model-level improvement is needed. Failure modes should be established through evaluation rather than assumed in advance.
+- **Input:** protein pairs (u, v) among a given set of proteins.
+- **Output:** a probability p_uv for each pair and the next batch of pairs to test.
+- **Feedback:** newly measured PPI labels for the tested pairs.
+- **Objective:** choose the pairs most worth testing, so that hits accumulate as fast as possible.
+- **Data:** public PRING, adapted to this task (the dev sandbox), first; then the private TMP split, used
+  only through the locally deployed LLM.
+
+## System
+
+A single agent with specialised tools, an experimental memory and an offline oracle. A separate evaluator
+holds the sealed labels; the agent never reads them.
+
+- **A. Predictor.** A fixed ESM-based PPI model (candidate: the motif-graph project's no-topology trunk),
+  called as `predict_ppi(u, v) → score`. Fixed checkpoint, calibrated on a validation set, never retrained.
+- **B. Evidence retriever and memory.** Background knowledge (function, localisation, GO, known
+  interactions) and an experimental memory of revealed measurements (pair, result, wave, source). Facts
+  are stored apart from model predictions, and every entry carries its provenance.
+- **C. Fixed LLM agent.** A pinned LLM (candidate: the latest DeepSeek API) following one workflow: read
+  the task → call the predictor → retrieve evidence and memory → compare and rank → choose the next batch
+  within budget → save → receive feedback.
+
+Per chosen pair the agent records `pair_id`, `predictor_score`, `ranking_score` (p_uv), `evidence_ids`,
+`uncertainty` and `rationale`.
+
+## Evaluation: discovery in waves
+
+Each wave, the predictor and the agent rank only the pairs whose labels are still unknown and submit the
+top K. The oracle reveals which of them interact; all K then leave the unknown pool. The first wave uses
+background knowledge only, so it is the no-feedback starting point. Each wave's picks are scored against
+labels the agent could not see when it chose them, so no separate sealed pool is needed.
+
+- **Budget:** 200 pairs per wave × 10 waves, 10 replicate runs per arm (sized after BioDiscoveryAgent,
+  5 × 128, and Owkin's lab-in-the-loop study, 10 × 100).
+- **Arms:** true feedback; permuted feedback (the same number of hits per wave, placed on the wrong pairs);
+  no feedback (the agent knows what was tested but not the results); random picks.
+- **Non-LLM baselines:** the predictor alone, and the predictor plus link prediction over revealed hits.
+- **Metrics:** hits per wave, cumulative hits against tests spent, and the gap over the no-feedback and
+  permuted-feedback arms; also hits outside hub proteins, invalid or repeated picks, and cost per hit.
+- **Failure analysis:** errors from the predictor, from conflicting evidence, from ignoring feedback (true
+  ≈ permuted) and from over-following it; compare each stage with the predictor alone.
+
+The PRING version of this protocol is specified in
+[`docs/superpowers/specs/2026-10-23-pring-wave-discovery-design.md`](superpowers/specs/2026-10-23-pring-wave-discovery-design.md).
+Its numbers are internal and never reported; only the private split and a future post-cutoff slice can
+support a claim.
+
+**Later, not in this baseline:** biological contexts and interventions (intervention-sensitive PPIs,
+matched reference–intervention measurements), calibration of predicted responses, and results split by
+familiar versus held-out receptors and by complete versus missing modalities.
+
+**Expected deliverable:** a measured baseline and a reproducible set of failure cases showing where
+workflow-level or model-level improvement is needed.

@@ -23,9 +23,12 @@ fixed, expert-designed agent baseline before building any RSI.
 - **Private (built):** human transmembrane PPIs; test positives have no evidence in any public PPI
   database, with 1:1 degree-preserving negatives. See `CLAUDE.md` for the build commands.
 - **PRING dev sandbox (built):** an internal, closed-world benchmark built from PRING human data, for
-  debugging the agent before it sees the private test set. It has two 1:1 pools: protein-disjoint, and
-  held-out pairs. Labels are kept hidden, and an anonymised-ID arm measures memorisation. Its numbers
-  are never reported. See the [design](docs/superpowers/specs/2026-10-23-pring-sandbox-design.md).
+  debugging the agent before it sees the private test set. Its 1:1 train and val splits form the agent's
+  reference KB; the test proteins are the wave-discovery candidates. An anonymised-ID arm
+  measures memorisation. Its numbers are never reported. See the [design](docs/superpowers/specs/2026-10-23-pring-sandbox-design.md).
+- **Wave discovery benchmark (designed, not built):** the agent searches all pairs among the sandbox's test
+  proteins in 10 waves of 200 picks, seeing only the hits among its own picks, against no-feedback and
+  permuted-feedback arms. See the [design](docs/superpowers/specs/2026-10-23-pring-wave-discovery-design.md).
 - **Other public tracks (surveyed):** [2026-10-19 survey](docs/research-reports/2026-10-19-public-ppi-benchmarks.md):
   BioDiscoveryAgent screens, SKEMPI 2.0 via `ppi-mutation-ddg`, and a post-cutoff IntAct/BioGRID slice.
   All are run closed-world, because their labels are retrievable online.
