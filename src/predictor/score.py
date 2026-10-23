@@ -187,7 +187,7 @@ def run_merge(args):
     shards = sorted(args.out_dir.glob("shard-*-of-*.npz"))
     if not shards:
         raise ValueError(f"no shard-*-of-*.npz files in {args.out_dir}")
-    loaded = [np.load(path) for path in shards]
+    loaded = [dict(np.load(path)) for path in shards]  # NpzFile re-reads an array on every key access
     metas = [json.loads(str(z["meta"])) for z in loaded]
     num_shards, num_rows = metas[0]["num_shards"], metas[0]["num_rows"]
     expected = {args.out_dir / f"shard-{k}-of-{num_shards}.npz" for k in range(num_shards)}
