@@ -13,8 +13,10 @@ result.json exists is replayed, so a stopped run resumes.
 - Validity: only the first K rows count; a row is valid if both ids are candidate proteins, it is not
   a self pair, not tested in an earlier wave and not repeated. Invalid rows are misses, never refilled.
 - A wave that fails (provider or transport error, timeout) without a submission is rerun once; the
-  failed attempt's agent/ is kept as agent_failed/. A second failure leaves the wave empty. An attempt
-  cut off by a killed run is kept as agent_interrupted/ and the wave reruns. result.json records the
+  failed attempt's agent/ is kept as agent_failed/. A second failure stops the run with no result.json,
+  so it resumes at that wave: an infrastructure failure (e.g. an empty API balance) is not the agent's
+  empty wave. Only a session that settles without a submission and without an error scores as empty.
+  An attempt cut off by a killed run is kept as agent_interrupted/ and the wave reruns. result.json records the
   model, thinking level and git commit of the attempt it scores. DeepSeek's thinking mode ignores
   temperature and has no seed, so replicates differ by sampling; the replicate number seeds the permutation.
 - Feedback (the agent's memory) per arm: true = measured results; permuted = the same number of hits
@@ -177,6 +179,8 @@ def run(run_dir, arm, replicate, args, waves, first_wave_from=None):
                 out["failed_attempt"] = attempt == 2
                 if out["submission"] is not None or not out["error"]:
                     break
+            else:
+                raise RuntimeError(f"{run_dir.relative_to(RUNS)} wave {t} failed twice: {out['error']}")
             result = evaluate(out, known, tested, oracle, t) | {"setup": setup(args)}
             result_path.write_text(json.dumps(result, indent=1) + "\n")
         result = json.loads(result_path.read_text())

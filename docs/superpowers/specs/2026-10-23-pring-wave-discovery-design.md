@@ -158,7 +158,8 @@ TypeScript (pair/id logic duplicated in two languages) and an all-TypeScript har
   malformed calls, but content is accepted as-is and invalid rows are measured, never refilled.
 - **Failures:** the session is aborted as soon as the batch is in (pi alone stops only if every call of that
   turn terminates); a session that settles without a submission gets one fixed nudge, else the wave is empty;
-  a provider/transport failure without a submission reruns the wave once (failed attempt kept).
+  a provider/transport failure without a submission reruns the wave once (failed attempt kept), and a second
+  one stops the run unscored so it resumes there (an empty API balance once emptied 162 waves before this rule).
 - **Runs** (`src/eval/waves.py`): `replicate` = shared wave 1, then true / permuted / no-feedback branches
   in parallel; `run` = one arm (anonymised). Logs under `data/PRING/runs/<name>/<arm>/r<R>/wave<t>/`; a
   wave with `result.json` is replayed, so runs resume. `run.json` records git, pi version, model, thinking,

@@ -100,3 +100,33 @@ def test_run_branches_from_shared_wave_1_resumes_and_sets_aside_interrupted_atte
     assert first == json.loads((shared / "wave01" / "result.json").read_text()) and first["hits"] == 1
     waves.run(branch, "permuted", 0, args, 3)  # resume replays without calling the agent
     assert len(calls) == 3
+
+
+def test_repeated_infrastructure_failure_stops_the_run_unscored(tmp_path, monkeypatch):
+    import argparse
+
+    import pytest
+
+    from src.eval import waves
+
+    sandbox, hidden = tmp_path / "sandbox", tmp_path / "hidden"
+    sandbox.mkdir(), hidden.mkdir()
+    (sandbox / "proteins.tsv").write_text(
+        "accession\tgene\tprotein_name\tcandidate\tsequence\nA\tG\tn\t1\tM\nB\tG\tn\t1\tM\n"
+    )
+    (hidden / "test_positives.csv").write_text("uniprotID_A,uniprotID_B\nA,B\n")
+    (tmp_path / "tools.json").write_text('{"outputs": {}}')
+    for name, value in (("SANDBOX", sandbox), ("HIDDEN", hidden), ("PRING", tmp_path), ("RUNS", tmp_path)):
+        monkeypatch.setattr(waves, name, value)
+    monkeypatch.setattr(waves, "get_pi_version", lambda: "test")
+
+    def broke(sandbox_dir, wave_dir, *_, **__):
+        (wave_dir / "agent").mkdir(parents=True, exist_ok=True)
+        return {"submission": None, "error": "402: Insufficient Balance"}
+
+    monkeypatch.setattr(waves, "run_wave", broke)
+    args = argparse.Namespace(waves=2, model="m", thinking="t")
+    with pytest.raises(RuntimeError, match="failed twice"):
+        waves.run(tmp_path / "true", "true", 0, args, 2)
+    assert not (tmp_path / "true" / "wave01" / "result.json").exists()
+    assert (tmp_path / "true" / "wave01" / "agent_failed").exists()
