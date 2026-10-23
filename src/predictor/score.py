@@ -38,7 +38,6 @@ from src.predictor.features import FeatureStore
 from src.predictor.model import load_model
 
 BUCKET_BOUNDARIES = (128, 256, 384, 512, 768, 1024)
-DEFAULT_CONFIG = Path(__file__).with_name("b0_v31.yaml")
 SOURCE = "motif-graph-prompt-tuning-for-inductive-protein-protein-interaction-prediction@bb01ee1"
 logger = logging.getLogger(__name__)
 
@@ -148,7 +147,7 @@ def score_pairs(model, pairs, store, *, device, amp="bf16", token_budget=131_072
 
 def run_score(args):
     device = torch.device(args.device if args.device != "auto" else ("cuda" if torch.cuda.is_available() else "cpu"))
-    model, state = load_model(args.checkpoint, args.config)
+    model, state = load_model(args.checkpoint)
     model.to(device)
     pairs, labels = read_pairs(args.pairs)
     start, end = shard_range(len(pairs), args.shard, args.num_shards)
@@ -161,7 +160,6 @@ def run_score(args):
         "source": SOURCE,
         "checkpoint": str(args.checkpoint),
         "checkpoint_id": checkpoint_id(state),
-        "config": str(args.config),
         "features": str(args.features),
         "pairs": str(args.pairs),
         "num_rows": len(pairs),
@@ -224,7 +222,6 @@ def main(argv=None):
     commands = parser.add_subparsers(dest="command", required=True)
     score = commands.add_parser("score")
     score.add_argument("--checkpoint", type=Path, required=True)
-    score.add_argument("--config", type=Path, default=DEFAULT_CONFIG, help="motif training YAML with model.config")
     score.add_argument("--features", type=Path, required=True, help="feature store dir (metadata.json, index.json)")
     score.add_argument("--pairs", type=Path, required=True, help="headerless node_a<TAB>node_b[<TAB>label]")
     score.add_argument("--out-dir", type=Path, required=True)

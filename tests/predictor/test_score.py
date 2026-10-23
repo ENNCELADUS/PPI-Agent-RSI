@@ -4,7 +4,6 @@ import numpy as np
 import pytest
 
 torch = pytest.importorskip("torch")
-yaml = pytest.importorskip("yaml")
 
 from src.predictor.model import build_model  # noqa: E402
 from src.predictor.score import main  # noqa: E402
@@ -41,15 +40,13 @@ def setup(tmp_path):
     (store / "index.json").write_text(json.dumps({node: f"embeddings/{node}.pt" for node in LENGTHS}))
     for node, length in LENGTHS.items():
         torch.save(torch.randn(length, 8, generator=generator), store / "embeddings" / f"{node}.pt")
-    config = tmp_path / "config.yaml"
-    config.write_text(yaml.safe_dump({"model": {"family": "v3_1", "config": CONFIG}}))
     torch.manual_seed(0)
     checkpoint = tmp_path / "best.pt"
     state = build_model(CONFIG).state_dict()
     torch.save({"model_state": state, "model_family": "v3_1", "model_config": CONFIG}, checkpoint)
     pairs = tmp_path / "pairs.tsv"
     pairs.write_text("".join(f"{a}\t{b}\t{y}\n" for a, b, y in PAIRS))
-    return tmp_path, ["--checkpoint", str(checkpoint), "--config", str(config), "--features", str(store)]
+    return tmp_path, ["--checkpoint", str(checkpoint), "--features", str(store)]
 
 
 def run(tmp_path, common, name, num_shards, pairs="pairs.tsv", amp="off"):
@@ -93,10 +90,6 @@ def test_merge_refuses_incomplete_shards(setup):
         main(["merge", str(out_dir), "--output", str(tmp_path / "partial.tsv")])
 
 
-def test_config_must_match_checkpoint(setup, tmp_path):
-    _, common = setup
-    other = tmp_path / "other.yaml"
-    other.write_text(yaml.safe_dump({"model": {"family": "v3_1", "config": {**CONFIG, "d_model": 32}}}))
-    common[common.index("--config") + 1] = str(other)
-    with pytest.raises(ValueError, match="differs"):
-        run(tmp_path, common, "mismatch", 1)
+def test_unsupported_model_option_is_rejected():
+    with pytest.raises(ValueError, match="mixing.mode"):
+        build_model({**CONFIG, "mixing": {"mode": "bidirectional_cross"}})

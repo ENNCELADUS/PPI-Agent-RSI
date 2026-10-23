@@ -1,7 +1,8 @@
 """The B0 PPI predictor (motif-graph `V3_1`, config b0_v31), inference only.
 
 Vendored from motif-graph-prompt-tuning-for-inductive-protein-protein-interaction-prediction @ bb01ee1:
-src/model/egostitch/classifier/{b0_v31.py (V3_1), layers.py}, src/score_universe.py (_load_checkpoint).
+src/model/egostitch/classifier/{b0_v31.py (V3_1), layers.py}, src/score_universe.py (_load_checkpoint);
+the model config is the one `best.pt` embeds.
 Only what b0_v31 exercises is kept: mixing "none" (the pair trunk has no cross-attention layers),
 pair_context_gated readout, abba_max order aggregation, no spectral norm, no topo_gen/kd heads.
 Dropout and stochastic depth are eval no-ops and are omitted; module names match the checkpoint so
@@ -9,10 +10,7 @@ Dropout and stochastic depth are eval no-ops and are omitted; module names match
 encoder's `x + (y - x)` residual), since bf16 logits change with any reordering.
 """
 
-from pathlib import Path
-
 import torch
-import yaml
 from torch import nn
 
 
@@ -192,28 +190,11 @@ def build_model(config):
     )
 
 
-def load_config(path):
-    """`model.config` of a motif training YAML (family must be v3_1)."""
-    raw = yaml.safe_load(Path(path).read_text(encoding="utf-8"))
-    if not isinstance(raw, dict) or not isinstance(raw.get("model"), dict):
-        raise ValueError(f"model config {path} must contain a model mapping")
-    if raw["model"].get("family") != "v3_1":
-        raise ValueError(f"model config {path} family {raw['model'].get('family')!r} is not 'v3_1'")
-    return raw["model"]["config"]
-
-
-def load_model(checkpoint, config_path):
-    """Rebuild the frozen model on CPU in eval mode; returns (model, model_state)."""
+def load_model(checkpoint):
+    """Rebuild the frozen model on CPU in eval mode from the config the checkpoint embeds; (model, state)."""
     ckpt = torch.load(checkpoint, map_location="cpu", weights_only=True)
-    config = load_config(config_path)
-    if all(key in ckpt for key in ("model_state", "model_family", "model_config")):
-        if ckpt["model_family"] != "v3_1":
-            raise ValueError(f"checkpoint {checkpoint}: model_family {ckpt['model_family']!r} is not 'v3_1'")
-        if ckpt["model_config"] != config:
-            raise ValueError(f"checkpoint {checkpoint}: embedded model_config differs from {config_path}")
-        state = ckpt["model_state"]
-    else:
-        state = ckpt  # bare legacy state dict, as the source accepts with an explicit config
-    model = build_model(config)
-    model.load_state_dict(state, strict=True)
-    return model.eval(), state
+    if ckpt.get("model_family") != "v3_1":
+        raise ValueError(f"checkpoint {checkpoint}: model_family {ckpt.get('model_family')!r} is not 'v3_1'")
+    model = build_model(ckpt["model_config"])
+    model.load_state_dict(ckpt["model_state"], strict=True)
+    return model.eval(), ckpt["model_state"]

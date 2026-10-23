@@ -21,9 +21,9 @@ module from the repo root as `python -m src.<path>`. `data` never imports `eval`
 - `score`: Score a global top-N ranking against a labels file (the private `test.csv`; sandbox pools not built yet).
 - `verify_live_string`: Spot-check that sampled test pairs are absent from the live STRING API.
 
-### `predictor/` (needs `uv sync --extra predictor`: torch, numpy, pyyaml)
+### `predictor/` (needs `uv sync --extra predictor`: torch, numpy)
 
-- `model`: The B0 PPI predictor (motif-graph `V3_1`, config b0_v31), inference only; `b0_v31.yaml` is its vendored config.
+- `model`: The B0 PPI predictor (motif-graph `V3_1`, config b0_v31), inference only; built from the config `best.pt` embeds.
 - `features`: Read-only accessor for the motif-graph per-node feature store (per-residue ESM-3, keys node_*).
 - `score`: Score protein pairs with the frozen B0 checkpoint: one process per GPU (`score --shard K`), then `merge`.
 - `parity`: Parity of the vendored B0 scorer against a reference motif-graph scores artifact (e.g. the PRING test.npz).
