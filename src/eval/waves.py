@@ -1,11 +1,12 @@
 """Run PRING wave discovery with the pi agent: waves of K submitted pairs, oracle results, feedback arms.
 
-    uv run python -m src.eval.waves replicate <name> <R> [--waves 10] [--model ...] [--thinking ...]
+    uv run python -m src.eval.waves replicate <name> <R> [--waves 10] [--until T] [--model ...] [--thinking ...]
     uv run python -m src.eval.waves run <name> <arm> <R> [...]
 
 Design: docs/superpowers/specs/2026-10-23-pring-wave-discovery-design.md. `replicate` runs one shared
 wave 1 (no feedback exists yet), then the true-feedback, permuted-feedback and no-feedback arms from
-wave 2 in parallel; `run` runs one arm from wave 1 (the anonymised arm, or any arm alone).
+wave 2 in parallel; `run` runs one arm from wave 1 (the anonymised arm, or any arm alone). --until T stops
+after wave T (budget); the agent is still told the run has --waves waves, so a later resume continues it.
 Runs go to data/PRING/runs/<name>/<arm>/r<R>/wave<t>/: agent/ (pi session, tool calls, submission;
 what the agent produced) and result.json (validity and oracle results; evaluator only). A wave whose
 result.json exists is replayed, so a stopped run resumes.
@@ -158,7 +159,7 @@ def run(run_dir, arm, replicate, args, waves, first_wave_from=None):
     known = proteins(arm)
     oracle = Oracle(HIDDEN / "test_positives.csv", HIDDEN / "anon_map.tsv" if arm == "anon" else None)
     tested, memory = set(), []
-    for t in range(1, waves + 1):
+    for t in range(1, min(waves, args.until or waves) + 1):
         wave_dir = run_dir / f"wave{t:02d}"
         result_path = wave_dir / "result.json"
         if not result_path.exists():
@@ -200,6 +201,7 @@ def main():
     parser.add_argument("name")
     parser.add_argument("rest", nargs="+", help="replicate: R; run: ARM R")
     parser.add_argument("--waves", type=int, default=10)
+    parser.add_argument("--until", type=int, help="stop after this wave; prompts still say 'of --waves'")
     parser.add_argument("--model", default="deepseek/deepseek-flash")
     parser.add_argument("--thinking", default="high")
     args = parser.parse_args()

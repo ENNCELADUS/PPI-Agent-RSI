@@ -86,7 +86,7 @@ def test_run_branches_from_shared_wave_1_resumes_and_sets_aside_interrupted_atte
         return {"submission": [{"a": a, "b": b} for a, b in picks], "error": None, "nudged": False}
 
     monkeypatch.setattr(waves, "run_wave", fake_wave)
-    args = argparse.Namespace(waves=3, model="m", thinking="t")
+    args = argparse.Namespace(waves=3, until=None, model="m", thinking="t")
     shared, branch = tmp_path / "shared", tmp_path / "permuted"
     waves.run(shared, "true", 0, args, 1)
     (branch / "wave02" / "agent").mkdir(parents=True)  # a run killed mid-wave 2
@@ -125,7 +125,7 @@ def test_repeated_infrastructure_failure_stops_the_run_unscored(tmp_path, monkey
         return {"submission": None, "error": "402: Insufficient Balance"}
 
     monkeypatch.setattr(waves, "run_wave", broke)
-    args = argparse.Namespace(waves=2, model="m", thinking="t")
+    args = argparse.Namespace(waves=2, until=None, model="m", thinking="t")
     with pytest.raises(RuntimeError, match="failed twice"):
         waves.run(tmp_path / "true", "true", 0, args, 2)
     assert not (tmp_path / "true" / "wave01" / "result.json").exists()
