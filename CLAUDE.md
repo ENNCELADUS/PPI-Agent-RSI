@@ -70,8 +70,8 @@ uv run python -m src.eval.score <labels.csv> <ranking.csv>  # private test.csv (
   with the launch command; cap `OMP_NUM_THREADS` (uncapped jobs stall on the shared CPUs).
 - Merge finished branch or worktree work into `main` once suite and lint pass, review is adjudicated and any
   data-dependent path has run on real data; push `main`, delete the branch. Conventional Commits.
-- Codex review only when asked: fresh `CODEX_HOME` per review (`auth.json`, `config.toml` with `gpt-6.1-sol`, effort
-  high, approval never); background `codex review --base <sha>` to a file; adjudicate findings against the code.
+- Codex review after each big implementation wave: fresh `CODEX_HOME` per review (`auth.json`, `config.toml`:
+  `gpt-6.1-sol`, effort high, approval never); background `codex review --base <sha>` to a file; adjudicate.
 - `graphify-out/` (git-ignored) maps the repo: query it before a change, `/graphify . --update` after edits, full
   rebuild after moves or deletions. Raw extraction lists stdlib imports as dangling: ignore those.
 

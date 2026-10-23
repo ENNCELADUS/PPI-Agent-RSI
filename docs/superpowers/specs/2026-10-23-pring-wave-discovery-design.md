@@ -156,7 +156,8 @@ TypeScript (pair/id logic duplicated in two languages) and an all-TypeScript har
   prior and the baseline workflow; the agent decides how to read the window. One final `submit_batch` of
   200 rows (pair, `ranking_score`, `uncertainty`, `evidence_ids`, `rationale`): the tool schema rejects
   malformed calls, but content is accepted as-is and invalid rows are measured, never refilled.
-- **Failures:** a session that settles without a submission gets one fixed nudge, else the wave is empty;
+- **Failures:** the session is aborted as soon as the batch is in (pi alone stops only if every call of that
+  turn terminates); a session that settles without a submission gets one fixed nudge, else the wave is empty;
   a provider/transport failure without a submission reruns the wave once (failed attempt kept).
 - **Runs** (`src/eval/waves.py`): `replicate` = shared wave 1, then true / permuted / no-feedback branches
   in parallel; `run` = one arm (anonymised). Logs under `data/PRING/runs/<name>/<arm>/r<R>/wave<t>/`; a

@@ -72,7 +72,10 @@ class Rpc:
                 return
 
     def close(self):
-        self.p.stdin.close()
+        try:
+            self.p.stdin.close()
+        except OSError:  # pi already exited
+            pass
         try:
             self.p.wait(timeout=30)
         except subprocess.TimeoutExpired:
@@ -125,7 +128,7 @@ def run_wave(sandbox_dir, wave_dir, tested, memory, *, wave, waves, model, think
         "PI_OFFLINE": "1",
         "PI_TELEMETRY": "0",
     }
-    out = {"nudged": False, "error": None, "stop_reasons": []}
+    out = {"nudged": False, "aborted": False, "error": None, "stop_reasons": []}
     rpc = Rpc(cmd, agent_dir, env)
     deadline = time.time() + TIMEOUT
     try:
@@ -135,6 +138,10 @@ def run_wave(sandbox_dir, wave_dir, tested, memory, *, wave, waves, model, think
             rpc.send(type="prompt", message=messages.pop())
             last_error = None  # a provider error counts only if pi's own retries did not recover
             for event in rpc.until("agent_settled", deadline):
+                if tools.submitted is not None and not out["aborted"]:
+                    # pi stops on its own only if every call of the turn terminates; the batch is final, so stop here
+                    out["aborted"] = True
+                    rpc.send(type="abort")
                 if event.get("type") == "response" and not event.get("success"):
                     raise RuntimeError(f"pi rejected {event.get('command')}: {event.get('error')}")
                 if event.get("type") == "message_end" and event["message"].get("role") == "assistant":
@@ -143,14 +150,16 @@ def run_wave(sandbox_dir, wave_dir, tested, memory, *, wave, waves, model, think
                     last_error = event["message"].get("errorMessage", "provider error") if reason == "error" else None
                 if event.get("type") == "extension_error":
                     out["error"] = f"extension: {event.get('error')}"
-            out["error"] = out["error"] or last_error
+            out["error"] = out["error"] or (None if out["aborted"] else last_error)  # our abort is no error
             if tools.submitted is None and not out["nudged"] and not out["error"]:
                 out["nudged"] = True
                 messages.append(prompt("nudge", k=K))
         rpc.send(type="get_session_stats")
-        stats = next(e for e in rpc.until("response", deadline) if e.get("command") == "get_session_stats")
-        out["stats"] = stats.get("data")
-    except (queue.Empty, RuntimeError) as e:
+        while "stats" not in out:  # skip late replies, e.g. to the abort
+            for event in rpc.until("response", deadline):
+                if event.get("command") == "get_session_stats":
+                    out["stats"] = event.get("data")
+    except (queue.Empty, RuntimeError, OSError) as e:  # OSError: pi exited and the pipe broke
         out["error"] = f"timeout after {TIMEOUT} s" if isinstance(e, queue.Empty) else str(e)
     finally:
         rpc.close()

@@ -29,7 +29,7 @@ import json
 import random
 import shutil
 import subprocess
-import threading
+from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime
 
 from src.agent.session import PROMPTS, run_wave
@@ -107,7 +107,10 @@ def evaluate(out, known, tested, oracle, wave):
         "valid": len(hits),
         "hits": sum(hits.values()),
         "rows": evaluated,
-        **{k: out.get(k) for k in ("nudged", "error", "stop_reasons", "tool_calls", "stats", "failed_attempt")},
+        **{
+            k: out.get(k)
+            for k in ("nudged", "aborted", "error", "stop_reasons", "tool_calls", "stats", "failed_attempt")
+        },
     }
 
 
@@ -205,16 +208,13 @@ def main():
     replicate = int(args.rest[0])
     shared = base / "shared" / f"r{replicate}"
     run(shared, "true", replicate, args, 1)
-    threads = [
-        threading.Thread(
-            target=run, args=(base / arm / f"r{replicate}", arm, replicate, args, args.waves, shared / "wave01")
-        )
-        for arm in ("true", "permuted", "none")
-    ]
-    for th in threads:
-        th.start()
-    for th in threads:
-        th.join()
+    with ThreadPoolExecutor(3) as pool:
+        arms = [
+            pool.submit(run, base / arm / f"r{replicate}", arm, replicate, args, args.waves, shared / "wave01")
+            for arm in ("true", "permuted", "none")
+        ]
+    for arm in arms:
+        arm.result()  # re-raise a failed arm so the command fails
 
 
 if __name__ == "__main__":

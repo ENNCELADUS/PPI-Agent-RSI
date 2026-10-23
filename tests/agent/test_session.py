@@ -25,3 +25,12 @@ def test_deadline_holds_while_events_keep_streaming(tmp_path):
         assert time.time() - start < 2
     finally:
         rpc.close()
+
+
+def test_close_is_safe_after_pi_died(tmp_path):
+    rpc = Rpc([sys.executable, "-c", "pass"], tmp_path, None)
+    rpc.p.wait()
+    with pytest.raises(OSError):  # run_wave turns this into a wave error, which the evaluator retries
+        for _ in range(1000):
+            rpc.send(type="prompt", message="x" * 1000)
+    rpc.close()
