@@ -1,6 +1,6 @@
 """Filter one public PPI source (text on stdin) to pairs among TMP proteins.
 
-Usage:  <decoded source> | python extract_public.py <source>
+Usage:  <decoded source> | python3 -m src.data.public_db <source>   (from the repo root; stdlib only)
 Writes data/TMP/public_db/<source>.tsv.gz with columns: a, b, score, detail
 (a < b, gene-level nodes; score is the source's confidence, empty if none).
 The `idmap` and `string_alias` sources write the mapping tables (*.map.gz)
@@ -17,7 +17,8 @@ import itertools
 import re
 import sys
 
-from common import IDMAP, PUBLIC, PUBLIC_NEG, STRING_ALIAS, IdMap, raw_universe, strip_isoform
+from src.data.ids import IdMap, raw_universe, strip_isoform
+from src.data.paths import IDMAP, PUBLIC, PUBLIC_NEG, STRING_ALIAS
 
 csv.field_size_limit(sys.maxsize)
 UNIPROT = re.compile(r"uniprotkb:([A-Z0-9]+(?:-\d+)?)")

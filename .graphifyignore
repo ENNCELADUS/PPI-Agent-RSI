@@ -1,0 +1,3 @@
+# The project graph covers the repo's own assets; private data and literature PDFs are not ours to map.
+/data/
+literature/

@@ -1,6 +1,6 @@
 """Spot-check that sampled test pairs are absent from the live STRING API.
 
-Usage: python verify_live_string.py [n_pairs] [seed] [label]   (label 1 = positives, 0 = negatives)
+Usage: python3 -m src.eval.verify_live_string [n_pairs] [seed] [label]   (label 1 = positives, 0 = negatives)
 Prints every sampled pair that live STRING links at any score.
 """
 import csv
@@ -9,7 +9,7 @@ import sys
 import urllib.parse
 import urllib.request
 
-from common import OUT
+from src.data.paths import OUT
 
 API = "https://string-db.org/api/tsv/"
 

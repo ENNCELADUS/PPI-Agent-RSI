@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
 # Fetch each public PPI source to a temp file (resumable), filter it to TMP
-# proteins with extract_public.py, then delete the raw file.
-# Usage: fetch_public.sh <source> [<source> ...]   (run `idmap string_alias` first)
+# proteins with src.data.public_db, then delete the raw file.
+# Usage: src/data/builders/fetch_public.sh <source> [<source> ...]   (run `idmap string_alias` first)
 set -euo pipefail
-HERE="$(cd "$(dirname "$0")" && pwd)"
-TMPDIR_DL="${TMPDIR_DL:-$HERE/../../data/TMP/public_db/_download}"
+ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
+cd "$ROOT"  # src.data.public_db is imported from the repo root
+TMPDIR_DL="${TMPDIR_DL:-$ROOT/data/TMP/public_db/_download}"
 mkdir -p "$TMPDIR_DL"
 
 url_of() {
@@ -56,11 +57,11 @@ for src in "$@"; do
   done
   if [ "$src" = bioplex ]; then
     # Concatenate both cell lines under one header.
-    { cat "${files[0]}"; tail -n +2 "${files[1]}"; } | python3 "$HERE/extract_public.py" "$src"
+    { cat "${files[0]}"; tail -n +2 "${files[1]}"; } | python3 -m src.data.public_db "$src"
   elif [ "$src" = negatome ]; then
-    cat "${files[@]}" | python3 "$HERE/extract_public.py" "$src"
+    cat "${files[@]}" | python3 -m src.data.public_db "$src"
   else
-    decode "${files[0]}" "$src" | python3 "$HERE/extract_public.py" "$src"
+    decode "${files[0]}" "$src" | python3 -m src.data.public_db "$src"
   fi
   [ "${KEEP_DOWNLOADS:-0}" = 1 ] || rm -f "${files[@]}"
 done

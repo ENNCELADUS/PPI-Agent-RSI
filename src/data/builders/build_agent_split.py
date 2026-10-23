@@ -1,6 +1,6 @@
 """Build the agent-benchmark train/test split from raw TMP positives + public DB tables.
 
-Run from scripts/agent_split/: uv run python build_split.py
+Run: uv run python -m src.data.builders.build_agent_split
 - Positives: all raw TMP positives (pretrain, finetune, GT test) as unordered pairs;
   drops NA, self loops and pairs the raw data also labels negative. Raw negatives
   are not used otherwise.
@@ -11,12 +11,9 @@ Run from scripts/agent_split/: uv run python build_split.py
   (Negatome, IntAct negative) + PRING-sampled negatives up to 1:1. This file is the
   agent's reference KB; `evidence` says where each row comes from.
 
-PRING negative sampling (Zheng et al. 2025, data_process/graph_gen/negative_sample.py,
-after Bernett et al. 2024): both proteins are drawn from the multiset of the split's
-positive endpoints (so negatives keep the positives' degree distribution), and the
-second protein is redrawn until the pair is not a self pair, not a known PPI and not
-already drawn. Train treats TMP positives, curated DBs and STRING > 700 as known
-(as PRING does); test rejects any public evidence so test stays non-public.
+PRING negative sampling (src.data.negatives): train treats TMP positives, curated DBs
+and STRING > 700 as known (as PRING does); test rejects any public evidence so test
+stays non-public.
 """
 import csv
 import gzip
@@ -26,7 +23,9 @@ import random
 
 import duckdb
 
-from common import OUT, PUBLIC, PUBLIC_NEG, RAW_FILES, IdMap, raw_universe
+from src.data.ids import IdMap, raw_universe
+from src.data.negatives import pring_negatives
+from src.data.paths import OUT, PUBLIC, PUBLIC_NEG, RAW_FILES
 
 SEED = 0
 CURATED = ("biogrid", "bioplex", "corum", "hippie", "intact")
@@ -63,7 +62,8 @@ def raw_positives():
             label, cols = "CASE truth_de WHEN 'positive' THEN 1 ELSE 0 END", "p1 AS a, p2 AS b"
         else:
             label, cols = ("1" if name.endswith("_pos") else "0"), '"protein.id.A" AS a, "protein.id.B" AS b'
-        reads.append(f"SELECT {cols}, {label} AS y FROM read_csv('{path}', delim='{sep}', header=true, all_varchar=true)")
+        reads.append(f"SELECT {cols}, {label} AS y "
+                     f"FROM read_csv('{path}', delim='{sep}', header=true, all_varchar=true)")
     con = duckdb.connect()
     con.execute(f"""
         CREATE TABLE raw AS SELECT least(a, b) AS a, greatest(a, b) AS b, y FROM ({' UNION ALL '.join(reads)})
@@ -109,20 +109,6 @@ def tested_negatives(universe, keys):
                     continue
                 pairs.setdefault(tuple(sorted(ends)), set()).add(source)
     return {p: ";".join(sorted(s)) for p, s in sorted(pairs.items())}
-
-
-def pring_negatives(positives, n, is_known, rng, keys):
-    candidates = [acc for pair in positives for acc in pair]
-    drawn = {}
-    while len(drawn) < n:
-        a = rng.choice(candidates)
-        while True:
-            b = rng.choice(candidates)
-            pair = (a, b) if a < b else (b, a)
-            if a != b and not keys.same_gene(a, b) and pair not in drawn and not is_known(keys.of(*pair)):
-                break
-        drawn[pair] = None
-    return list(drawn)
 
 
 def main():
@@ -188,7 +174,8 @@ def main():
     # Per-pair DB evidence for every output row.
     ann_path = OUT / "pair_annotations.tsv.gz"
     with gzip.open(ann_path, "wt") as f:
-        f.write("\t".join(["a", "b", "y", "split", "evidence"] + [c for n in DBS for c in (f"in_{n}", f"{n}_score")] + ["public"]) + "\n")
+        db_cols = [c for n in DBS for c in (f"in_{n}", f"{n}_score")]
+        f.write("\t".join(["a", "b", "y", "split", "evidence"] + db_cols + ["public"]) + "\n")
         rows = [(p, y, "train", ev) for p, y, ev in train] + [(p, y, "test", "") for p, y in test]
         for (a, b), y, split, ev in rows:
             ks = keys.of(a, b)

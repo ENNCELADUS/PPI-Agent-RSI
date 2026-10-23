@@ -1,113 +1,118 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+## Research task
 
-## What this is
+LLM scientific agents for membrane protein–protein interaction (PPI) discovery, then recursive self-improvement
+(RSI) of the agent workflow and, later, the PPI predictor under sparse experimental feedback. Docs:
+`docs/introduction.md` (motivation), `docs/initial_baseline.md` (baseline design), `docs/literature.md`,
+`docs/research-reports/<date>-<slug>.md` (git-ignored deep research), `docs/superpowers/specs/` (dated designs).
+PDFs live in git-ignored `literature/<topic>/`; the index `literature/README.md` is tracked.
 
-Research project: LLM-based scientific agents for membrane protein–protein interaction (PPI)
-discovery, then recursive self-improvement (RSI) of the agent workflow and, later, the PPI predictor
-under sparse experimental feedback. `docs/introduction.md` is the motivation (three research
-directions), `docs/initial_baseline.md` the baseline design, `docs/literature.md` the related work,
-`docs/research-reports/<date>-<slug>.md` dated deep-research reports (notes behind them in
-`research_notes/`). PDFs live in `literature/<topic>/` (`ppi`, `science-agents`, `self-improvement`,
-`feedback-benchmarks`), git-ignored except the index `literature/README.md`. When a change alters
-behaviour a doc describes, update that doc in the same change.
+**Core thesis — do not let it drift:** measure a *fixed*, expert-designed agent before building any RSI. Failure
+modes must come out of evaluation, never be assumed in advance. Name every pool, arm, baseline and run by what
+it is ("the inductive pool", "the permuted-label arm"), never by a bare label; give a code label once in parentheses.
 
-**Core thesis — do not let it drift:** measure a *fixed*, expert-designed agent before building any
-RSI. Failure modes must come out of evaluation, never be assumed in advance.
+## Current state (2026-10-23)
 
-## Active work
+Replace this section on every update; history lives in git and the specs.
 
-- **Benchmark split (built):** `scripts/agent_split/` → `data/TMP/agent_split/`. Test pairs have no
-  evidence in any public PPI database, because the agent can search online. Both files are 1:1.
-  `train.csv` (public positives + experimentally tested negatives + PRING-sampled negatives,
-  `evidence` column) is the agent's **reference KB**, not model-training data; `test.csv`
-  (non-public positives + PRING-sampled negatives) is the held-out candidate pool. No validation split.
-- **Agent baseline (not built):** task is global top-N — from an unlabeled candidate pool, output the
-  N most likely interacting pairs; score, then reveal a limited number of labels as feedback and
-  re-score with the same fixed procedure. Runs on LLM knowledge plus the reference KB.
-  Still open, decide before building: which LLM is pinned, and whether the agent gets
-  web/literature retrieval or is closed-world.
-- **Predictor:** none yet. A trained predictor is added later as a tool; never
-  vendor or retrain DIPPI here.
-- **Public benchmarks (surveyed, not built):** `docs/research-reports/2026-10-19-public-ppi-benchmarks.md`.
-  Every public PPI label is retrievable online, so public tracks run **closed-world** only: PRING human
-  test subgraphs; BioDiscoveryAgent screens (feedback-loop calibration); SKEMPI 2.0 via the
-  `ppi-mutation-ddg` component split (perturbation); a post-cutoff IntAct/BioGRID slice (to build).
-  Agents often ignore revealed labels, so every feedback run needs permuted-label and no-feedback arms.
-
-## Project rules
-
-- No formalism gates: no digest pinning, contract verifiers, eligibility ceremony or any check that
-  blocks a run. Record provenance and proceed.
-- Update the CLAUDE.md and README.md of this repo every conversation. Replace deprecated text directly with 
-  new ones. Keep these documents concise. Don't keep backward compatible unless explicitly asked.
-- **Private data stays private.** Never commit, push, upload or send TMP data to external services,
-  except to the LLM the agent is configured to call. `data/` is git-ignored.
-- Ask when intent is ambiguous (the user prefers being questioned over silent assumptions); do not
-  re-ask what a doc or earlier decision already settles.
+- **Private split (built):** `build_agent_split` → `data/TMP/agent_split/`. `train.csv` is the agent's reference
+  KB (public positives, tested and PRING-sampled negatives); `test.csv` is the 1:1 held-out pool whose positives
+  have no evidence in any public PPI database. No validation split.
+- **PRING dev sandbox (built):** `build_pring_sandbox` → `data/PRING/`
+  ([design](docs/superpowers/specs/2026-10-23-pring-sandbox-design.md)). Internal and closed-world, for
+  debugging the agent before it touches `test.csv`. Two 1:1 pools of 500 + 500: inductive (PRING's
+  protein-disjoint test) and transductive (held-out KB pairs, like the private split). The agent gets
+  `sandbox/` or `sandbox/anon/` (memorisation arm), never `hidden/`. Baselines: random-level on the inductive
+  pool; L3 reaches 0.97 P@250 on the transductive pool, the bar for KB use.
+- **Agent baseline (not built):** global top-N from an unlabeled pool, then reveal some labels and re-rank with
+  the same fixed procedure, under true, permuted and no-feedback arms. Open: which LLM is pinned, which labels
+  are revealed per round, and whether the private run gets web retrieval (public tracks are closed-world only).
+- **Predictor:** none yet; added later as a tool. Never vendor or retrain DIPPI here.
+- **Other public tracks (surveyed):** `docs/research-reports/2026-10-19-public-ppi-benchmarks.md` —
+  BioDiscoveryAgent screens, SKEMPI 2.0 via `ppi-mutation-ddg`, and a post-cutoff IntAct/BioGRID slice.
 
 ## Commands
 
-No tests or linters are configured yet. The scripts import `common` directly, so run them from
-`scripts/agent_split/`.
+Python ≥ 3.11 via `uv`; run from the repo root as modules; imports are `src.*`. Module map: `src/README.md`.
 
 ```bash
-uv sync
-# Private data (from the DIPPI repo on the lab server):
+uv sync                                               # core deps + dev group (pytest, ruff)
+uv run python -m pytest tests -q > pytest.txt 2>&1    # full suite; redirect (rtk note below)
+.venv/bin/ruff check .                                # lint (E,W,F)
+.venv/bin/ruff format <files you touched>             # never `ruff format .`
 rsync -az wangar2023@10.15.89.191:/public/home/wangar2023/DIPPI-DNN-based-Interaction-Predictor-for-Protein-Protein-Interactions/data/TMP data/
-
-cd scripts/agent_split
-./fetch_public.sh idmap string_alias      # ID maps first; every other source depends on them
-./fetch_public.sh string biogrid intact hippie bioplex corum negatome intact_negative
-uv run python build_split.py              # ~30 s, ~3 GB RAM; deterministic (seed 0)
-python3 verify_live_string.py 100 7 1     # n, seed, label (1 = test positives, 0 = negatives)
+src/data/builders/fetch_public.sh idmap string_alias  # ID maps first; every source depends on them
+src/data/builders/fetch_public.sh string biogrid intact hippie bioplex corum negatome intact_negative
+uv run python -m src.data.builders.build_agent_split  # ~30 s, ~3 GB RAM, deterministic
+python3 -m src.eval.verify_live_string 100 7 1        # n, seed, label: sampled test pairs vs live STRING
+uv run python -m src.data.builders.build_pring_sandbox  # ~1 s; inputs and fetch commands in its docstring
+uv run python -m src.baselines.topology               # degree + L3 rankings, scored
+uv run python -m src.eval.score <labels.csv> <ranking.csv>  # hidden/<pool>.csv or the private test.csv
 ```
 
-`fetch_public.sh` downloads to `public_db/_download/` with `curl -C -` retries (this network drops
-long transfers; IntAct is 1.1 GB), runs `extract_public.py <source>`, then deletes the download.
-Set `KEEP_DOWNLOADS=1` to keep raw files when iterating on a parser. `extract_public.py` and
-`verify_live_string.py` are stdlib-only; `build_split.py` needs DuckDB.
+- `fetch_public.sh` resumes downloads (`curl -C -`; this network drops long transfers, IntAct is 1.1 GB), pipes
+  each to `python3 -m src.data.public_db`, then deletes it (`KEEP_DOWNLOADS=1` keeps it).
+- Tests use synthetic inputs; builders, fetch and live checks need real data or network, so "it imports" proves
+  nothing: rebuild and compare checksums. **Baseline the suite before changing code.**
+- A global `rtk` hook rewrites Bash output (`ruff check .` may print `[]`, foreground pytest may show fake errors):
+  use `.venv/bin/ruff`, redirect pytest, `rtk proxy <cmd>` for exact output.
+
+## Project rules
+
+- When a change alters behaviour a doc describes, update that doc in the same change. Update this file and
+  README.md every conversation; replace deprecated text; keep both concise (this file under 120 lines).
+- Experiment code reports results; decisions are made by reading them, not in code.
+- No formalism gates (digest pinning, contract verifiers, eligibility ceremony, run-blocking checks). Record
+  provenance and proceed. The builders' asserts against silent wrong artifacts fail closed and stay.
+- **Private data stays private:** never commit, push, upload or send TMP data anywhere except the LLM the agent
+  is configured to call. `/data/` is git-ignored and no data is tracked.
+- Sync code between machines through Git only; never rsync/scp/tar working trees. GPU work (the later predictor)
+  runs on H20 (`ssh -p 30838 root@10.15.171.204`): finish local work, commit, push, end with the launch command.
+- Merge finished branch or worktree work into `main` once suite and lint pass, review is adjudicated and any
+  data-dependent path has run on real data; push `main`, delete the branch. Conventional Commits.
+- Codex review only when the user asks: from Bash, fresh `CODEX_HOME` with only `auth.json` and a `config.toml`
+  (`model = "gpt-6.1-sol"`, `model_reasoning_effort = "high"`, `approval_policy = "never"`), recreated per review;
+  background `codex review --base <sha>` to a file and adjudicate findings against the code.
+- Ask when intent is ambiguous; do not re-ask what a doc or earlier decision settles.
+- `graphify-out/` (git-ignored; `.graphifyignore` drops `/data/`, `literature/`) maps the repo: query it before a
+  change, run `/graphify . --update` after edits, rebuild in full after moves or deletions.
 
 ## Architecture
 
-`data/TMP/raw/` (DIPPI pretrain/finetune/GT-test pairs) → `extract_public.py` filters each public
-source to TMP proteins as gene-level node pairs (`public_db/<db>.tsv.gz`: STRING v12.5, BioGRID,
-IntAct, HIPPIE, BioPlex, CORUM; tested negatives as raw accession pairs in `public_db/negative/`) →
-`build_split.py` → `train.csv`, `test.csv`, `pair_annotations.parquet` (per-pair `in_<db>`,
-`<db>_score`, `public`), `split_stats.json`, plus a `README.md` with counts and verification.
+`src/data` (paths, identity, sampling, public-DB parsers) never imports `eval` or `baselines`; dataset builders
+live in `src/data/builders/`; `tests/` mirrors `src`. Each builder's docstring is the versioned protocol.
 
-- **Identity (`common.IdMap`):** a UniProt accession expands to *every* Entrez gene from UniProt
-  idmapping and STRING aliases (`g<entrez>`), else its STRING protein ID, else the bare accession.
-  A pair matches a DB if **any** node combination does. This is deliberately permissive: it is what
-  keeps multi-gene proteins (histone H4 → 14 genes), TrEMBL and obsolete accessions from leaking.
-- **Positives:** union of raw positives, unordered; `NA`, self pairs and 6 pairs also labelled
-  negative are dropped. Raw negatives (18.4M, computationally generated) are unused. Public (any DB,
-  STRING at any score) → train; non-public → test.
-- **Tested negatives (train only):** Negatome 2.0 + IntAct negative, mapped onto TMP accessions,
-  minus TMP positives, curated-DB pairs and STRING ≥ 700.
-- **PRING sampling** (`pring_negatives`, after github.com/SophieSarceau/PRING
-  `negative_sample.py` / Bernett 2024): both ends drawn from the split's positive-endpoint multiset
-  (degree-preserving), the second redrawn until the pair is not a self/same-gene pair, not known and
-  not already drawn. Test is sampled first and rejects any public evidence including tested
-  negatives; train rejects PRING's known set (TMP positives, curated DBs, STRING > 700) plus all
-  test pairs.
+- **Private split:** `data/TMP/raw/` (DIPPI pairs) → `public_db` keeps each public source's pairs among TMP
+  proteins as gene-level nodes (STRING v12.5, BioGRID, IntAct, HIPPIE, BioPlex, CORUM; tested negatives as raw
+  accessions in `public_db/negative/`) → `build_agent_split` → `train.csv`, `test.csv`,
+  `pair_annotations.parquet` (per-pair DB evidence), `split_stats.json`.
+- **Identity (`ids.IdMap`):** an accession expands to *every* Entrez gene from UniProt idmapping and STRING
+  aliases, else its STRING ID, else itself; a pair matches a DB if any node combination does. Deliberately
+  permissive, so multi-gene proteins (histone H4 → 14 genes), TrEMBL and obsolete accessions cannot leak.
+- **Positives:** union of raw positives, unordered; `NA`, self pairs and 6 pairs also labelled negative dropped.
+  Public (any DB, STRING at any score) → train; non-public → test.
+- **Tested negatives (train only):** Negatome 2.0 + IntAct negative on TMP accessions, minus TMP positives,
+  curated-DB pairs and STRING ≥ 700.
+- **PRING sampling (`negatives.pring_negatives`):** both ends drawn from the positive-endpoint multiset
+  (degree-preserving), redrawn until not self/same-gene, not known, not drawn. Test is sampled first and rejects
+  any public evidence; train rejects TMP positives, curated DBs, STRING > 700 and all test pairs.
+- **PRING sandbox:** KB = PRING BFS train pairs minus self pairs and the held-out positives (37,700 pos /
+  42,944 neg); transductive negatives reject every PRING positive and KB pair.
 
-## Data traps
+## Pitfalls and claim boundaries
 
-- `data/TMP/agent_split/README.md` and `split_stats.json` sit under git-ignored `data/`; the
-  versioned record of the protocol is this file plus the `build_split.py` docstring. Rebuild instead
-  of trusting a stale copy.
-- `data/TMP/processed/` is DIPPI-era (TPPNI splits, its own README) and unused here; `raw/` file
-  names carry upstream typos (`homo_negative_pair_fintune.csv`, `depedent_test.csv`).
-- In the raw data, 97% of GT-test negatives also appear in the training negatives, and all finetune
-  negatives are inside the pretrain negatives. That is why raw negatives are discarded.
-- `public_db/*.tsv.gz` keep only pairs among the current TMP proteins, as gene-level nodes. Adding
-  proteins or changing `IdMap` means re-running every extract (the downloads are gone).
-- 1,320 TMP proteins have no Entrez gene and no STRING ID; they match by accession only.
-- 65,047 PRING train negatives have a weak STRING link (≤ 700) by design (PRING-faithful rule);
-  filter them with `pair_annotations.parquet` if a stricter KB is needed.
-- IntAct pairs with both positive and negative evidence count as public. This only shrinks test,
-  but such pairs are never clean tested negatives.
-- HuRI's site has a broken TLS certificate; HuRI is covered through IntAct/BioGRID/HIPPIE. Do not
-  bypass certificate checks.
+Mistakes here produce a complete-looking **wrong artifact**, not an exception.
+
+- Sandbox numbers are never reported (public, likely memorised labels). Only the private `test.csv` and a future
+  post-cutoff slice can support a claim.
+- Raw negatives (18.4M, computational) are unused: 97% of GT-test negatives recur in training negatives.
+- `public_db/*.tsv.gz` keep only pairs among current TMP proteins; adding proteins or changing `IdMap` means
+  re-running every extract. 1,320 TMP proteins have no Entrez gene or STRING ID and match by accession only.
+- 65,047 PRING train negatives have a weak STRING link (≤ 700) by design; filter with `pair_annotations.parquet`
+  for a stricter KB. IntAct pairs with both positive and negative evidence count as public.
+- PRING: never use `*_ratio5_exclusive.txt` (negatives leak across the node split); it keeps self pairs as
+  positives (dropped here); motif `node_*` ids follow accession order (anon arm uses fresh ids);
+  `candidate_test_edges.txt` lists positives first.
+- `data/TMP/processed/` is DIPPI-era and unused; raw file names carry upstream typos (`depedent_test.csv`).
+- HuRI's site has a broken TLS certificate; it is covered via IntAct/BioGRID/HIPPIE. Never bypass certificate checks.

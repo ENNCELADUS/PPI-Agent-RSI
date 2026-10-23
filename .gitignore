@@ -1,7 +1,11 @@
 literature/*
 docs/research-reports
-data/
+/data/
 .venv/
 __pycache__/
 .DS_Store
 .vscode/
+.pytest_cache/
+.ruff_cache/
+graphify-out/
+pytest.txt

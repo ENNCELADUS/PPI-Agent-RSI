@@ -1,4 +1,4 @@
-"""Shared paths and ID normalization for the agent-benchmark split.
+"""TMP protein identity: accessions as gene-level nodes, and the raw TMP universe.
 
 Every protein expands to the set of gene-level nodes it may stand for:
 Entrez GeneIDs from UniProt, plus the Entrez ID of its STRING protein (which
@@ -9,24 +9,8 @@ it, so multi-gene proteins (e.g. histone H4) and isoforms are not missed.
 """
 import csv
 import gzip
-from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[2]
-TMP = ROOT / "data" / "TMP"
-RAW = TMP / "raw"
-PUBLIC = TMP / "public_db"
-PUBLIC_NEG = PUBLIC / "negative"  # experimentally tested non-interactions
-OUT = TMP / "agent_split"
-IDMAP = PUBLIC / "uniprot_idmap.map.gz"
-STRING_ALIAS = PUBLIC / "string_alias.map.gz"
-
-RAW_FILES = {
-    "pretrain_pos": (RAW / "homo_positive_train.txt", "\t"),
-    "pretrain_neg": (RAW / "homo_negative_train.csv", ","),
-    "finetune_pos": (RAW / "homo_positive_finetune.txt", "\t"),
-    "finetune_neg": (RAW / "homo_negative_pair_fintune.csv", ","),
-    "test": (RAW / "depedent_test.csv", ","),
-}
+from src.data.paths import IDMAP, RAW_FILES, STRING_ALIAS
 
 
 def strip_isoform(acc):
