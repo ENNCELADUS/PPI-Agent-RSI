@@ -166,7 +166,7 @@ def main():
     proteins = sorted(kb_proteins | candidates)
     opaque = proteins[:]
     rng.shuffle(opaque)
-    anon = {x: f"P{i:05d}" for i, x in enumerate(opaque, 1)}
+    anon = {x: f"X{i:05d}" for i, x in enumerate(opaque, 1)}  # not a UniProt accession pattern (P00533 is EGFR)
     ids = {"": node2acc, "anon": anon}
 
     leaky = go_descendants(RAW / "go-basic.obo", LEAKY_GO)

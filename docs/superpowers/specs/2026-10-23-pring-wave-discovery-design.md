@@ -1,8 +1,9 @@
 # PRING wave discovery benchmark — design
 
-**Status:** drafted 2026-10-23 from the design agreed in conversation; awaiting the user's review; not built. Extends the PRING dev sandbox
-([design](2026-10-23-pring-sandbox-design.md)). Calls marked *(my call)* are the designer's defaults, not
-the user's decisions.
+**Status:** drafted 2026-10-23 from the design agreed in conversation; data, predictor scores and the agent
+harness built 2026-10-23 (harness design grilled with the user, see "Agent harness"); one 2-wave replicate
+ran end to end on `deepseek-flash` (smoke only, about $0.05–0.09 per wave). Extends the PRING dev sandbox ([design](2026-10-23-pring-sandbox-design.md)). Calls marked *(my
+call)* are the designer's defaults, not the user's decisions.
 
 ## Why
 The first question for the fixed agent ([`docs/initial_baseline.md`](../../initial_baseline.md)) is whether
@@ -109,7 +110,11 @@ Hit ratio (hits / all 30,128) is reported but not headline: its ceiling is 6.6%.
 - The predictor (B0) is vendored into this repo and scores the candidates once on H20 (4 GPUs, one
   container); the agent's `predict_ppi` reads the cached scores.
 - `hidden/test_positives.csv`: the 30,128 hits (replaces the 1:1 `hidden/test.csv`). Train and val stay 1:1.
-- An oracle module reads `hidden/` and answers submitted pairs; the agent harness never imports it.
+- `sandbox/scores.tsv.gz` (calibrated p_uv, no label) and `sandbox/homologs.tsv` (mmseqs2 hits of every
+  protein against KB proteins; 1,001 of 2,018 test proteins have one), plus anon copies
+  (`build_pring_tools`, built).
+- An oracle module (`src/eval/oracle.py`) reads `hidden/` and answers submitted pairs; the agent harness
+  never imports it.
 - A run log per wave: the submitted 200 with all output fields, oracle results, tool calls and cost.
 
 ## Predictor (built 2026-10-23)
@@ -123,7 +128,9 @@ trained on, so the sandbox's val split is clean for calibration.
   30757, ~1 min of GPU time at ~92% utilisation); the cached logits are `data/PRING/predictor/
   pring_candidates.tsv.gz` with provenance in `.meta.json`. `predict_ppi` reads them.
 - Logits are bf16-quantised (3,376 distinct values), so rankings have ties: break them by canonical pair id.
-- The raw sigmoid is fitted to a 1:5 stream: recalibrate p_uv on val with a prevalence correction to 1.48%.
+- The raw sigmoid is fitted to a 1:5 stream, so p_uv is recalibrated: Platt scaling on the 19,124 val pairs
+  (scored on H20 like the candidates, `pring_val.tsv.gz`), then a prior shift from val's 0.5 to the
+  candidates' 1.48% (mean calibrated p over candidates 1.41%). Parameters in `data/PRING/tools.json`.
 
 ## Reuse on the private split
 The same harness later runs on the private TMP split, whose data may reach only the locally deployed LLM.
@@ -132,12 +139,35 @@ both speak it), the oracle reads any labels file through one interface, and run 
 *(my call)*. The private candidate space and its labelling are designed later; the PRING closed-world rule
 is not assumed outside the sandbox.
 
-## Left to the builder
-How the agent re-ranks 1,000 pairs (batched prompts, shortlists, tool design); file formats; the L3
-normalisation; LLM sampling settings, provided each replicate is seeded and logged.
-
-## Open, needed before runs (not before building the data and harness)
-- **Pinned LLM:** model and version (candidate: the latest DeepSeek API).
+## Agent harness (built 2026-10-23)
+Decisions grilled with the user. pi's RPC mode cannot host client-side tools, so a thin TypeScript extension
+(`src/agent/pi/ppi_tools.ts`) registers the tools from a spec file and forwards each call to a localhost Python
+tool server; all tool logic, the oracle, arms and logs stay in Python and pytest. Rejected: tools written in
+TypeScript (pair/id logic duplicated in two languages) and an all-TypeScript harness on the pi SDK.
+- **Runtime:** the pi coding agent (`@earendil-works/pi-coding-agent` 1.4.0, pinned in `src/agent/pi/`),
+  one fresh session per wave over `pi --mode rpc`; built-in tools, skills, context files, MCP and
+  discovered extensions off, isolated config, auto-compaction off. The experimental memory is the only state
+  carried between waves, so arms differ only in what it returns.
+- **Tools** (`src/agent/tools.py`, forwarded by `ppi_tools.ts`): `top_candidates` (untested pairs by p_uv,
+  ties by pair id, paged), `predict_ppi`, `top_for_protein`, `protein_info`, `search_proteins`,
+  `similar_proteins` (KB homologs), `kb_partners`, `memory`, `submit_batch`. 80 calls per wave; after that
+  only `submit_batch` answers.
+- **Re-ranking:** agent-driven. The system prompt (`src/agent/prompts/`) gives the task, budget, the 1.48%
+  prior and the baseline workflow; the agent decides how to read the window. One final `submit_batch` of
+  200 rows (pair, `ranking_score`, `uncertainty`, `evidence_ids`, `rationale`): the tool schema rejects
+  malformed calls, but content is accepted as-is and invalid rows are measured, never refilled.
+- **Failures:** a session that settles without a submission gets one fixed nudge, else the wave is empty;
+  a provider/transport failure without a submission reruns the wave once (failed attempt kept).
+- **Runs** (`src/eval/waves.py`): `replicate` = shared wave 1, then true / permuted / no-feedback branches
+  in parallel; `run` = one arm (anonymised). Logs under `data/PRING/runs/<name>/<arm>/r<R>/wave<t>/`; a
+  wave with `result.json` is replayed, so runs resume. `run.json` records git, pi version, model, thinking,
+  seed, prompt and tool-file checksums; each `result.json` repeats model, thinking and git.
+- **LLM (user decision 2026-10-23):** `deepseek/deepseek-flash`, DeepSeek's alias for its latest Flash model
+  (pi 1.4.0 lists it as DeepSeek V4.1 Flash), thinking `high` (DeepSeek's default `reasoning_effort`; pi also
+  offers `low` and `max`). Thinking mode ignores temperature and has no seed, so replicates differ by sampling
+  and the replicate number seeds only the permutation. The system prompt is approved as drafted.
+- Not built (later plan): non-LLM baselines (random, predictor alone, + L3, + revealed degree) and the
+  metrics report.
 
 ## Later, optional
 A 30-wave × 32 run (BioDiscoveryAgent's long ablation) to see whether gains persist with smaller, more

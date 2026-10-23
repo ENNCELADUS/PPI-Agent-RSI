@@ -9,3 +9,5 @@ __pycache__/
 .ruff_cache/
 graphify-out/
 pytest.txt
+node_modules/
+.graphifyignore
