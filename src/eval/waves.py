@@ -18,7 +18,7 @@ result.json exists is replayed, so a stopped run resumes.
   so it resumes at that wave: an infrastructure failure (e.g. an empty API balance) is not the agent's
   empty wave. Only a session that settles without a submission and without an error scores as empty.
   An attempt cut off by a killed run is kept as agent_interrupted/ and the wave reruns. result.json records the
-  model, thinking level and git commit of the attempt it scores. DeepSeek's thinking mode ignores
+  model, thinking level, wave count and git commit of the attempt it scores. DeepSeek's thinking mode ignores
   temperature and has no seed, so replicates differ by sampling; the replicate number seeds the permutation.
 - Feedback (the agent's memory) per arm: true = measured results; permuted = the same number of hits
   per wave on a random subset of that wave's valid pairs (seeded by replicate and wave); none = pairs
@@ -129,6 +129,7 @@ def setup(args):
     return {
         "model": args.model,
         "thinking": args.thinking,
+        "waves": args.waves,
         "git": git("rev-parse", "HEAD") + ("-dirty" if git("status", "--porcelain", "src") else ""),
     }
 
@@ -138,7 +139,6 @@ def provenance(arm, replicate, args):
         "arm": arm,
         "replicate": replicate,
         "seed": replicate,
-        "waves": args.waves,
         "k": K,
         **setup(args),
         "sandbox": str(sandbox_dir(arm).relative_to(PRING)),
@@ -154,12 +154,12 @@ def run(run_dir, arm, replicate, args, waves, first_wave_from=None):
     run_dir.mkdir(parents=True, exist_ok=True)
     if not (run_dir / "run.json").exists():
         (run_dir / "run.json").write_text(json.dumps(provenance(arm, replicate, args), indent=1) + "\n")
-    if first_wave_from and not (run_dir / "wave01").exists():
-        shutil.copytree(first_wave_from, run_dir / "wave01")
+    if first_wave_from and not (run_dir / "wave01" / "result.json").exists():  # also redoes a cut-off copy
+        shutil.copytree(first_wave_from, run_dir / "wave01", dirs_exist_ok=True)
     known = proteins(arm)
     oracle = Oracle(HIDDEN / "test_positives.csv", HIDDEN / "anon_map.tsv" if arm == "anon" else None)
     tested, memory = set(), []
-    for t in range(1, min(waves, args.until or waves) + 1):
+    for t in range(1, min(waves, waves if args.until is None else args.until) + 1):
         wave_dir = run_dir / f"wave{t:02d}"
         result_path = wave_dir / "result.json"
         if not result_path.exists():
