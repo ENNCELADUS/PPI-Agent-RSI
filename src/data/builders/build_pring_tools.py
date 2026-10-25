@@ -17,7 +17,7 @@ Design: docs/superpowers/specs/2026-10-23-pring-wave-discovery-design.md.
 - sandbox/homologs.tsv: mmseqs2 easy-search of every protein against the KB proteins, best 20 non-self
   hits per query (query, target, pident, evalue, bits). Test proteins are <= 40% identical to train, so
   their hits are remote homologs.
-- anon/ gets the same files in opaque ids; data/PRING/tools.json records calibration and checksums.
+- data/PRING/tools.json records calibration and checksums.
 """
 
 import csv
@@ -95,7 +95,6 @@ def homologs(proteins, kb):
 def main():
     assert shutil.which("mmseqs"), "mmseqs not on PATH"
     node2acc = {r["node_id"]: r["uniprot_id"] for r in csv.DictReader(open(RAW / "node_sequences.tsv"), delimiter="\t")}
-    acc2anon = {r["accession"]: r["id"] for r in csv.DictReader(open(HIDDEN / "anon_map.tsv"), delimiter="\t")}
 
     val = list(csv.DictReader(gzip.open(PREDICTOR / "pring_val.tsv.gz", "rt"), delimiter="\t"))
     xs, ys = [float(r["logit"]) for r in val], [int(r["label"]) for r in val]
@@ -108,45 +107,39 @@ def main():
 
     proteins = {r["accession"]: r for r in csv.DictReader(open(SANDBOX / "proteins.tsv"), delimiter="\t")}
     candidates = {x for x, r in proteins.items() if r["candidate"] == "1"}
-    scores = {"": [], "anon": []}
+    scores = []
     for r in csv.DictReader(gzip.open(PREDICTOR / "pring_candidates.tsv.gz", "rt"), delimiter="\t"):
         u, v = node2acc[r["node_a"]], node2acc[r["node_b"]]
         if u == v:
             continue
         assert u in candidates and v in candidates, f"{u}-{v} is not a candidate pair"
         p = f"{p_of(float(r['logit'])):.6g}"
-        scores[""].append((*sorted((u, v)), p))
-        scores["anon"].append((*sorted((acc2anon[u], acc2anon[v])), p))
-    assert len(set(scores[""])) == len(scores[""]) == CANDIDATE_PAIRS, "candidate scores incomplete or repeated"
+        scores.append((*sorted((u, v)), p))
+    assert len(set(scores)) == len(scores) == CANDIDATE_PAIRS, "candidate scores incomplete or repeated"
 
     seqs = {x: r["sequence"] for x, r in proteins.items()}
     kb = {x for x, r in proteins.items() if r["candidate"] == "0"}
-    hits = {"": homologs(seqs, kb)}
-    hits["anon"] = sorted(
-        ((acc2anon[q], acc2anon[t], *rest) for q, t, *rest in hits[""]), key=lambda h: (h[0], -float(h[4]), h[1])
-    )
+    hits = homologs(seqs, kb)
 
-    checksums = {}
-    for sub in scores:
-        out = SANDBOX / sub
-        with gzip.GzipFile(out / "scores.tsv.gz", "wb", mtime=0) as f:  # mtime=0: byte-identical rebuilds
-            f.write("a\tb\tp\n".encode())
-            f.write("".join(f"{u}\t{v}\t{p}\n" for u, v, p in sorted(scores[sub])).encode())
-        with open(out / "homologs.tsv", "w", newline="") as f:
-            w = csv.writer(f, delimiter="\t")
-            w.writerow(["query", "target", "pident", "evalue", "bits"])
-            w.writerows(hits[sub])
-        for name in ("scores.tsv.gz", "homologs.tsv"):
-            path = out / name
-            checksums[str(path.relative_to(PRING))] = hashlib.sha256(path.read_bytes()).hexdigest()[:16]
+    with gzip.GzipFile(SANDBOX / "scores.tsv.gz", "wb", mtime=0) as f:  # mtime=0: byte-identical rebuilds
+        f.write("a\tb\tp\n".encode())
+        f.write("".join(f"{u}\t{v}\t{p}\n" for u, v, p in sorted(scores)).encode())
+    with open(SANDBOX / "homologs.tsv", "w", newline="") as f:
+        w = csv.writer(f, delimiter="\t")
+        w.writerow(["query", "target", "pident", "evalue", "bits"])
+        w.writerows(hits)
+    checksums = {
+        f"sandbox/{name}": hashlib.sha256((SANDBOX / name).read_bytes()).hexdigest()[:16]
+        for name in ("scores.tsv.gz", "homologs.tsv")
+    }
     stats = {
         "platt_a": a,
         "platt_b": b,
         "prior_shift": shift,
         "candidate_prevalence": prevalence,
         "val_pairs": len(val),
-        "mean_p_candidates": sum(float(p) for *_, p in scores[""]) / CANDIDATE_PAIRS,
-        "proteins_with_homologs": len({h[0] for h in hits[""]}),
+        "mean_p_candidates": sum(float(p) for *_, p in scores) / CANDIDATE_PAIRS,
+        "proteins_with_homologs": len({h[0] for h in hits}),
         "inputs": {
             f"predictor/{f}": hashlib.sha256((PREDICTOR / f).read_bytes()).hexdigest()[:16]
             for f in ("pring_candidates.tsv.gz", "pring_val.tsv.gz")

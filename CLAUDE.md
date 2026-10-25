@@ -6,13 +6,14 @@ LLM scientific agents for membrane protein–protein interaction (PPI) discovery
 (RSI) of the agent workflow and, later, the PPI predictor under sparse experimental feedback. Docs:
 `docs/introduction.md` (motivation), `docs/initial_baseline.md` (baseline design), `docs/literature.md`,
 `docs/research-reports/<date>-<slug>.md` (git-ignored deep research), `docs/superpowers/specs/` (dated designs).
+Readable run summaries: git-ignored `results/<run>/` (raw artifacts stay in `data/PRING/runs/<run>/`).
 PDFs live in git-ignored `literature/<topic>/`; the index `literature/README.md` is tracked.
 
 **Core thesis — do not let it drift:** measure a *fixed*, expert-designed agent before building any RSI. Failure
 modes must come out of evaluation, never be assumed in advance. Name every pool, arm, baseline and run by what
 it is ("the inductive pool", "the permuted-label arm"), never by a bare label; give a code label once in parentheses.
 
-## Current state (2026-10-23, harness)
+## Current state (2026-10-25, true-feedback baseline)
 
 Replace this section on every update; history lives in git and the specs.
 
@@ -22,11 +23,12 @@ Replace this section on every update; history lives in git and the specs.
 - **PRING dev sandbox (built):** `build_pring_sandbox` → `data/PRING/`
   ([design](docs/superpowers/specs/2026-10-23-pring-sandbox-design.md)). Internal, closed-world, for debugging before
   `test.csv`. 1:1 train/val in `hidden/` (val = predictor validation) form the KB; `test_positives.csv` holds the wave
-  hits. The agent gets `sandbox/` or `sandbox/anon/` (memorisation arm), never `hidden/`.
-- **Wave discovery (harness built; 2-wave DeepSeek smoke run ok,** [spec](docs/superpowers/specs/2026-10-23-pring-wave-discovery-design.md)**):**
-  10 waves × 200 picks among all 2.04M test-protein pairs (1.48% hits); true/permuted/no-feedback/anon arms.
-  Agent = pi over RPC, tools served from Python (spec, "Agent harness"); B0 in
-  `src/predictor/`. LLM: `deepseek-flash`, thinking high. Open: baselines, metrics, web retrieval for the private run (public
+  hits. The agent gets `sandbox/`, never `hidden/`.
+- **Wave discovery, true-feedback baseline** ([spec](docs/superpowers/specs/2026-10-23-pring-wave-discovery-design.md)):
+  waves × 200 picks among all 2.04M test-protein pairs (1.48% hits); true feedback only (control arms removed
+  2026-10-25, runs in `data/PRING/runs/_archive/`). Run `deepseek-flash-high`: 4 replicates × 6–7 waves, page in
+  `results/deepseek-flash-high/`. Agent = pi over RPC, tools served from Python; B0 in `src/predictor/`;
+  LLM `deepseek-flash`, thinking high. Open: hub-excluded metric, web retrieval for the private run (public
   tracks closed-world). Never vendor/retrain DIPPI. Other public tracks: [survey](docs/research-reports/2026-10-19-public-ppi-benchmarks.md).
 
 ## Commands
@@ -45,7 +47,7 @@ python3 -m src.eval.verify_live_string 100 7 1        # n, seed, label: sampled 
 uv run python -m src.data.builders.build_pring_sandbox  # ~1 s; inputs and fetch commands in its docstring
 uv run python -m src.data.builders.build_pring_tools  # ~80 s, needs mmseqs; scores + homologs for the tools
 (cd src/agent/pi && npm ci)                           # pinned pi for the agent harness
-uv run python -m src.eval.waves replicate <name> <R>  # shared wave 1 + 3 arms; `run <name> anon <R>` for anon
+uv run python -m src.eval.waves <name> <R>            # one true-feedback replicate; --until T stops after wave T
 uv run python -m src.eval.score <labels.csv> <ranking.csv>  # private test.csv (sandbox pools: not built)
 ```
 
@@ -59,7 +61,7 @@ uv run python -m src.eval.score <labels.csv> <ranking.csv>  # private test.csv (
 
 - When a change alters behaviour a doc describes, update that doc in the same change. Update this file and
   README.md every conversation; replace deprecated text; keep both concise (this file under 120 lines).
-- Experiment code reports results; decisions are made by reading them, not in code. Ask when intent is
+- Experiment code reports results (format: `.claude/skills/results-report`); decisions are made by reading them, not in code. Ask when intent is
   ambiguous; do not re-ask what a doc or earlier decision settles.
 - No formalism gates (digest pinning, contract verifiers, eligibility ceremony, run-blocking checks). Record
   provenance and proceed. The builders' asserts against silent wrong artifacts fail closed and stay.
@@ -112,8 +114,7 @@ Mistakes here produce a complete-looking **wrong artifact**, not an exception.
 - 65,047 PRING train negatives have a weak STRING link (≤ 700) by design; filter with `pair_annotations.parquet`
   for a stricter KB. IntAct pairs with both positive and negative evidence count as public.
 - PRING: never use `*_ratio5_exclusive.txt` (negatives leak across the node split); it keeps self pairs as
-  positives (dropped here); motif `node_*` ids follow accession order (anon arm uses fresh ids);
-  `candidate_test_edges.txt` lists positives first.
+  positives (dropped here); motif `node_*` ids follow accession order; `candidate_test_edges.txt` lists positives first.
 - `data/TMP/processed/` is DIPPI-era and unused; raw names carry upstream typos. HuRI (broken TLS) is covered
   via IntAct/BioGRID/HIPPIE; never bypass certificate checks.
 - `predictor/pring_candidates.tsv.gz` carries labels: the agent sees scores only via `sandbox/scores.tsv.gz`.

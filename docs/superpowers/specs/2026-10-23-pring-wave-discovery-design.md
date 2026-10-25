@@ -1,5 +1,9 @@
 # PRING wave discovery benchmark — design
 
+**Amended 2026-10-25:** the harness runs the true-feedback arm only (`python -m src.eval.waves <name> <R>`);
+the permuted-feedback, no-feedback and anonymised-ID arms, the shared wave 1 and `sandbox/anon/` were removed. Sections
+below that describe them are historical.
+
 **Status:** drafted 2026-10-23 from the design agreed in conversation; data, predictor scores and the agent
 harness built 2026-10-23 (harness design grilled with the user, see "Agent harness"); one 2-wave replicate
 ran end to end on `deepseek-flash` (smoke only, about $0.05–0.09 per wave). Extends the PRING dev sandbox ([design](2026-10-23-pring-sandbox-design.md)). Calls marked *(my

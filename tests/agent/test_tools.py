@@ -11,15 +11,14 @@ P = {("A", "B"): 0.9, ("A", "C"): 0.5, ("B", "C"): 0.5, ("A", "D"): 0.4, ("B", "
 FIELDS = "function\tsubcellular_location\ttissue_specificity\tgo_process\tgo_component\tgo_function\tkeywords"
 
 
-@pytest.fixture(params=[True, False], ids=["named", "anon"])
-def sandbox(tmp_path, request):
-    named = request.param
-    head = "accession\tgene\tprotein_name\tcandidate\tsequence" if named else "id\tcandidate\tsequence"
-    body = [f"{x}\tG{x}\tname {x}\t{c}\tMKV" if named else f"{x}\t{c}\tMKV" for x, c in ROWS]
+@pytest.fixture
+def sandbox(tmp_path):
+    head = "accession\tgene\tprotein_name\tcandidate\tsequence"
+    body = [f"{x}\tG{x}\tname {x}\t{c}\tMKV" for x, c in ROWS]
     (tmp_path / "proteins.tsv").write_text("\n".join([head, *body]) + "\n")
-    key = "accession" if named else "id"
     ann = [f"{x}\t\tMembrane\t\t\t\t\tKinase\tfam\tPF00069\tIPR1" for x, _ in ROWS]
-    (tmp_path / "annotations.tsv").write_text("\n".join([f"{key}\t{FIELDS}\tfamilies\tpfam\tinterpro", *ann]) + "\n")
+    head = f"accession\t{FIELDS}\tfamilies\tpfam\tinterpro"
+    (tmp_path / "annotations.tsv").write_text("\n".join([head, *ann]) + "\n")
     (tmp_path / "kb.csv").write_text("uniprotID_A,uniprotID_B,isInteraction,evidence\nK1,K2,1,pring\n")
     (tmp_path / "homologs.tsv").write_text("query\ttarget\tpident\tevalue\tbits\nA\tK1\t35.0\t1e-9\t59\n")
     with gzip.open(tmp_path / "scores.tsv.gz", "wt") as f:

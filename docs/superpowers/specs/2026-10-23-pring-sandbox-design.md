@@ -1,5 +1,9 @@
 # PRING dev sandbox — design
 
+**Amended 2026-10-25:** the harness runs the true-feedback arm only (`python -m src.eval.waves <name> <R>`);
+the permuted-feedback, no-feedback and anonymised-ID arms, the shared wave 1 and `sandbox/anon/` were removed. Sections
+below that describe them are historical.
+
 **Status:** KB built (`src/data/builders/build_pring_sandbox.py`; outputs in git-ignored `data/PRING/`). The
 first inductive and transductive candidate pools and their degree/L3 baselines were removed on 2026-10-23
 (not the design the user asked for). They are replaced by the wave discovery benchmark over all pairs among

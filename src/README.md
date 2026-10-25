@@ -26,7 +26,7 @@ module from the repo root as `python -m src.<path>`. `data` never imports `eval`
 ### `eval/`
 
 - `oracle`: The offline lab: answers submitted pairs from a sealed labels file. Never imported by src/agent.
-- `waves`: Run PRING wave discovery with the pi agent: waves of K submitted pairs, oracle results, feedback arms.
+- `waves`: Run PRING wave discovery with the pi agent: waves of K submitted pairs, oracle results, true feedback.
 - `score`: Score a global top-N ranking against a labels file (the private `test.csv`; sandbox pools not built yet).
 - `verify_live_string`: Spot-check that sampled test pairs are absent from the live STRING API.
 

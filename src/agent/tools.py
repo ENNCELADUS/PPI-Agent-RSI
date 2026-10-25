@@ -1,6 +1,6 @@
 """The agent's tools for one wave, served to pi over localhost HTTP (the TS extension only forwards calls).
 
-Reads one sandbox directory (data/PRING/sandbox/ or its anon/ copy) and the wave state the evaluator
+Reads the sandbox directory (data/PRING/sandbox/) and the wave state the evaluator
 hands over: the pairs already tested and the agent-visible memory. It never reads labels or imports
 the oracle. Every call is logged to tool_calls.jsonl; after CAP calls only submit_batch answers.
 submit_batch accepts the first well-formed batch as final and writes it to submission.json.
@@ -51,11 +51,9 @@ class Sandbox:
 
     def __init__(self, root):
         root = Path(root)
-        self.named = (root / "proteins.tsv").open().readline().startswith("accession")
-        key = "accession" if self.named else "id"
-        self.proteins = {r[key]: r for r in csv.DictReader(open(root / "proteins.tsv"), delimiter="\t")}
+        self.proteins = {r["accession"]: r for r in csv.DictReader(open(root / "proteins.tsv"), delimiter="\t")}
         for r in csv.DictReader(open(root / "annotations.tsv"), delimiter="\t"):
-            self.proteins[r[key]] |= {k: r[k] for k in ANNOTATION}
+            self.proteins[r["accession"]] |= {k: r[k] for k in ANNOTATION}
         self.candidates = {x for x, r in self.proteins.items() if r["candidate"] == "1"}
         self.kb = {}
         for r in csv.DictReader(open(root / "kb.csv")):
@@ -74,7 +72,7 @@ class Sandbox:
         )
 
     def gene(self, x):
-        return self.proteins[x]["gene"] if self.named else ""
+        return self.proteins[x]["gene"]
 
     def query(self, sql, params=()):
         return self.db.cursor().execute(sql, params).fetchall()
@@ -240,13 +238,8 @@ class WaveTools:
 
     def _pairs(self, rows):
         return tsv(
-            ["rank", "a", "gene_a", "b", "gene_b", "p"] if self.s.named else ["rank", "a", "b", "p"],
-            [
-                (self._untested_rank(r), a, self.s.gene(a), b, self.s.gene(b), f"{p:.4g}")
-                if self.s.named
-                else (self._untested_rank(r), a, b, f"{p:.4g}")
-                for a, b, p, r in rows
-            ],
+            ["rank", "a", "gene_a", "b", "gene_b", "p"],
+            [(self._untested_rank(r), a, self.s.gene(a), b, self.s.gene(b), f"{p:.4g}") for a, b, p, r in rows],
         )
 
     def top_candidates(self, offset, limit):
@@ -279,8 +272,7 @@ class WaveTools:
         for x in ids:
             r = self.s.proteins[self._protein(x)]
             fields = {"id": x, "candidate": r["candidate"] == "1", "length": len(r["sequence"])}
-            if self.s.named:
-                fields |= {"gene": r["gene"], "protein_name": r["protein_name"]}
+            fields |= {"gene": r["gene"], "protein_name": r["protein_name"]}
             fields |= {k: r.get(k, "") for k in ANNOTATION if r.get(k)}
             if with_sequence:
                 fields["sequence"] = r["sequence"]
@@ -291,7 +283,7 @@ class WaveTools:
         if scope not in ("candidates", "kb", "all"):
             raise ToolError("scope must be candidates, kb or all")
         needle, out = text.lower(), []
-        names = ("gene", "protein_name", *ANNOTATION) if self.s.named else ANNOTATION
+        names = ("gene", "protein_name", *ANNOTATION)
         for x, r in sorted(self.s.proteins.items()):
             if scope != "all" and (x in self.s.candidates) != (scope == "candidates"):
                 continue

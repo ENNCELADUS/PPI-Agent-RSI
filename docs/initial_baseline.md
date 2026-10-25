@@ -41,11 +41,11 @@ labels the agent could not see when it chose them, so no separate sealed pool is
 
 - **Budget:** 200 pairs per wave × 10 waves, 10 replicate runs per arm (sized after BioDiscoveryAgent,
   5 × 128, and Owkin's lab-in-the-loop study, 10 × 100).
-- **Arms:** true feedback; permuted feedback (the same number of hits per wave, placed on the wrong pairs);
-  no feedback (the agent knows what was tested but not the results); random picks.
+- **Arms:** true feedback only for the baseline (user decision 2026-10-25); the permuted-feedback,
+  no-feedback and anonymised-ID controls were run once and archived, and return only if a claim needs them.
 - **Non-LLM baselines:** the predictor alone, and the predictor plus link prediction over revealed hits.
-- **Metrics:** hits per wave, cumulative hits against tests spent, and the gap over the no-feedback and
-  permuted-feedback arms; also hits outside hub proteins, invalid or repeated picks, and cost per hit.
+- **Metrics:** hits per wave, cumulative hits against tests spent, and the gap over the predictor alone
+  and random picks; also hits outside hub proteins, invalid or repeated picks, and cost per hit.
 - **Failure analysis:** errors from the predictor, from conflicting evidence, from ignoring feedback (true
   ≈ permuted) and from over-following it; compare each stage with the predictor alone.
 

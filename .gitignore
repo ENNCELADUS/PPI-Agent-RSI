@@ -11,3 +11,4 @@ graphify-out/
 pytest.txt
 node_modules/
 .graphifyignore
+/results/

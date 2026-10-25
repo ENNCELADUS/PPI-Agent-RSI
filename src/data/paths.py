@@ -24,4 +24,4 @@ RAW_FILES = {
 PRING = ROOT / "data" / "PRING"
 PRING_RAW = PRING / "raw"
 SANDBOX = PRING / "sandbox"  # what the agent may read
-HIDDEN = PRING / "hidden"  # labels and the anon-id map; never given to the agent
+HIDDEN = PRING / "hidden"  # labels; never given to the agent
