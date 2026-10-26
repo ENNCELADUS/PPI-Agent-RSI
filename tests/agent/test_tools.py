@@ -3,7 +3,7 @@ import json
 
 import pytest
 
-from src.agent.tools import Sandbox, ToolError, WaveTools, specs
+from src.agent.tools import Sandbox, ToolError, RoundTools, specs
 
 ROWS = [("A", 1), ("B", 1), ("C", 1), ("D", 1), ("K1", 0), ("K2", 0)]
 # A-C and B-C tie on p: ties go by pair id
@@ -37,14 +37,14 @@ def pairs(text):
 
 
 def test_ranking_breaks_ties_by_pair_id_and_pages(sandbox, tmp_path):
-    w = WaveTools(sandbox, tmp_path / "w", set(), [])
+    w = RoundTools(sandbox, tmp_path / "w", set(), [])
     top = pairs(w.call("top_candidates", {"offset": 0, "limit": 6}))
     assert top == [("1", "A", "B"), ("2", "A", "C"), ("3", "B", "C"), ("4", "A", "D"), ("5", "B", "D"), ("6", "C", "D")]
     assert pairs(w.call("top_candidates", {"offset": 2, "limit": 2})) == top[2:4]
 
 
 def test_tested_pairs_leave_the_ranking_and_ranks_close_up(sandbox, tmp_path):
-    w = WaveTools(sandbox, tmp_path / "w", {("A", "B"), ("B", "C")}, [])
+    w = RoundTools(sandbox, tmp_path / "w", {("A", "B"), ("B", "C")}, [])
     assert pairs(w.call("top_candidates", {"offset": 0, "limit": 10})) == [
         ("1", "A", "C"),
         ("2", "A", "D"),
@@ -58,14 +58,14 @@ def test_tested_pairs_leave_the_ranking_and_ranks_close_up(sandbox, tmp_path):
 
 
 def test_bad_ids_and_kb_proteins_are_errors(sandbox, tmp_path):
-    w = WaveTools(sandbox, tmp_path / "w", set(), [])
+    w = RoundTools(sandbox, tmp_path / "w", set(), [])
     for args in ({"a": "A", "b": "Z"}, {"a": "A", "b": "K1"}, {"a": "A", "b": "A"}):
         with pytest.raises(ToolError):
             w.call("predict_ppi", args)
 
 
 def test_no_tool_output_carries_a_label_field(sandbox, tmp_path):
-    w = WaveTools(sandbox, tmp_path / "w", set(), [])
+    w = RoundTools(sandbox, tmp_path / "w", set(), [])
     outputs = [
         w.call("top_candidates", {"offset": 0, "limit": 6}),
         w.call("protein_info", {"ids": ["A", "K1"], "with_sequence": True}),
@@ -77,7 +77,7 @@ def test_no_tool_output_carries_a_label_field(sandbox, tmp_path):
 
 
 def test_search_scopes(sandbox, tmp_path):
-    w = WaveTools(sandbox, tmp_path / "w", set(), [])
+    w = RoundTools(sandbox, tmp_path / "w", set(), [])
 
     def ids(scope):
         text = w.call("search_proteins", {"text": "kinase", "scope": scope, "limit": 9})
@@ -88,17 +88,17 @@ def test_search_scopes(sandbox, tmp_path):
 
 def test_memory_filters(sandbox, tmp_path):
     facts = [
-        {"a": "A", "b": "B", "wave": 1, "result": "hit"},
-        {"a": "C", "b": "D", "wave": 1, "result": "not detected"},
+        {"a": "A", "b": "B", "round": 1, "result": "hit"},
+        {"a": "C", "b": "D", "round": 1, "result": "not detected"},
     ]
-    w = WaveTools(sandbox, tmp_path / "w", {("A", "B"), ("C", "D")}, facts)
+    w = RoundTools(sandbox, tmp_path / "w", {("A", "B"), ("C", "D")}, facts)
     assert "2 tests" in w.call("memory", {})
     assert "1 tests" in w.call("memory", {"hits_only": True})
     assert "C\tD" in w.call("memory", {"protein": "D"}) and "A\tB" not in w.call("memory", {"protein": "D"})
 
 
 def test_cap_leaves_only_submit_and_submit_is_final(sandbox, tmp_path):
-    w = WaveTools(sandbox, tmp_path / "w", set(), [], cap=1)
+    w = RoundTools(sandbox, tmp_path / "w", set(), [], cap=1)
     w.call("memory", {})
     with pytest.raises(ToolError, match="submit_batch now"):
         w.call("memory", {})

@@ -1,4 +1,4 @@
-"""Run one wave of the agent: a fresh pi session (RPC mode) whose only tools are the wave's tools.
+"""Run one round of the agent: a fresh pi session (RPC mode) whose only tools are the round's tools.
 
 pi runs from src/agent/pi (`npm ci` there first) with an isolated config directory: no built-in tools,
 skills, prompt templates, context files, MCP or discovered extensions; only ppi_tools.ts, which
@@ -14,12 +14,12 @@ import threading
 import time
 from pathlib import Path
 
-from src.agent.tools import CAP, K, Sandbox, WaveTools, serve, specs
+from src.agent.tools import CAP, K, Sandbox, RoundTools, serve, specs
 
 PI_DIR = Path(__file__).parent / "pi"
 PI = PI_DIR / "node_modules" / ".bin" / "pi"
 PROMPTS = Path(__file__).parent / "prompts"
-TIMEOUT = 3600  # seconds per wave
+TIMEOUT = 3600  # seconds per round
 PREVALENCE = 0.0148  # PRING hits among candidate pairs (spec); told to the agent as a prior
 
 
@@ -83,19 +83,19 @@ class Rpc:
         self.stderr.close()
 
 
-def run_wave(sandbox_dir, wave_dir, tested, memory, *, wave, waves, model, thinking):
-    """One wave in wave_dir/agent. tested: canonical pairs already submitted; memory: agent-visible facts."""
+def run_round(sandbox_dir, round_dir, tested, memory, *, t, rounds, model, thinking):
+    """One round in round_dir/agent. tested: canonical pairs already submitted; memory: agent-visible facts."""
     assert PI.exists(), f"pi not installed: run `npm ci` in {PI_DIR}"
     sandbox = Sandbox(str(sandbox_dir))
-    agent_dir = Path(wave_dir) / "agent"
-    tools = WaveTools(sandbox, agent_dir, tested, memory)
+    agent_dir = Path(round_dir) / "agent"
+    tools = RoundTools(sandbox, agent_dir, tested, memory)
     (agent_dir / "tools.json").write_text(json.dumps(specs(), indent=1))
     config = agent_dir / "pi-config"  # empty: no user settings, models or extensions reach the agent
     config.mkdir(exist_ok=True)
     server, url = serve(tools)
     n = len(sandbox.candidates)
     system = prompt(
-        "system", proteins=n, pairs=n * (n - 1) // 2, prevalence=PREVALENCE, waves=waves, k=K, cap=CAP, window=5 * K
+        "system", proteins=n, pairs=n * (n - 1) // 2, prevalence=PREVALENCE, rounds=rounds, k=K, cap=CAP, window=5 * K
     )
     cmd = [
         str(PI),
@@ -133,7 +133,7 @@ def run_wave(sandbox_dir, wave_dir, tested, memory, *, wave, waves, model, think
     deadline = time.time() + TIMEOUT
     try:
         rpc.send(type="set_auto_compaction", enabled=False)  # a fixed agent: context is never rewritten
-        messages = [prompt("wave", wave=wave, waves=waves, tested=len(tested), k=K)]
+        messages = [prompt("round", round=t, rounds=rounds, tested=len(tested), k=K)]
         while messages:
             rpc.send(type="prompt", message=messages.pop())
             last_error = None  # a provider error counts only if pi's own retries did not recover

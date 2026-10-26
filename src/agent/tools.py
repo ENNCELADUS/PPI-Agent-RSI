@@ -1,6 +1,6 @@
-"""The agent's tools for one wave, served to pi over localhost HTTP (the TS extension only forwards calls).
+"""The agent's tools for one round, served to pi over localhost HTTP (the TS extension only forwards calls).
 
-Reads the sandbox directory (data/PRING/sandbox/) and the wave state the evaluator
+Reads the sandbox directory (data/PRING/sandbox/) and the round state the evaluator
 hands over: the pairs already tested and the agent-visible memory. It never reads labels or imports
 the oracle. Every call is logged to tool_calls.jsonl; after CAP calls only submit_batch answers.
 submit_batch accepts the first well-formed batch as final and writes it to submission.json.
@@ -47,7 +47,7 @@ class ToolError(Exception):
 
 @cache
 class Sandbox:
-    """The agent-visible files of one sandbox directory, loaded once per process and shared by waves."""
+    """The agent-visible files of one sandbox directory, loaded once per process and shared by rounds."""
 
     def __init__(self, root):
         root = Path(root)
@@ -134,13 +134,13 @@ SPECS = {
         ["id"],
     ),
     "memory": (
-        "Your experimental memory: every pair tested in earlier waves, with its wave and measured result. "
+        "Your experimental memory: every pair tested in earlier rounds, with its round and measured result. "
         "Filter by protein and/or to hits only.",
         {"protein": ID, "hits_only": {"type": "boolean"}},
         [],
     ),
     "submit_batch": (
-        f"Send this wave's {K} pairs to the lab. Final: call it once, with exactly {K} untested candidate pairs.",
+        f"Send this round's {K} pairs to the lab. Final: call it once, with exactly {K} untested candidate pairs.",
         {
             "pairs": {
                 "type": "array",
@@ -181,12 +181,12 @@ def specs():
     ]
 
 
-class WaveTools:
-    """Tool calls for one wave. tested: canonical pairs already submitted; memory: agent-visible facts
-    as dicts with a, b, wave, result ("hit", "not detected" or "withheld")."""
+class RoundTools:
+    """Tool calls for one round. tested: canonical pairs already submitted; memory: agent-visible facts
+    as dicts with a, b, round, result ("hit", "not detected" or "withheld")."""
 
-    def __init__(self, sandbox, wave_dir, tested, memory, cap=CAP):
-        self.s, self.dir, self.tested, self.facts, self.cap = sandbox, Path(wave_dir), set(tested), memory, cap
+    def __init__(self, sandbox, round_dir, tested, memory, cap=CAP):
+        self.s, self.dir, self.tested, self.facts, self.cap = sandbox, Path(round_dir), set(tested), memory, cap
         self.calls, self.submitted, self.lock = 0, None, threading.Lock()
         self.dir.mkdir(parents=True, exist_ok=True)
         self.tested_ranks = sandbox.ranks(self.tested)
@@ -317,16 +317,16 @@ class WaveTools:
         if not rows:
             return "no matching tests yet"
         return f"{len(rows)} tests\n" + tsv(
-            ["wave", "a", "b", "result"], [(m["wave"], m["a"], m["b"], m["result"]) for m in rows]
+            ["round", "a", "b", "result"], [(m["round"], m["a"], m["b"], m["result"]) for m in rows]
         )
 
     def submit_batch(self, pairs):
         with self.lock:
             if self.submitted is not None:
-                raise ToolError("this wave's batch was already submitted")
+                raise ToolError("this round's batch was already submitted")
             self.submitted = pairs
         (self.dir / "submission.json").write_text(json.dumps(pairs, indent=0))
-        return f"received {len(pairs)} pairs; results arrive next wave"
+        return f"received {len(pairs)} pairs; results arrive next round"
 
 
 def serve(tools):

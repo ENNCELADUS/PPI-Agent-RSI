@@ -1,4 +1,4 @@
-"""Build the agent's tool files for PRING wave discovery: calibrated predictor scores and KB homologs.
+"""Build the agent's tool files for PRING closed-loop discovery: calibrated predictor scores and KB homologs.
 
 Run: uv run python -m src.data.builders.build_pring_tools   (after build_pring_sandbox; needs mmseqs)
 Inputs: data/PRING/predictor/pring_candidates.tsv.gz (B0 logits for every candidate pair, with labels)

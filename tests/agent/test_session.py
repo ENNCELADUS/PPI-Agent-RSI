@@ -30,7 +30,7 @@ def test_deadline_holds_while_events_keep_streaming(tmp_path):
 def test_close_is_safe_after_pi_died(tmp_path):
     rpc = Rpc([sys.executable, "-c", "pass"], tmp_path, None)
     rpc.p.wait()
-    with pytest.raises(OSError):  # run_wave turns this into a wave error, which the evaluator retries
+    with pytest.raises(OSError):  # run_round turns this into a round error, which the evaluator retries
         for _ in range(1000):
             rpc.send(type="prompt", message="x" * 1000)
     rpc.close()

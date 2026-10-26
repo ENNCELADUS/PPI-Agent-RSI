@@ -25,10 +25,10 @@ fixed, expert-designed agent baseline before building any RSI.
   database, with 1:1 degree-preserving negatives. See `CLAUDE.md` for the build commands.
 - **PRING dev sandbox (built):** an internal, closed-world benchmark built from PRING human data, for
   debugging the agent before it sees the private test set. Its 1:1 train and val splits form the agent's
-  reference KB; the test proteins are the wave-discovery candidates. Its numbers are never reported. See the [design](docs/superpowers/specs/2026-10-23-pring-sandbox-design.md).
-- **Wave discovery benchmark (true-feedback baseline run on DeepSeek, internal):** the agent searches all
-  pairs among the sandbox's test proteins in waves of 200 picks and sees the measured result of each of its
-  own picks before the next wave. See the [design](docs/superpowers/specs/2026-10-23-pring-wave-discovery-design.md).
+  reference KB; the test proteins are the closed-loop discovery candidates. Its numbers are never reported. See the [design](docs/superpowers/specs/2026-10-23-pring-sandbox-design.md).
+- **Closed-loop discovery benchmark (true-feedback baseline run on DeepSeek, internal):** the agent searches all
+  pairs among the sandbox's test proteins in rounds of 200 picks and sees the measured result of each of its
+  own picks before the next round. See the [design](docs/superpowers/specs/2026-10-23-pring-wave-discovery-design.md).
 - **Other public tracks (surveyed):** [2026-10-19 survey](docs/research-reports/2026-10-19-public-ppi-benchmarks.md):
   BioDiscoveryAgent screens, SKEMPI 2.0 via `ppi-mutation-ddg`, and a post-cutoff IntAct/BioGRID slice.
   All are run closed-world, because their labels are retrievable online.
@@ -37,5 +37,5 @@ fixed, expert-designed agent baseline before building any RSI.
 
 ```bash
 uv sync
-(cd src/agent/pi && npm ci)   # the pi agent runtime (Node), for wave-discovery runs
+(cd src/agent/pi && npm ci)   # the pi agent runtime (Node), for closed-loop discovery runs
 ```

@@ -12,7 +12,11 @@ metric once in one sentence. Give validation and test as separate tables or colu
 reported once. Contrasts with bootstrap intervals go in a second table. Never use bullet dumps or arm × scorer pivots
 as the main presentation, and name every row by what it is, not by an internal label.
 
-Report in chat by default: one line on what ran (model, waves, replicates, code SHA), the result tables, then a
+Describe a discovery campaign as the literature does, in one set of terms: a **round** is one pick → test → feedback
+cycle, the **batch** is the pairs picked per round, a **run** is one independent campaign
+(a "replicate" in the code). Give budgets as runs × rounds × batch, e.g. "4 runs × 7 rounds × 200 pairs".
+
+Report in chat by default: one line on what ran (model, rounds, replicates, code SHA), the result tables, then a
 short **Reading** section of bold one-line findings, each backed by a table. Provenance stays in the run's own
 `run.json` and `result.json` files. Never write a `README.md` (or any other Markdown record) for a run, an
 analysis or a results folder, anywhere.
@@ -28,7 +32,7 @@ Write an HTML page only when the user asks for one:
   file carries its own `<!doctype html>`, charset and viewport meta, `<title>` and `<style>`; colours are tokens with a
   dark-mode block. Check it once with a headless-Chrome screenshot, fix what it shows, and stop.
 - **Story:** follow the reader's order, not the code's: the question; the benchmark (dataset, splits with protein
-  and PPI counts, the candidate space); the discovery loop (what one wave does and how many waves ran); the agent
+  and PPI counts, the candidate space); the discovery loop (what one round does and how many rounds ran); the agent
   (model, tools); results (the tables above, then figures); **Reading**. Numbers in the page come from the run's
   `results.json` or `result.json` files, never retyped from memory.
 - **Figures:** vector only. Analysis code saves `.svg` (matplotlib with `svg.fonttype: none`); if only PDFs exist,

@@ -1,4 +1,4 @@
-// Registers the wave's tools from the spec file the Python tool server wrote (PPI_TOOLS_SPEC) and
+// Registers the round's tools from the spec file the Python tool server wrote (PPI_TOOLS_SPEC) and
 // forwards each call to it (PPI_TOOL_URL). All tool logic lives in src/agent/tools.py.
 import { readFileSync } from "node:fs";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";

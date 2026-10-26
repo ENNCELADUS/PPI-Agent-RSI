@@ -29,7 +29,7 @@ look it up.
 - hidden/{train,val}.csv hold the balanced labelled splits (val is the predictor's validation set);
   kb.csv = train + val, `evidence` naming each row's source. Columns follow the private split
   (uniprotID_A, uniprotID_B, isInteraction).
-- Wave discovery (docs/superpowers/specs/2026-10-23-pring-wave-discovery-design.md): the candidates
+- Closed-loop discovery (docs/superpowers/specs/2026-10-23-pring-wave-discovery-design.md): the candidates
   are all pairs among the test proteins (`candidate` = 1 in proteins.tsv; none is a KB protein);
   hidden/test_positives.csv lists every PRING positive among them, the oracle's hits.
 - annotations.tsv: everything UniProt says about each protein except its interactions (user

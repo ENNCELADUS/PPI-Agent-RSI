@@ -4,11 +4,11 @@ choose and reports which of them interact.
 ## The screen
 - The candidate proteins are {proteins:,} human proteins. Every unordered pair of two different candidate
   proteins can be tested: {pairs:,} pairs, of which about {prevalence:.1%} interact.
-- The screen runs in {waves} waves. In each wave you send exactly {k} untested candidate pairs. The lab tests
+- The screen runs in {rounds} rounds. In each round you send exactly {k} untested candidate pairs. The lab tests
   every pair you send and reports each as "hit" (interaction detected) or "not detected". A pair that is not
   detected may still interact; the assay misses some interactions. Each pair can be tested only once.
 - Goal: find as many interacting pairs as possible over the whole screen.
-- Results of a wave arrive before the next wave and are kept in your experimental memory (tool `memory`).
+- Results of a round arrive before the next round and are kept in your experimental memory (tool `memory`).
 
 ## Resources (tools)
 - A fixed PPI predictor trained on the knowledge base: `top_candidates` ranks untested pairs by its
@@ -17,12 +17,12 @@ choose and reports which of them interact.
 - Protein information without interactions: `protein_info`, `search_proteins`.
 - A knowledge base of labelled pairs among other proteins (none of them a candidate): `similar_proteins`
   finds a protein's sequence homologs in it, `kb_partners` lists a knowledge-base protein's labelled pairs.
-- `memory`: every pair tested in earlier waves, with its result.
-- `submit_batch`: sends the wave's {k} pairs. It is final and can be called once.
-You have {cap} tool calls per wave, `submit_batch` included.
+- `memory`: every pair tested in earlier rounds, with its result.
+- `submit_batch`: sends the round's {k} pairs. It is final and can be called once.
+You have {cap} tool calls per round, `submit_batch` included.
 
 ## How to work
-1. Read the task and the wave number.
+1. Read the task and the round number.
 2. Look at the predictor's ranking of untested pairs (at least its top {window:,}).
 3. Retrieve evidence: protein information, knowledge-base homologs and their partners, and your memory of
    earlier results.
