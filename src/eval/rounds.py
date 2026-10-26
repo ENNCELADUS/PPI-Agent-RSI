@@ -1,10 +1,12 @@
 """Run PRING closed-loop discovery with the pi agent: rounds of K submitted pairs, oracle results, true feedback.
 
-    uv run python -m src.eval.rounds <name> <R> [--rounds 10] [--until T] [--model ...] [--thinking ...]
+    uv run python -m src.eval.rounds <name> <R> [--rounds 10] [--until T] [--sandbox sandbox] [--model ...]
 
 Design: docs/superpowers/specs/2026-10-23-pring-wave-discovery-design.md. Runs replicate R from round 1;
 after each round the agent's memory gets the measured result of every valid pair. --until T stops after
 round T (budget); the agent is still told the run has --rounds rounds, so a later resume continues it.
+--sandbox names the agent-visible directory under data/PRING/ (sandbox_noribo: the ribosome ablation,
+src/data/builders/build_pring_noribo.py); the agent is told its hit rate among candidate pairs as a prior.
 Runs go to data/PRING/runs/<name>/r<R>/round<t>/: agent/ (pi session, tool calls, submission;
 what the agent produced) and result.json (validity and oracle results; evaluator only). A round whose
 result.json exists is replayed, so a stopped run resumes.
@@ -31,14 +33,14 @@ from datetime import UTC, datetime
 from src.agent.session import PROMPTS, run_round
 from src.agent.session import pi_version as get_pi_version
 from src.agent.tools import K, pair
-from src.data.paths import HIDDEN, PRING, SANDBOX
+from src.data.paths import HIDDEN, PRING
 from src.eval.oracle import Oracle
 
 RUNS = PRING / "runs"
 
 
-def proteins():
-    rows = csv.DictReader(open(SANDBOX / "proteins.tsv"), delimiter="\t")
+def proteins(sandbox):
+    rows = csv.DictReader(open(sandbox / "proteins.tsv"), delimiter="\t")
     return {r["accession"]: r["candidate"] == "1" for r in rows}
 
 
@@ -124,7 +126,7 @@ def provenance(replicate, args):
         "replicate": replicate,
         "k": K,
         **setup(args),
-        "sandbox": str(SANDBOX.relative_to(PRING)),
+        "sandbox": args.sandbox,
         "pi": get_pi_version(),
         "prompts": {p.name: hashlib.sha256(p.read_bytes()).hexdigest()[:16] for p in sorted(PROMPTS.glob("*.md"))},
         "tools_build": json.loads((PRING / "tools.json").read_text())["outputs"],
@@ -137,8 +139,11 @@ def run(run_dir, replicate, args):
     run_dir.mkdir(parents=True, exist_ok=True)
     if not (run_dir / "run.json").exists():
         (run_dir / "run.json").write_text(json.dumps(provenance(replicate, args), indent=1) + "\n")
-    known = proteins()
+    sandbox = PRING / args.sandbox
+    known = proteins(sandbox)
     oracle = Oracle(HIDDEN / "test_positives.csv")
+    n = sum(known.values())
+    prevalence = sum(known.get(a, False) and known.get(b, False) for a, b in oracle.hits) / (n * (n - 1) // 2)
     tested, memory = set(), []
     for t in range(1, min(args.rounds, args.until or args.rounds) + 1):
         round_dir = run_dir / f"round{t:02d}"
@@ -149,7 +154,7 @@ def run(run_dir, replicate, args):
                 if attempt == 2:
                     set_aside(round_dir, "agent_failed")
                 out = run_round(
-                    SANDBOX,
+                    sandbox,
                     round_dir,
                     tested,
                     memory,
@@ -157,6 +162,7 @@ def run(run_dir, replicate, args):
                     rounds=args.rounds,
                     model=args.model,
                     thinking=args.thinking,
+                    prevalence=prevalence,
                 )
                 out["failed_attempt"] = attempt == 2
                 if out["submission"] is not None or not out["error"]:
@@ -182,6 +188,7 @@ def main():
     parser.add_argument("replicate", type=int)
     parser.add_argument("--rounds", type=int, default=10)
     parser.add_argument("--until", type=int, help="stop after this round; prompts still say 'of --rounds'")
+    parser.add_argument("--sandbox", default="sandbox", help="agent-visible directory under data/PRING/")
     parser.add_argument("--model", default="deepseek/deepseek-flash")
     parser.add_argument("--thinking", default="high")
     args = parser.parse_args()

@@ -57,12 +57,13 @@ def test_run_feeds_back_results_resumes_and_sets_aside_interrupted_attempts(tmp_
     (sandbox / "proteins.tsv").write_text("accession\tgene\tprotein_name\tcandidate\tsequence\n" + rows)
     (hidden / "test_positives.csv").write_text("uniprotID_A,uniprotID_B\nA,B\nC,D\n")
     (tmp_path / "tools.json").write_text('{"outputs": {}}')
-    for name, value in (("SANDBOX", sandbox), ("HIDDEN", hidden), ("PRING", tmp_path), ("RUNS", tmp_path)):
+    for name, value in (("HIDDEN", hidden), ("PRING", tmp_path), ("RUNS", tmp_path)):
         monkeypatch.setattr(rounds, name, value)
     monkeypatch.setattr(rounds, "get_pi_version", lambda: "test")
     calls = []
 
-    def fake_round(sandbox_dir, round_dir, tested, memory, **_):
+    def fake_round(sandbox_dir, round_dir, tested, memory, prevalence, **_):
+        assert prevalence == 2 / 6  # A-B and C-D among the 6 pairs of 4 candidates
         calls.append((round_dir.name, set(tested), list(memory)))
         order = [("A", "B"), ("A", "C"), ("C", "D"), ("B", "D"), ("A", "D"), ("B", "C")]
         picks = [p for p in order if p not in tested][:2]
@@ -70,7 +71,7 @@ def test_run_feeds_back_results_resumes_and_sets_aside_interrupted_attempts(tmp_
         return {"submission": [{"a": a, "b": b} for a, b in picks], "error": None, "nudged": False}
 
     monkeypatch.setattr(rounds, "run_round", fake_round)
-    args = argparse.Namespace(rounds=3, until=None, model="m", thinking="t")
+    args = argparse.Namespace(rounds=3, until=None, sandbox="sandbox", model="m", thinking="t")
     run_dir = tmp_path / "r0"
     (run_dir / "round02" / "agent").mkdir(parents=True)  # a run killed mid-round 2
     rounds.run(run_dir, 0, args)
@@ -97,7 +98,7 @@ def test_repeated_infrastructure_failure_stops_the_run_unscored(tmp_path, monkey
     )
     (hidden / "test_positives.csv").write_text("uniprotID_A,uniprotID_B\nA,B\n")
     (tmp_path / "tools.json").write_text('{"outputs": {}}')
-    for name, value in (("SANDBOX", sandbox), ("HIDDEN", hidden), ("PRING", tmp_path), ("RUNS", tmp_path)):
+    for name, value in (("HIDDEN", hidden), ("PRING", tmp_path), ("RUNS", tmp_path)):
         monkeypatch.setattr(rounds, name, value)
     monkeypatch.setattr(rounds, "get_pi_version", lambda: "test")
 
@@ -106,7 +107,7 @@ def test_repeated_infrastructure_failure_stops_the_run_unscored(tmp_path, monkey
         return {"submission": None, "error": "402: Insufficient Balance"}
 
     monkeypatch.setattr(rounds, "run_round", broke)
-    args = argparse.Namespace(rounds=2, until=None, model="m", thinking="t")
+    args = argparse.Namespace(rounds=2, until=None, sandbox="sandbox", model="m", thinking="t")
     with pytest.raises(RuntimeError, match="failed twice"):
         rounds.run(tmp_path / "r0", 0, args)
     assert not (tmp_path / "r0" / "round01" / "result.json").exists()

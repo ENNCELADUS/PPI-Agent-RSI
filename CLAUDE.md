@@ -13,7 +13,7 @@ PDFs live in git-ignored `literature/<topic>/`; the index `literature/README.md`
 modes must come out of evaluation, never be assumed in advance. Name every pool, arm, baseline and run by what
 it is ("the inductive pool", "the permuted-label arm"), never by a bare label; give a code label once in parentheses.
 
-## Current state (2026-10-25, true-feedback baseline)
+## Current state (2026-10-26, true-feedback baseline and ribosome ablation)
 
 Replace this section on every update; history lives in git and the specs.
 
@@ -21,20 +21,19 @@ Replace this section on every update; history lives in git and the specs.
   KB (public positives, tested and PRING-sampled negatives); `test.csv` is the 1:1 held-out pool whose positives
   have no evidence in any public PPI database. No validation split.
 - **PRING dev sandbox (built):** `build_pring_sandbox` → `data/PRING/`
-  ([design](docs/superpowers/specs/2026-10-23-pring-sandbox-design.md)). Internal, closed-world, for debugging before
-  `test.csv`. 1:1 train/val in `hidden/` (val = predictor validation) form the KB; `test_positives.csv` holds the round
-  hits. The agent gets `sandbox/`, never `hidden/`.
-- **Closed-loop discovery, true-feedback baseline** ([spec](docs/superpowers/specs/2026-10-23-pring-wave-discovery-design.md)):
-  rounds × 200 picks among all 2.04M test-protein pairs (1.48% hits); true feedback only (control arms removed
-  2026-10-25, runs in `data/PRING/runs/_archive/`). Run `deepseek-flash-high` (5 replicates × 10 rounds, old
-  `wave` names), page in `results/deepseek-flash-high/`: 87% of hits are ribosome pairs, so report other hits and
-  coverage. Agent = pi over RPC; B0 in `src/predictor/`; LLM `deepseek-flash` (DeepSeek-V4.1-Flash-1017 in reports),
-  thinking high. Open: web retrieval for the private run. Never vendor/retrain DIPPI. [Public tracks](docs/research-reports/2026-10-19-public-ppi-benchmarks.md).
+  ([design](docs/superpowers/specs/2026-10-23-pring-sandbox-design.md)). Internal, closed-world. 1:1 train/val in
+  `hidden/` (val = predictor validation) form the KB; `test_positives.csv` holds the round hits. Agent: `sandbox/` only.
+- **Closed-loop discovery** ([spec](docs/superpowers/specs/2026-10-23-pring-wave-discovery-design.md)): rounds × 200
+  picks among all 2.04M test-protein pairs (1.48% hits), true feedback (controls in `data/PRING/runs/_archive/`).
+  Baseline `deepseek-flash-high` (5 runs × 10 rounds, old `wave` names; page `results/deepseek-flash-high/`): 88% of
+  hits are ribosome pairs. Ribosome ablation `deepseek-flash-high-noribo` (3 runs, `sandbox_noribo`, 71 proteins
+  removed): the agent mines other complexes (SNARE, Mediator, CSN, eIF3), 1.9× the predictor. Agent = pi over RPC; B0
+  in `src/predictor/`; LLM `deepseek-flash` (DeepSeek-V4.1-Flash-1017 in reports), thinking high. Open: web
+  retrieval for the private run. Never vendor/retrain DIPPI. [Public tracks](docs/research-reports/2026-10-19-public-ppi-benchmarks.md).
 
 ## Commands
 
 Python ≥ 3.11 via `uv`; run from the repo root as modules; imports are `src.*`. Module map: `src/README.md`.
-
 ```bash
 uv sync                                               # core deps + dev group (pytest, ruff)
 uv run python -m pytest tests -q > pytest.txt 2>&1    # full suite; redirect (rtk note below)
@@ -46,6 +45,7 @@ uv run python -m src.data.builders.build_agent_split  # ~30 s, ~3 GB RAM, determ
 python3 -m src.eval.verify_live_string 100 7 1        # n, seed, label: sampled test pairs vs live STRING
 uv run python -m src.data.builders.build_pring_sandbox  # ~1 s; inputs and fetch commands in its docstring
 uv run python -m src.data.builders.build_pring_tools  # ~80 s, needs mmseqs; scores + homologs for the tools
+uv run python -m src.data.builders.build_pring_noribo  # ~5 s; ribosome-ablation sandbox (--sandbox sandbox_noribo)
 (cd src/agent/pi && npm ci)                           # pinned pi for the agent harness
 uv run python -m src.eval.rounds <name> <R>           # one true-feedback replicate; --until T stops after round T
 uv run python -m src.eval.score <labels.csv> <ranking.csv>  # private test.csv (sandbox pools: not built)

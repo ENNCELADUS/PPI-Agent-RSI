@@ -15,6 +15,7 @@ module from the repo root as `python -m src.<path>`. `data` never imports `eval`
 - `build_agent_split`: Build the private agent-benchmark train/test split from raw TMP positives and public DB tables.
 - `build_pring_sandbox`: Build the PRING dev sandbox, a closed-world internal reference KB for debugging the agent.
 - `build_pring_tools`: Build the agent's tool files for PRING closed-loop discovery: calibrated predictor scores and KB homologs.
+- `build_pring_noribo`: Build the ribosome-ablation sandbox: the PRING sandbox with the cytosolic ribosome removed from the candidates.
 - `fetch_public.sh`: Fetch each public PPI source (resumable) and pipe it to `public_db`.
 
 ### `agent/` (pi runtime: `npm ci` in `agent/pi/`)
