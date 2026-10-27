@@ -156,8 +156,8 @@ TypeScript (pair/id logic duplicated in two languages) and an all-TypeScript har
   ties by pair id, paged), `predict_ppi`, `top_for_protein`, `protein_info`, `search_proteins`,
   `similar_proteins` (KB homologs), `kb_partners`, `memory`, `submit_batch`. 80 calls per wave; after that
   only `submit_batch` answers.
-- **Re-ranking:** agent-driven. The system prompt (`src/agent/prompts/`) gives the task, budget, the 1.48%
-  prior and the baseline workflow; the agent decides how to read the window. One final `submit_batch` of
+- **Re-ranking:** agent-driven. The system prompt (`src/agent/prompts/`) gives the task, budget and the
+  baseline workflow (no hit rate: unknown in a real screen; runs before 2026-10-27 were told it); the agent decides how to read the window. One final `submit_batch` of
   200 rows (pair, `ranking_score`, `uncertainty`, `evidence_ids`, `rationale`): the tool schema rejects
   malformed calls, but content is accepted as-is and invalid rows are measured, never refilled.
 - **Failures:** the session is aborted as soon as the batch is in (pi alone stops only if every call of that

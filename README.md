@@ -29,7 +29,8 @@ fixed, expert-designed agent baseline before building any RSI.
 - **Closed-loop discovery benchmark (true-feedback baseline run on DeepSeek, internal):** the agent searches all
   pairs among the sandbox's test proteins in rounds of 200 picks and sees the measured result of each of its
   own picks before the next round. See the [design](docs/superpowers/specs/2026-10-23-pring-wave-discovery-design.md).
-  Ribosome ablation (done): the same agent with the 71 cytosolic ribosomal proteins removed from the candidates.
+  Ribosome ablation (done): the same agent with the 71 cytosolic ribosomal proteins removed from the candidates. The
+  agent's prompt no longer states the hit rate among candidate pairs (unknown in a real screen).
 - **Other public tracks (surveyed):** [2026-10-19 survey](docs/research-reports/2026-10-19-public-ppi-benchmarks.md):
   BioDiscoveryAgent screens, SKEMPI 2.0 via `ppi-mutation-ddg`, and a post-cutoff IntAct/BioGRID slice.
   All are run closed-world, because their labels are retrievable online.

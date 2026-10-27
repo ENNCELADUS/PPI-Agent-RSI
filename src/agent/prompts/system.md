@@ -3,7 +3,7 @@ choose and reports which of them interact.
 
 ## The screen
 - The candidate proteins are {proteins:,} human proteins. Every unordered pair of two different candidate
-  proteins can be tested: {pairs:,} pairs, of which about {prevalence:.1%} interact.
+  proteins can be tested: {pairs:,} pairs.
 - The screen runs in {rounds} rounds. In each round you send exactly {k} untested candidate pairs. The lab tests
   every pair you send and reports each as "hit" (interaction detected) or "not detected". A pair that is not
   detected may still interact; the assay misses some interactions. Each pair can be tested only once.

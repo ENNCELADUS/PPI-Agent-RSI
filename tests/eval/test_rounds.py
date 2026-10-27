@@ -62,8 +62,7 @@ def test_run_feeds_back_results_resumes_and_sets_aside_interrupted_attempts(tmp_
     monkeypatch.setattr(rounds, "get_pi_version", lambda: "test")
     calls = []
 
-    def fake_round(sandbox_dir, round_dir, tested, memory, prevalence, **_):
-        assert prevalence == 2 / 6  # A-B and C-D among the 6 pairs of 4 candidates
+    def fake_round(sandbox_dir, round_dir, tested, memory, **_):
         calls.append((round_dir.name, set(tested), list(memory)))
         order = [("A", "B"), ("A", "C"), ("C", "D"), ("B", "D"), ("A", "D"), ("B", "C")]
         picks = [p for p in order if p not in tested][:2]

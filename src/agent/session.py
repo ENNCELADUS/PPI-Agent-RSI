@@ -82,9 +82,8 @@ class Rpc:
         self.stderr.close()
 
 
-def run_round(sandbox_dir, round_dir, tested, memory, *, t, rounds, model, thinking, prevalence):
-    """One round in round_dir/agent. tested: canonical pairs already submitted; memory: agent-visible facts;
-    prevalence: hit rate among candidate pairs, told to the agent as a prior."""
+def run_round(sandbox_dir, round_dir, tested, memory, *, t, rounds, model, thinking):
+    """One round in round_dir/agent. tested: canonical pairs already submitted; memory: agent-visible facts."""
     assert PI.exists(), f"pi not installed: run `npm ci` in {PI_DIR}"
     sandbox = Sandbox(str(sandbox_dir))
     agent_dir = Path(round_dir) / "agent"
@@ -95,7 +94,7 @@ def run_round(sandbox_dir, round_dir, tested, memory, *, t, rounds, model, think
     server, url = serve(tools)
     n = len(sandbox.candidates)
     system = prompt(
-        "system", proteins=n, pairs=n * (n - 1) // 2, prevalence=prevalence, rounds=rounds, k=K, cap=CAP, window=5 * K
+        "system", proteins=n, pairs=n * (n - 1) // 2, rounds=rounds, k=K, cap=CAP, window=5 * K
     )
     cmd = [
         str(PI),

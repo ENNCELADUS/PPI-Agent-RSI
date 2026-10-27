@@ -13,7 +13,7 @@ PDFs live in git-ignored `literature/<topic>/`; the index `literature/README.md`
 modes must come out of evaluation, never be assumed in advance. Name every pool, arm, baseline and run by what
 it is ("the inductive pool", "the permuted-label arm"), never by a bare label; give a code label once in parentheses.
 
-## Current state (2026-10-26, true-feedback baseline and ribosome ablation)
+## Current state (2026-10-27, true-feedback baseline and ribosome ablation)
 
 Replace this section on every update; history lives in git and the specs.
 
@@ -27,9 +27,9 @@ Replace this section on every update; history lives in git and the specs.
   picks among all 2.04M test-protein pairs (1.48% hits), true feedback (controls in `data/PRING/runs/_archive/`).
   Baseline `deepseek-flash-high` (5 runs × 10 rounds, old `wave` names; page `results/deepseek-flash-high/`): 88% of
   hits are ribosome pairs. Ribosome ablation `deepseek-flash-high-noribo` (3 runs, `sandbox_noribo`, 71 proteins
-  removed): the agent mines other complexes (SNARE, Mediator, CSN, eIF3), 1.9× the predictor. Agent = pi over RPC; B0
-  in `src/predictor/`; LLM `deepseek-flash` (DeepSeek-V4.1-Flash-1017 in reports), thinking high. Open: web
-  retrieval for the private run. Never vendor/retrain DIPPI. [Public tracks](docs/research-reports/2026-10-19-public-ppi-benchmarks.md).
+  removed): the agent mines other complexes (SNARE, Mediator, CSN, eIF3), 1.9× the predictor. Both were told the hit
+  rate; the prompt omits it since 2026-10-27. Agent = pi over RPC; B0 in `src/predictor/`; LLM `deepseek-flash`
+  (DeepSeek-V4.1-Flash-1017 in reports), thinking high. Open: web retrieval for the private run. Never vendor/retrain DIPPI. [Public tracks](docs/research-reports/2026-10-19-public-ppi-benchmarks.md).
 
 ## Commands
 

@@ -6,7 +6,7 @@ Design: docs/superpowers/specs/2026-10-23-pring-wave-discovery-design.md. Runs r
 after each round the agent's memory gets the measured result of every valid pair. --until T stops after
 round T (budget); the agent is still told the run has --rounds rounds, so a later resume continues it.
 --sandbox names the agent-visible directory under data/PRING/ (sandbox_noribo: the ribosome ablation,
-src/data/builders/build_pring_noribo.py); the agent is told its hit rate among candidate pairs as a prior.
+src/data/builders/build_pring_noribo.py). The agent is not told how many candidate pairs interact.
 Runs go to data/PRING/runs/<name>/r<R>/round<t>/: agent/ (pi session, tool calls, submission;
 what the agent produced) and result.json (validity and oracle results; evaluator only). A round whose
 result.json exists is replayed, so a stopped run resumes.
@@ -142,8 +142,6 @@ def run(run_dir, replicate, args):
     sandbox = PRING / args.sandbox
     known = proteins(sandbox)
     oracle = Oracle(HIDDEN / "test_positives.csv")
-    n = sum(known.values())
-    prevalence = sum(known.get(a, False) and known.get(b, False) for a, b in oracle.hits) / (n * (n - 1) // 2)
     tested, memory = set(), []
     for t in range(1, min(args.rounds, args.until or args.rounds) + 1):
         round_dir = run_dir / f"round{t:02d}"
@@ -162,7 +160,6 @@ def run(run_dir, replicate, args):
                     rounds=args.rounds,
                     model=args.model,
                     thinking=args.thinking,
-                    prevalence=prevalence,
                 )
                 out["failed_attempt"] = attempt == 2
                 if out["submission"] is not None or not out["error"]:
