@@ -34,8 +34,7 @@ Wang et al., "Search-Time Contamination in Deep Research Agents" (arXiv 2606.052
    (114); others and PRING positives are skipped. Train and val are then filled to 1:1
    with a seeded sample of PRING's own negatives (which almost never coincide with tested ones: 1 of 85k).
    The KB is train + val (val also serves as the predictor's validation set); PRING's node split keeps
-   test proteins out of it (≤ 40% identity to train), and the builder asserts it. Never use PRING
-   `*_ratio5_exclusive.txt` (negatives leak across the node split).
+   test proteins out of it (≤ 40% identity to train), and the builder asserts it.
 2. **Search time.** Closed-world: the agent gets only `sandbox/` and fixed tools. Labels and the anon-ID map
    sit in `hidden/`. Per-protein annotation is allowed (user decision 2026-10-23: everything but the
    label), minus interaction-derived fields: UniProt interaction and subunit text, GO terms with IPI

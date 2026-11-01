@@ -36,8 +36,8 @@ runs), Owkin lab-in-the-loop (arXiv 2603.26177; zero-shot vs feedback vs permute
 - **Candidates:** all 2,035,153 unordered non-self pairs among them.
 - **Hits:** the 30,128 PRING positives among them (1.48%). PRING has no positive among test proteins outside
   its test split, so the label is closed-world: a PRING positive is a hit, every other pair is "not
-  detected". Some "not detected" pairs are real, undiscovered interactions; this caps measured precision
-  equally for every arm.
+  detected". Some "not detected" pairs are real, undiscovered interactions; this caps measured precision,
+  and not equally: an arm that explores poorly annotated regions is penalised more.
 - The 55 test-side tested negatives (Negatome, IntAct negative) change nothing here: they are "not detected"
   like any other non-hit. The 1:1 `hidden/test.csv` is no longer used and is replaced (see Package).
 
@@ -83,7 +83,7 @@ feedback in any arm, so within a replicate the true, permuted and no-feedback ar
 branch from wave 2; feedback gain is then a paired difference per replicate *(my call)*. The anonymised arm
 runs its own wave 1.
 
-## Non-LLM baselines (same K, waves and top-1,000 window)
+## Non-LLM baselines (same K, waves and top-1,000 window; the agent may also pick outside it, so report its out-of-window picks)
 - **Predictor alone:** top 200 of U_t by predictor score each wave.
 - **Predictor + L3:** the predictor's top 1,000 of U_t re-ranked by L3 paths over the hits revealed so far,
   ties by predictor score *(my call)*.

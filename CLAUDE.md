@@ -13,23 +13,22 @@ PDFs live in git-ignored `literature/<topic>/`; the index `literature/README.md`
 modes must come out of evaluation, never be assumed in advance. Name every pool, arm, baseline and run by what
 it is ("the inductive pool", "the permuted-label arm"), never by a bare label; give a code label once in parentheses.
 
-## Current state (2026-10-27, true-feedback baseline and ribosome ablation)
+## Current state (2026-11-01, PRING split roles redesigned; LLM-only classification test)
 
 Replace this section on every update; history lives in git and the specs.
 
-- **Private split (built):** `build_agent_split` → `data/TMP/agent_split/`. `train.csv` is the agent's reference
-  KB (public positives, tested and PRING-sampled negatives); `test.csv` is the 1:1 held-out pool whose positives
-  have no evidence in any public PPI database. No validation split.
-- **PRING dev sandbox (built):** `build_pring_sandbox` → `data/PRING/`
-  ([design](docs/superpowers/specs/2026-10-23-pring-sandbox-design.md)). Internal, closed-world. 1:1 train/val in
-  `hidden/` (val = predictor validation) form the KB; `test_positives.csv` holds the round hits. Agent: `sandbox/` only.
-- **Closed-loop discovery** ([spec](docs/superpowers/specs/2026-10-23-pring-wave-discovery-design.md)): rounds × 200
-  picks among all 2.04M test-protein pairs (1.48% hits), true feedback (controls in `data/PRING/runs/_archive/`).
-  Baseline `deepseek-flash-high` (5 runs × 10 rounds, old `wave` names; page `results/deepseek-flash-high/`): 88% of
-  hits are ribosome pairs. Ribosome ablation `deepseek-flash-high-noribo` (3 runs, `sandbox_noribo`, 71 proteins
-  removed): the agent mines other complexes (SNARE, Mediator, CSN, eIF3), 1.9× the predictor. Both were told the hit
-  rate; the prompt omits it since 2026-10-27. Agent = pi over RPC; B0 in `src/predictor/`; LLM `deepseek-flash`
-  (DeepSeek-V4.1-Flash-1017 in reports), thinking high. Open: web retrieval for the private run. Never vendor/retrain DIPPI. [Public tracks](docs/research-reports/2026-10-19-public-ppi-benchmarks.md).
+- **Private split (built):** `build_agent_split` → `data/TMP/agent_split/`: `train.csv` = agent KB; `test.csv` = 1:1
+  held-out pool, positives with no evidence in any public PPI database. No validation split. Open: web retrieval.
+- **PRING sandbox (built):** `build_pring_sandbox` → `data/PRING/` ([design](docs/superpowers/specs/2026-10-23-pring-sandbox-design.md)).
+  Internal, closed-world; agent sees a `sandbox*/` directory only. Split roles (user decision 2026-11-01,
+  [spec](docs/superpowers/specs/2026-11-01-pring-classification-test-design.md)): train = KB; val = RSI data (agent
+  picks val pairs to reveal; transductive, accepted); test = final, PRING test as released (`hidden/test.csv`).
+- **Classification test (built, smoke only):** LLM-only arm, no DL tools, no web (`build_pring_cls` → `sandbox_cls/`,
+  `src.eval.pring_test`). B0: AUROC 0.701, AP 0.736 (self pairs all positive). Topology test and RSI loop not built.
+- **Closed-loop discovery (earlier, [spec](docs/superpowers/specs/2026-10-23-pring-wave-discovery-design.md)):** 10 × 200 picks of
+  2.04M test pairs. `deepseek-flash-high` (5 runs): 88% of hits ribosome; `-noribo` (3 runs): other complexes, 1.9× B0;
+  both told the hit rate. Agent = pi over RPC; B0 in `src/predictor/`; LLM `deepseek-flash` (DeepSeek-V4.1-Flash-1017),
+  thinking high. Never vendor/retrain DIPPI. [Public tracks](docs/research-reports/2026-10-19-public-ppi-benchmarks.md), [RSI positioning](docs/research-reports/2026-10-27-rsi-active-learning-positioning.md).
 
 ## Commands
 
@@ -48,6 +47,7 @@ uv run python -m src.data.builders.build_pring_tools  # ~80 s, needs mmseqs; sco
 uv run python -m src.data.builders.build_pring_noribo  # ~5 s; ribosome-ablation sandbox (--sandbox sandbox_noribo)
 (cd src/agent/pi && npm ci)                           # pinned pi for the agent harness
 uv run python -m src.eval.rounds <name> <R>           # one true-feedback replicate; --until T stops after round T
+uv run python -m src.data.builders.build_pring_cls && uv run python -m src.eval.pring_test <name>  # --limit N batches
 uv run python -m src.eval.score <labels.csv> <ranking.csv>  # private test.csv (sandbox pools: not built)
 ```
 
@@ -113,8 +113,8 @@ Mistakes here produce a complete-looking **wrong artifact**, not an exception.
   re-running every extract. 1,320 TMP proteins have no Entrez gene or STRING ID and match by accession only.
 - 65,047 PRING train negatives have a weak STRING link (≤ 700) by design; filter with `pair_annotations.parquet`
   for a stricter KB. IntAct pairs with both positive and negative evidence count as public.
-- PRING: never use `*_ratio5_exclusive.txt` (negatives leak across the node split); it keeps self pairs as
-  positives (dropped here); motif `node_*` ids follow accession order; `candidate_test_edges.txt` lists positives first.
+- PRING keeps self pairs as positives (dropped here); motif `node_*` ids follow accession order;
+  `candidate_test_edges.txt` lists positives first.
 - `data/TMP/processed/` is DIPPI-era and unused; raw names carry upstream typos. HuRI (broken TLS) is covered
   via IntAct/BioGRID/HIPPIE; never bypass certificate checks.
 - `predictor/pring_candidates.tsv.gz` carries labels: the agent sees scores only via `sandbox/scores.tsv.gz`.

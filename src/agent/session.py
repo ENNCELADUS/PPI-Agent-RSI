@@ -1,9 +1,10 @@
-"""Run one round of the agent: a fresh pi session (RPC mode) whose only tools are the round's tools.
+"""Run one agent session: a fresh pi session (RPC mode) whose only tools are the given tools.
 
 pi runs from src/agent/pi (`npm ci` there first) with an isolated config directory: no built-in tools,
 skills, prompt templates, context files, MCP or discovered extensions; only ppi_tools.ts, which
 forwards calls to the Python tool server. If the session settles without a submission it gets one
-fixed nudge. Returns what happened; the caller decides validity and results.
+fixed nudge. Returns what happened; the caller decides validity and results. run_round is one
+discovery round; src/eval/pring_test.py calls run_session with PairTools for a classification batch.
 """
 
 import json
@@ -14,7 +15,7 @@ import threading
 import time
 from pathlib import Path
 
-from src.agent.tools import CAP, K, Sandbox, RoundTools, serve, specs
+from src.agent.tools import CAP, K, RoundTools, Sandbox, serve, specs
 
 PI_DIR = Path(__file__).parent / "pi"
 PI = PI_DIR / "node_modules" / ".bin" / "pi"
@@ -84,18 +85,23 @@ class Rpc:
 
 def run_round(sandbox_dir, round_dir, tested, memory, *, t, rounds, model, thinking):
     """One round in round_dir/agent. tested: canonical pairs already submitted; memory: agent-visible facts."""
-    assert PI.exists(), f"pi not installed: run `npm ci` in {PI_DIR}"
     sandbox = Sandbox(str(sandbox_dir))
     agent_dir = Path(round_dir) / "agent"
     tools = RoundTools(sandbox, agent_dir, tested, memory)
-    (agent_dir / "tools.json").write_text(json.dumps(specs(), indent=1))
+    n = len(sandbox.candidates)
+    system = prompt("system", proteins=n, pairs=n * (n - 1) // 2, rounds=rounds, k=K, cap=CAP, window=5 * K)
+    message = prompt("round", round=t, rounds=rounds, tested=len(tested), k=K)
+    return run_session(tools, agent_dir, system, message, prompt("nudge", k=K), model=model, thinking=thinking)
+
+
+def run_session(tools, agent_dir, system, message, nudge, *, model, thinking):
+    """One pi session in agent_dir with tools (RoundTools or PairTools): send message, nudge once if nothing
+    was submitted. Returns what happened, the submission and the tool-call count."""
+    assert PI.exists(), f"pi not installed: run `npm ci` in {PI_DIR}"
+    (agent_dir / "tools.json").write_text(json.dumps(specs(tools.names), indent=1))
     config = agent_dir / "pi-config"  # empty: no user settings, models or extensions reach the agent
     config.mkdir(exist_ok=True)
     server, url = serve(tools)
-    n = len(sandbox.candidates)
-    system = prompt(
-        "system", proteins=n, pairs=n * (n - 1) // 2, rounds=rounds, k=K, cap=CAP, window=5 * K
-    )
     cmd = [
         str(PI),
         "--mode",
@@ -132,7 +138,7 @@ def run_round(sandbox_dir, round_dir, tested, memory, *, t, rounds, model, think
     deadline = time.time() + TIMEOUT
     try:
         rpc.send(type="set_auto_compaction", enabled=False)  # a fixed agent: context is never rewritten
-        messages = [prompt("round", round=t, rounds=rounds, tested=len(tested), k=K)]
+        messages = [message]
         while messages:
             rpc.send(type="prompt", message=messages.pop())
             last_error = None  # a provider error counts only if pi's own retries did not recover
@@ -152,7 +158,7 @@ def run_round(sandbox_dir, round_dir, tested, memory, *, t, rounds, model, think
             out["error"] = out["error"] or (None if out["aborted"] else last_error)  # our abort is no error
             if tools.submitted is None and not out["nudged"] and not out["error"]:
                 out["nudged"] = True
-                messages.append(prompt("nudge", k=K))
+                messages.append(nudge)
         rpc.send(type="get_session_stats")
         while "stats" not in out:  # skip late replies, e.g. to the abort
             for event in rpc.until("response", deadline):

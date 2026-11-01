@@ -16,6 +16,7 @@ module from the repo root as `python -m src.<path>`. `data` never imports `eval`
 - `build_pring_sandbox`: Build the PRING dev sandbox, a closed-world internal reference KB for debugging the agent.
 - `build_pring_tools`: Build the agent's tool files for PRING closed-loop discovery: calibrated predictor scores and KB homologs.
 - `build_pring_noribo`: Build the ribosome-ablation sandbox: the PRING sandbox with the cytosolic ribosome removed from the candidates.
+- `build_pring_cls`: Build the classification-test sandbox: the PRING sandbox with the KB cut to train and no predictor.
 - `fetch_public.sh`: Fetch each public PPI source (resumable) and pipe it to `public_db`.
 
 ### `agent/` (pi runtime: `npm ci` in `agent/pi/`)
@@ -28,6 +29,7 @@ module from the repo root as `python -m src.<path>`. `data` never imports `eval`
 
 - `oracle`: The offline lab: answers submitted pairs from a sealed labels file. Never imported by src/agent.
 - `rounds`: Run PRING closed-loop discovery with the pi agent: rounds of K submitted pairs, oracle results, true feedback.
+- `pring_test`: Classification test on PRING: the agent predicts every pair of PRING's human BFS test split.
 - `score`: Score a global top-N ranking against a labels file (the private `test.csv`; sandbox pools not built yet).
 - `verify_live_string`: Spot-check that sampled test pairs are absent from the live STRING API.
 

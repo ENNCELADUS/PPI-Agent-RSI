@@ -1,9 +1,10 @@
-"""The agent's tools for one round, served to pi over localhost HTTP (the TS extension only forwards calls).
+"""The agent's tools for one session, served to pi over localhost HTTP (the TS extension only forwards calls).
 
-Reads the sandbox directory (data/PRING/sandbox/) and the round state the evaluator
-hands over: the pairs already tested and the agent-visible memory. It never reads labels or imports
-the oracle. Every call is logged to tool_calls.jsonl; after CAP calls only submit_batch answers.
-submit_batch accepts the first well-formed batch as final and writes it to submission.json.
+Reads the sandbox directory (data/PRING/sandbox/) and the state the evaluator hands over: for a
+discovery round (RoundTools) the pairs already tested and the agent-visible memory; for a
+classification batch (PairTools) nothing. It never reads labels or imports the oracle. Every call is
+logged to tool_calls.jsonl; after CAP calls only the submit tool answers, and it accepts the first
+well-formed submission as final and writes it to submission.json.
 """
 
 import csv
@@ -65,11 +66,12 @@ class Sandbox:
             self.homologs.setdefault(r["query"], []).append((r["target"], r["pident"], r["evalue"], r["bits"]))
         # r: global rank by predictor score, ties broken by canonical pair id
         self.db = duckdb.connect()
-        self.db.execute(
-            "CREATE TABLE scores AS SELECT a, b, p, row_number() OVER (ORDER BY p DESC, a, b) AS r FROM read_csv("
-            "?, delim='\t', header=true, columns={'a': 'VARCHAR', 'b': 'VARCHAR', 'p': 'DOUBLE'})",
-            [str(root / "scores.tsv.gz")],
-        )
+        if (root / "scores.tsv.gz").exists():  # absent where the agent has no predictor (sandbox_cls)
+            self.db.execute(
+                "CREATE TABLE scores AS SELECT a, b, p, row_number() OVER (ORDER BY p DESC, a, b) AS r FROM read_csv("
+                "?, delim='\t', header=true, columns={'a': 'VARCHAR', 'b': 'VARCHAR', 'p': 'DOUBLE'})",
+                [str(root / "scores.tsv.gz")],
+            )
 
     def gene(self, x):
         return self.proteins[x]["gene"]
@@ -165,25 +167,54 @@ SPECS = {
         },
         ["pairs"],
     ),
+    "submit_predictions": (
+        "Send your prediction for the pairs of this batch. Final: call it once, with one row per listed pair.",
+        {
+            "predictions": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "a": ID,
+                        "b": ID,
+                        "p": {
+                            "type": "number",
+                            "minimum": 0,
+                            "maximum": 1,
+                            "description": "your probability that the pair interacts",
+                        },
+                        "evidence_ids": {"type": "array", "items": ID},
+                    },
+                    "required": ["a", "b", "p", "evidence_ids"],
+                },
+            }
+        },
+        ["predictions"],
+    ),
 }
+ROUND_TOOLS = tuple(n for n in SPECS if n != "submit_predictions")
+PAIR_TOOLS = ("protein_info", "search_proteins", "similar_proteins", "kb_partners", "submit_predictions")
 
 
-def specs():
+def specs(names=ROUND_TOOLS):
     """JSON-schema tool definitions for the pi extension."""
     return [
         {
             "name": n,
             "description": d,
-            "terminate": n == "submit_batch",
+            "terminate": n.startswith("submit_"),
             "parameters": {"type": "object", "properties": p, "required": r},
         }
         for n, (d, p, r) in SPECS.items()
+        if n in names
     ]
 
 
 class RoundTools:
     """Tool calls for one round. tested: canonical pairs already submitted; memory: agent-visible facts
     as dicts with a, b, round, result ("hit", "not detected" or "withheld")."""
+
+    names, final = ROUND_TOOLS, "submit_batch"
 
     def __init__(self, sandbox, round_dir, tested, memory, cap=CAP):
         self.s, self.dir, self.tested, self.facts, self.cap = sandbox, Path(round_dir), set(tested), memory, cap
@@ -198,10 +229,10 @@ class RoundTools:
             with self.lock:
                 self.calls += 1
                 over = self.calls > self.cap
-            if name not in SPECS:
+            if name not in self.names:
                 raise ToolError(f"unknown tool {name}")
-            if over and name != "submit_batch":
-                raise ToolError(f"tool budget of {self.cap} calls used up: call submit_batch now")
+            if over and name != self.final:
+                raise ToolError(f"tool budget of {self.cap} calls used up: call {self.final} now")
             text = getattr(self, name)(**args)
             ok = True
             return text
@@ -320,13 +351,31 @@ class RoundTools:
             ["round", "a", "b", "result"], [(m["round"], m["a"], m["b"], m["result"]) for m in rows]
         )
 
-    def submit_batch(self, pairs):
+    def _submit(self, rows):
         with self.lock:
             if self.submitted is not None:
-                raise ToolError("this round's batch was already submitted")
-            self.submitted = pairs
-        (self.dir / "submission.json").write_text(json.dumps(pairs, indent=0))
+                raise ToolError("already submitted")
+            self.submitted = rows
+        (self.dir / "submission.json").write_text(json.dumps(rows, indent=0))
+
+    def submit_batch(self, pairs):
+        self._submit(pairs)
         return f"received {len(pairs)} pairs; results arrive next round"
+
+
+class PairTools(RoundTools):
+    """Tool calls for one classification batch: protein and KB tools only (no predictor, no memory)."""
+
+    names, final = PAIR_TOOLS, "submit_predictions"
+
+    def __init__(self, sandbox, agent_dir, cap=CAP):
+        self.s, self.dir, self.cap = sandbox, Path(agent_dir), cap
+        self.calls, self.submitted, self.lock = 0, None, threading.Lock()
+        self.dir.mkdir(parents=True, exist_ok=True)
+
+    def submit_predictions(self, predictions):
+        self._submit(predictions)
+        return f"received {len(predictions)} predictions"
 
 
 def serve(tools):

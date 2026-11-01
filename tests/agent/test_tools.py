@@ -3,7 +3,7 @@ import json
 
 import pytest
 
-from src.agent.tools import Sandbox, ToolError, RoundTools, specs
+from src.agent.tools import PAIR_TOOLS, PairTools, RoundTools, Sandbox, ToolError, specs
 
 ROWS = [("A", 1), ("B", 1), ("C", 1), ("D", 1), ("K1", 0), ("K2", 0)]
 # A-C and B-C tie on p: ties go by pair id
@@ -118,3 +118,16 @@ def test_cap_leaves_only_submit_and_submit_is_final(sandbox, tmp_path):
 
 def test_specs_mark_only_submit_as_terminating():
     assert [s["name"] for s in specs() if s["terminate"]] == ["submit_batch"]
+
+
+def test_pair_tools_have_no_predictor_or_memory(sandbox, tmp_path):
+    w = PairTools(sandbox, tmp_path / "w", cap=5)  # 4 unknown calls + kb_partners
+    for name in ("predict_ppi", "top_candidates", "memory", "submit_batch"):
+        with pytest.raises(ToolError, match="unknown tool"):
+            w.call(name, {})
+    assert "label" in w.call("kb_partners", {"id": "K1"})
+    with pytest.raises(ToolError, match="submit_predictions now"):
+        w.call("protein_info", {"ids": ["A"]})
+    w.call("submit_predictions", {"predictions": [{"a": "A", "b": "B", "p": 0.7, "evidence_ids": []}]})
+    assert w.submitted[0]["p"] == 0.7
+    assert [s["name"] for s in specs(PAIR_TOOLS) if s["terminate"]] == ["submit_predictions"]

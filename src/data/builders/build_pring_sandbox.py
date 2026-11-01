@@ -22,7 +22,8 @@ pairs as raw accessions; `fetch_public.sh negatome intact_negative`).
 Sandbox numbers are never reported: every label here is public, so a web-enabled agent would
 look it up.
 
-- Self pairs are dropped everywhere (PRING keeps them as positives; the private split drops them).
+- Self pairs are dropped everywhere except hidden/test.csv (PRING keeps them as positives; the private
+  split drops them).
 - Tested negatives with both ends on the KB side of PRING's protein split join train; others and
   PRING positives are skipped. They are always kept; train and val are then filled to 1:1 with a
   seeded sample of PRING's own negatives.
@@ -32,6 +33,8 @@ look it up.
 - Closed-loop discovery (docs/superpowers/specs/2026-10-23-pring-wave-discovery-design.md): the candidates
   are all pairs among the test proteins (`candidate` = 1 in proteins.tsv; none is a KB protein);
   hidden/test_positives.csv lists every PRING positive among them, the oracle's hits.
+- Classification test: hidden/test.csv is PRING's own labelled test split as released, self pairs
+  included (32,019 positives of which 1,891 self pairs, 32,019 negatives), scored by src/eval/pring_test.py.
 - annotations.tsv: everything UniProt says about each protein except its interactions (user
   decision 2026-10-23: all information but the label). Removed as the label in another form: any
   text sentence naming another human gene symbol, GO terms under protein binding or
@@ -147,7 +150,10 @@ def main():
     for p in tested:
         if set(p) <= kb_side and p not in splits["val"]:
             splits["train"][p] = 0
-    hits = sorted(p for p, y in splits.pop("test").items() if y)
+    test = splits.pop("test")
+    hits = sorted(p for p, y in test.items() if y)
+    raw_test = csv.reader(open(RAW / "breadth_first/test_edges.txt"), delimiter="\t")
+    test |= {(r[0], r[1]): int(r[2]) for r in raw_test if r[0] == r[1]}  # self pairs kept here, all positive
     splits = {s: balance(pairs, tested, random.Random(f"{SEED}-{s}")) for s, pairs in splits.items()}
     for s, pairs in splits.items():
         assert 2 * sum(pairs.values()) == len(pairs), f"{s} not 1:1"
@@ -207,6 +213,11 @@ def main():
             sorted((node2acc[a], node2acc[b], y) for (a, b), y in pairs.items()),
         )
     write(HIDDEN / "test_positives.csv", PAIR, sorted((node2acc[a], node2acc[b]) for a, b in hits))
+    write(
+        HIDDEN / "test.csv",
+        PAIR + ["isInteraction"],
+        sorted((node2acc[a], node2acc[b], y) for (a, b), y in test.items()),
+    )
 
     stats = {
         **{
@@ -223,6 +234,8 @@ def main():
         "candidate_proteins": len(candidates),
         "candidate_pairs": len(candidates) * (len(candidates) - 1) // 2,
         "candidate_hits": len(hits),
+        "test_pos": sum(test.values()),
+        "test_neg": len(test) - sum(test.values()),
         "proteins_without_uniprot_entry": sum(node2acc[x] not in names for x in proteins),
         "proteins_annotated": len(annotated),
         "annotation_sentences_dropped": n_dropped,
