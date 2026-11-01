@@ -7,10 +7,16 @@ the bare accession. A pair is
 matched against a database if any node combination of the two proteins is in
 it, so multi-gene proteins (e.g. histone H4) and isoforms are not missed.
 """
+
 import csv
 import gzip
 
 from src.data.paths import IDMAP, RAW_FILES, STRING_ALIAS
+
+
+def pair(a, b):
+    """Canonical unordered pair: the smaller id first."""
+    return (a, b) if a < b else (b, a)
 
 
 def strip_isoform(acc):

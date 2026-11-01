@@ -24,7 +24,6 @@ import gzip
 import hashlib
 import json
 import random
-import subprocess
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime
 
@@ -32,9 +31,11 @@ import numpy as np
 
 from src.agent.session import PROMPTS, prompt, run_session
 from src.agent.session import pi_version as get_pi_version
-from src.agent.tools import CAP, PairTools, Sandbox, pair, tsv
+from src.agent.tools import CAP, PairTools, Sandbox, tsv
+from src.data.ids import pair
 from src.data.paths import HIDDEN, PRING, PRING_RAW
-from src.eval.rounds import RUNS, set_aside
+from src.eval.rounds import RUNS, commit, set_aside
+from src.eval.score import read_pairs
 from src.predictor.parity import average_ranks
 
 SEED = 0
@@ -42,7 +43,7 @@ TEST_PROMPTS = PROMPTS / "pring_test"
 
 
 def test_pairs(path=HIDDEN / "test.csv"):
-    return [(a, b, int(y)) for a, b, y in (r.values() for r in csv.DictReader(open(path)))]
+    return [(*p, int(r["isInteraction"])) for p, r in read_pairs(path)]
 
 
 def batches(pairs, size, seed=SEED):
@@ -65,16 +66,21 @@ def evaluate(submission, batch):
     return [{"a": a, "b": b, "label": y, "p": p.get((a, b))} for a, b, y in batch], rejected
 
 
+def steps(y, s):
+    """Each distinct score, best first (ties form one step), with true and predicted positives at or above it."""
+    order = np.argsort(-s, kind="stable")
+    ss = s[order]
+    last = np.r_[ss[1:] != ss[:-1], True]
+    return ss[last], np.cumsum(y[order])[last], np.arange(1, len(y) + 1)[last]
+
+
 def metrics(y, s):
-    """AUROC (ties count half) and average precision (ties form one threshold step)."""
+    """AUROC (ties count half) and average precision."""
     y, s = np.asarray(y), np.asarray(s, dtype=float)
     pos = int(y.sum())
     neg = len(y) - pos
     auroc = (average_ranks(s)[y == 1].sum() - pos * (pos + 1) / 2) / (pos * neg)
-    order = np.argsort(-s, kind="stable")
-    ys, ss = y[order], s[order]
-    last = np.r_[ss[1:] != ss[:-1], True]
-    tp, n = np.cumsum(ys)[last], np.arange(1, len(y) + 1)[last]
+    _, tp, n = steps(y, s)
     ap = float((np.diff(np.r_[0, tp]) * tp / n).sum() / pos)
     return {"auroc": float(auroc), "ap": ap}
 
@@ -83,11 +89,8 @@ def classification(y, prob, bins=15):
     """PRING Table 8 metrics and MCC, specificity at the max-F1 threshold chosen on these labels (oracle: val is
     RSI data, not a selector), plus ECE and Brier."""
     y, prob = np.asarray(y), np.asarray(prob, dtype=float)
-    order = np.argsort(-prob, kind="stable")
-    ss = prob[order]
-    last = np.r_[ss[1:] != ss[:-1], True]
-    f1 = 2 * np.cumsum(y[order])[last] / (np.arange(1, len(y) + 1)[last] + y.sum())  # 2tp / (predicted + positives)
-    threshold = float(ss[last][np.argmax(f1)])
+    t, tp_at, n_at = steps(y, prob)
+    threshold = float(t[np.argmax(2 * tp_at / (n_at + y.sum()))])  # F1 = 2tp / (predicted + positives)
     pred = prob >= threshold
     tp, fp = int((pred & (y == 1)).sum()), int((pred & (y == 0)).sum())
     fn, tn = int((~pred & (y == 1)).sum()), int((~pred & (y == 0)).sum())
@@ -112,11 +115,11 @@ def b0_logits(pairs):
     node = {
         r["uniprot_id"]: r["node_id"] for r in csv.DictReader(open(PRING_RAW / "node_sequences.tsv"), delimiter="\t")
     }
-    want = {tuple(sorted((node[a], node[b]))): (a, b) for a, b in pairs}
+    want = {pair(node[a], node[b]): (a, b) for a, b in pairs}
     out = {}
     with gzip.open(PRING / "predictor" / "pring_candidates.tsv.gz", "rt") as f:
         for r in csv.DictReader(f, delimiter="\t"):
-            if (k := tuple(sorted((r["node_a"], r["node_b"])))) in want:
+            if (k := pair(r["node_a"], r["node_b"])) in want:
                 out[want[k]] = float(r["logit"])
     return out
 
@@ -149,7 +152,6 @@ def summarise(rows, results):
 
 
 def provenance(args, n_batches):
-    git = lambda *a: subprocess.run(["git", *a], capture_output=True, text=True).stdout.strip()  # noqa: E731
     return {
         "model": args.model,
         "thinking": args.thinking,
@@ -157,7 +159,7 @@ def provenance(args, n_batches):
         "batches": n_batches,
         "seed": SEED,
         "cap": CAP,
-        "git": git("rev-parse", "HEAD") + ("-dirty" if git("status", "--porcelain", "src") else ""),
+        "git": commit(),
         "pi": get_pi_version(),
         "prompts": {p.name: hashlib.sha256(p.read_bytes()).hexdigest()[:16] for p in sorted(TEST_PROMPTS.glob("*.md"))},
         "test_csv": hashlib.sha256((HIDDEN / "test.csv").read_bytes()).hexdigest()[:16],

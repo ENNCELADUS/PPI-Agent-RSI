@@ -13,52 +13,28 @@ predicts PRING's test pairs knows only train. The first arm is the LLM alone (no
 
 import csv
 
+from src.data.builders.build_pring_noribo import drop_rows
 from src.data.paths import HIDDEN, PRING, SANDBOX
 
 OUT = PRING / "sandbox_cls"
 
 
-def rows(path, delimiter):
-    with open(path, newline="") as f:
-        reader = csv.reader(f, delimiter=delimiter)
-        return next(reader), list(reader)
-
-
-def write(path, header, body, delimiter):
-    with open(path, "w", newline="") as f:
-        w = csv.writer(f, delimiter=delimiter)
-        w.writerow(header)
-        w.writerows(body)
-
-
 def main():
-    _, train = rows(HIDDEN / "train.csv", ",")
-    train_pairs = {(a, b) for a, b, _ in train}
-    head, kb = rows(SANDBOX / "kb.csv", ",")
-    kb = [r for r in kb if (r[0], r[1]) in train_pairs]
-    assert len(kb) == len(train_pairs), "train pair missing from the sandbox KB"
-    kb_proteins = {x for r in kb for x in r[:2]}
-
-    p_head, proteins = rows(SANDBOX / "proteins.tsv", "\t")
-    candidates = {r[0] for r in proteins if r[3] == "1"}
-    assert not kb_proteins & candidates, "test protein in KB"
-    keep = kb_proteins | candidates
+    train = {(r["uniprotID_A"], r["uniprotID_B"]) for r in csv.DictReader(open(HIDDEN / "train.csv"))}
+    kb = {x for p in train for x in p}
+    rows = csv.DictReader(open(SANDBOX / "proteins.tsv"), delimiter="\t")
+    candidates = {r["accession"] for r in rows if r["candidate"] == "1"}
+    assert not kb & candidates, "test protein in KB"
+    keep = kb | candidates
     OUT.mkdir(exist_ok=True)
-    write(OUT / "kb.csv", head, kb, ",")
-    write(OUT / "proteins.tsv", p_head, [r for r in proteins if r[0] in keep], "\t")
-    a_head, ann = rows(SANDBOX / "annotations.tsv", "\t")
-    write(OUT / "annotations.tsv", a_head, [r for r in ann if r[0] in keep], "\t")
-    h_head, hom = rows(SANDBOX / "homologs.tsv", "\t")
-    hom = [r for r in hom if r[0] in keep and r[1] in kb_proteins]
-    write(OUT / "homologs.tsv", h_head, hom, "\t")
-    stats = {
-        "kb_pairs": len(kb),
-        "kb_pos": sum(r[2] == "1" for r in kb),
-        "kb_proteins": len(kb_proteins),
-        "test_proteins": len(candidates),
-        "test_proteins_with_homolog": len({r[0] for r in hom} & candidates),
+    dropped = {
+        "kb.csv": drop_rows("kb.csv", lambda f: tuple(f[:2]) in train, OUT),
+        "proteins.tsv": drop_rows("proteins.tsv", lambda f: f[0] in keep, OUT),
+        "annotations.tsv": drop_rows("annotations.tsv", lambda f: f[0] in keep, OUT),
+        "homologs.tsv": drop_rows("homologs.tsv", lambda f: f[0] in keep and f[1] in kb, OUT),
     }
-    print(stats)
+    assert sum(1 for _ in open(OUT / "kb.csv")) - 1 == len(train), "train pair missing from the sandbox KB"
+    print(f"{OUT.relative_to(PRING)}: KB {len(train):,} pairs, {len(kb):,} proteins; rows dropped {dropped}")
 
 
 if __name__ == "__main__":

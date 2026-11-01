@@ -18,6 +18,8 @@ from pathlib import Path
 
 import duckdb
 
+from src.data.ids import pair
+
 CAP = 80
 K = 200
 ANNOTATION = (
@@ -32,10 +34,6 @@ ANNOTATION = (
     "pfam",
     "interpro",
 )
-
-
-def pair(a, b):
-    return (a, b) if a < b else (b, a)
 
 
 def tsv(header, rows):

@@ -49,6 +49,7 @@ import re
 from collections import defaultdict
 from datetime import date
 
+from src.data.ids import pair
 from src.data.paths import HIDDEN, PRING, PUBLIC_NEG, SANDBOX
 from src.data.paths import PRING_RAW as RAW
 
@@ -80,8 +81,8 @@ def edges(path):
     for row in csv.reader(open(path), delimiter="\t"):
         if row[0] == row[1]:
             continue
-        pair, label = tuple(sorted(row[:2])), int(row[2]) if len(row) > 2 else 1
-        assert out.setdefault(pair, label) == label, f"conflicting labels for {pair}"
+        p, label = pair(*row[:2]), int(row[2]) if len(row) > 2 else 1
+        assert out.setdefault(p, label) == label, f"conflicting labels for {p}"
     return out
 
 
@@ -145,7 +146,7 @@ def main():
     for source in TESTED:
         for r in csv.DictReader(gzip.open(PUBLIC_NEG / f"{source}.tsv.gz", "rt"), delimiter="\t"):
             a, b = acc2node.get(r["a"]), acc2node.get(r["b"])
-            if a and b and (p := tuple(sorted((a, b)))) not in known:
+            if a and b and (p := pair(a, b)) not in known:
                 tested.setdefault(p, source)
     for p in tested:
         if set(p) <= kb_side and p not in splits["val"]:

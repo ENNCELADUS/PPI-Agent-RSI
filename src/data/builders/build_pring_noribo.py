@@ -37,13 +37,13 @@ def ribosome(proteins_tsv=SANDBOX / "proteins.tsv"):
     return {r["accession"] for r in rows if r["candidate"] == "1" and is_ribosomal(r["gene"])}
 
 
-def drop_rows(name, keep, opener=open):
-    """Copy sandbox/<name> to OUT keeping the header and the rows where keep(fields) holds; rows dropped."""
-    dropped = 0
-    with opener(SANDBOX / name, "rt") as src, opener(OUT / name, "wt") as out:
+def drop_rows(name, keep, out_dir=OUT, opener=open):
+    """Copy sandbox/<name> to out_dir keeping the header and the rows where keep(fields) holds; rows dropped."""
+    sep, dropped = "," if name.endswith(".csv") else "\t", 0
+    with opener(SANDBOX / name, "rt") as src, opener(out_dir / name, "wt") as out:
         out.write(next(src))
         for line in src:
-            if keep(line.rstrip("\n").split("\t")):
+            if keep(line.rstrip("\n").split(sep)):
                 out.write(line)
             else:
                 dropped += 1
@@ -59,7 +59,7 @@ def main():
         "proteins.tsv": drop_rows("proteins.tsv", lambda f: f[0] not in drop),
         "annotations.tsv": drop_rows("annotations.tsv", lambda f: f[0] not in drop),
         "homologs.tsv": drop_rows("homologs.tsv", lambda f: f[0] not in drop),
-        "scores.tsv.gz": drop_rows("scores.tsv.gz", lambda f: f[0] not in drop and f[1] not in drop, gzip.open),
+        "scores.tsv.gz": drop_rows("scores.tsv.gz", lambda f: f[0] not in drop and f[1] not in drop, opener=gzip.open),
     }
     n = sum(r["candidate"] == "1" for r in csv.DictReader(open(OUT / "proteins.tsv"), delimiter="\t"))
     assert counts["scores.tsv.gz"] == 2_035_153 - n * (n - 1) // 2, counts  # every removed pair, nothing else

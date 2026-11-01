@@ -32,7 +32,8 @@ from datetime import UTC, datetime
 
 from src.agent.session import PROMPTS, run_round
 from src.agent.session import pi_version as get_pi_version
-from src.agent.tools import K, pair
+from src.agent.tools import K
+from src.data.ids import pair
 from src.data.paths import HIDDEN, PRING
 from src.eval.oracle import Oracle
 
@@ -111,14 +112,14 @@ def set_aside(round_dir, name):
         shutil.move(round_dir / "agent", target)
 
 
-def setup(args):
+def commit():
+    """HEAD, marked -dirty when src/ has uncommitted changes."""
     git = lambda *a: subprocess.run(["git", *a], capture_output=True, text=True).stdout.strip()  # noqa: E731
-    return {
-        "model": args.model,
-        "thinking": args.thinking,
-        "rounds": args.rounds,
-        "git": git("rev-parse", "HEAD") + ("-dirty" if git("status", "--porcelain", "src") else ""),
-    }
+    return git("rev-parse", "HEAD") + ("-dirty" if git("status", "--porcelain", "src") else "")
+
+
+def setup(args):
+    return {"model": args.model, "thinking": args.thinking, "rounds": args.rounds, "git": commit()}
 
 
 def provenance(replicate, args):

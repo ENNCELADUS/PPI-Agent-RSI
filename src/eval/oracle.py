@@ -6,9 +6,7 @@ positive). PRING is closed-world: a listed positive is a hit, every other pair i
 
 import csv
 
-
-def pair(a, b):
-    return (a, b) if a < b else (b, a)
+from src.data.ids import pair
 
 
 class Oracle:

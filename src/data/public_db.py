@@ -11,13 +11,14 @@ public_db/negative/<source>.tsv.gz as raw accession pairs.
 Sources yield raw IDs: "g<entrez>" for genes, "9606.ENSP…" for STRING
 proteins, anything else is a UniProt accession.
 """
+
 import csv
 import gzip
 import itertools
 import re
 import sys
 
-from src.data.ids import IdMap, raw_universe, strip_isoform
+from src.data.ids import IdMap, pair, raw_universe, strip_isoform
 from src.data.paths import IDMAP, PUBLIC, PUBLIC_NEG, STRING_ALIAS
 
 csv.field_size_limit(sys.maxsize)
@@ -103,7 +104,7 @@ def corum_pairs(lines, idmap):
     for row in csv.DictReader(lines, delimiter="\t"):
         accs = sorted({a.strip() for a in row["subunits_uniprot_id"].split(";") if a.strip()})
         for i, a in enumerate(accs):
-            for b in accs[i + 1:]:
+            for b in accs[i + 1 :]:
                 yield a, b, "", row["complex_name"]
 
 
@@ -135,7 +136,7 @@ NEG_SOURCES = {
 def write_negatives(source, lines):
     """Experimentally tested non-interactions, kept as raw accession pairs."""
     PUBLIC_NEG.mkdir(exist_ok=True)
-    pairs = {tuple(sorted((strip_isoform(a), strip_isoform(b)))) for a, b in NEG_SOURCES[source](lines)}
+    pairs = {pair(strip_isoform(a), strip_isoform(b)) for a, b in NEG_SOURCES[source](lines)}
     pairs = sorted(p for p in pairs if p[0] != p[1])
     with gzip.open(PUBLIC_NEG / f"{source}.tsv.gz", "wt") as out:
         out.write("a\tb\n")

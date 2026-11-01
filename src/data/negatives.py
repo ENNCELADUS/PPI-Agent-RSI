@@ -6,6 +6,8 @@ positives' degree distribution; the second is redrawn until the pair is not a se
 pair, not known and not already drawn.
 """
 
+from src.data.ids import pair
+
 
 class IdentityKeys:
     """`keys` for ids that are already one node per protein (e.g. PRING's)."""
@@ -19,14 +21,14 @@ class IdentityKeys:
 
 def pring_negatives(positives, n, is_known, rng, keys):
     """n unordered pairs; `is_known` gets keys.of(pair) and rejects the pair if true."""
-    candidates = [acc for pair in positives for acc in pair]
+    candidates = [acc for p in positives for acc in p]
     drawn = {}
     while len(drawn) < n:
         a = rng.choice(candidates)
         while True:
             b = rng.choice(candidates)
-            pair = (a, b) if a < b else (b, a)
-            if a != b and not keys.same_gene(a, b) and pair not in drawn and not is_known(keys.of(*pair)):
+            p = pair(a, b)
+            if a != b and not keys.same_gene(a, b) and p not in drawn and not is_known(keys.of(*p)):
                 break
-        drawn[pair] = None
+        drawn[p] = None
     return list(drawn)

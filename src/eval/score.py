@@ -7,15 +7,14 @@ Pairs are unordered. Rows that are not in the pool or repeat an earlier pair are
 as misses, as do missing rows when the ranking is shorter than N. Enhancement is precision over
 pool prevalence (1.0 = random).
 """
+
 import csv
 import json
 import sys
 
+from src.data.ids import pair
+
 NS = (50, 100, 250)
-
-
-def pair(a, b):
-    return (a, b) if a < b else (b, a)
 
 
 def read_pairs(path):
