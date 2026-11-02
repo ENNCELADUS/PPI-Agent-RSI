@@ -32,7 +32,7 @@ Set the complete SDK base URL in the shell; the client appends `/chat/completion
 support streaming and function tools. The extension reuses pi's built-in DeepSeek V4 Pro definition;
 only the model ID and endpoint change. Cost estimates use the built-in official API prices and do not
 show the endpoint's actual charges. Other model families need their own model definition.
-See the [remote WSL guide](../docs/remote-agent.md) for setup, validation, launch and resume commands.
+Remote runs follow the local, untracked `remote-api-agent` skill.
 
 ### `eval/`
 

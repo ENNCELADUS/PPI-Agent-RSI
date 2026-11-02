@@ -47,5 +47,4 @@ uv sync
 
 For a DeepSeek V4 Pro endpoint, set `LLM_API_KEY` and `LLM_API_BASE` in the shell, then use
 `--model custom/<model-id> --thinking high`. The provider reuses pi's built-in model settings.
-Use `--workers 8` for eight concurrent classification batches. Follow the
-[remote WSL guide](docs/remote-agent.md) for setup, complete-batch validation, background runs and resume.
+Use `--workers 8` for eight concurrent classification batches. Remote runs follow the local, untracked `remote-api-agent` skill.
