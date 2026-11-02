@@ -13,7 +13,7 @@ dependencies = [
 
 [project.optional-dependencies]
 predictor = ["numpy>=1.26", "torch>=2.4"]  # src/predictor: uv sync --extra predictor
-dgcnn = ["torch>=2.4,<2.11", "torch-geometric>=2.5", "scipy", "scikit-learn", "fair-esm"]  # src/baselines/dgcnn (SEAL)
+dgcnn = ["torch>=2.4,<2.11", "torch-geometric>=2.5", "scipy", "scikit-learn", "fair-esm", "accelerate"]  # src/baselines/dgcnn (SEAL)
 
 [dependency-groups]
 dev = ["pytest>=8.3.5", "ruff>=0.11.8"]
@@ -28,7 +28,7 @@ packages = ["src"]
 target-version = "py311"
 line-length = 120
 src = ["src", "tests"]
-extend-exclude = ["data/", "docs/", "literature/", "src/baselines/dgcnn/model.py", "src/baselines/dgcnn/core.py", "src/baselines/dgcnn/run.py"]  # vendored verbatim
+extend-exclude = ["data/", "docs/", "literature/", "src/baselines/dgcnn/model.py", "src/baselines/dgcnn/core.py"]  # vendored verbatim
 
 [tool.ruff.lint]
 select = ["E", "W", "F"]

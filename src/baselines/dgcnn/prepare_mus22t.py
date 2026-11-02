@@ -1,8 +1,8 @@
 """Build the SEAL DGCNN input (fixed_data.pt) for the 22T agent split: ESM2-3B node features + the split's pairs.
 
 Run on a GPU host (H20): uv run --extra dgcnn python -m src.baselines.dgcnn.prepare_mus22t [--device cuda:0]
-Then: uv run --extra dgcnn python -m src.baselines.dgcnn.run train --data data/MUS22T/dgcnn/fixed_data.pt \
-    --output data/MUS22T/dgcnn/train_<date> --device cuda:0 --workers 8 --microbatch 128 --accumulate 2 --epochs 20
+Then: accelerate launch --num_processes 4 -m src.baselines.dgcnn.run train --data data/MUS22T/dgcnn/fixed_data.pt \
+    --output data/MUS22T/dgcnn/train_<date> --workers 8 --microbatch 64 --epochs 20
 
 Inputs: data/MUS22T/raw/raw_22T_node_sequences.csv, data/MUS22T/agent_split/{train,val,test}.csv (the same 1:1 pairs
 the agent is scored on). Features follow SEAL provenance/rebuild_esm_and_train.py: esm2_t36_3B_UR50D (fp16), layer 35,
