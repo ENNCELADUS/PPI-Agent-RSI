@@ -63,7 +63,10 @@ def esm_means(seqs, device, rows):
         run(idx)
         if k % 100 == 0 or k == len(batches):
             print(f"esm {k}/{len(batches)} batches", flush=True)
-    assert np.isfinite(out).all() and (np.linalg.norm(out[rows], axis=1) > 0).all(), "invalid ESM output"
+    bad = [i for i in rows if not np.isfinite(out[i]).all() or not np.linalg.norm(out[i]) > 0]
+    assert not bad, (
+        f"invalid ESM output for {len(bad)} rows: {[(i, len(seqs[i]), out[i][:2].tolist()) for i in bad[:5]]}"
+    )
     return out
 
 
