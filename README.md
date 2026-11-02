@@ -27,7 +27,9 @@ fixed, expert-designed agent baseline before building any RSI.
   random 8:1:1 (transductive: proteins appear in every split) with new PRING degree-preserving negatives at 1:1;
   train = KB, val = RSI data, test = final. Labels may be public; the agent's sandbox has no web tools. The agent
   sees `data/MUS22T/sandbox/` (PRING-sandbox layout, mouse UniProt annotations, KB = train). See
-  `build_mus22t_agent_split.py` and `build_mus22t_sandbox.py` in `src/data/builders/`.
+  `build_mus22t_agent_split.py` and `build_mus22t_sandbox.py` in `src/data/builders/`. Test AUPRC: LLM-only
+  agent 0.587 vs the V3 predictor 0.716 (`results/mus22t-classification-test/summary.html`). `--predictor` gives the agent V3's
+  scores through `predict_pairs` (`build_mus22t_scores.py`; built, not run yet).
 - **SEAL-protocol splits (built):** the SEAL PPI baseline protocol (random edge 80/10/10, 1:1), so DL numbers compare
   with SEAL's: the private 22T mouse membrane data (22-tissue proteomics) and the human TMP data (all stages). Most
   positives are public or orthologs of public pairs, so these are not agent test pools. See

@@ -40,5 +40,26 @@ def test_summarise_without_b0_scores_the_agent_only():
 
     rows = [{"a": "A", "b": "B", "label": 1, "p": 0.9}, {"a": "A", "b": "C", "label": 0, "p": None}]
     result = {"rejected": 0, "submission": [], "tool_calls": 3, "stats": None}
-    s = summarise(rows, [result], with_b0=False)
+    s = summarise(rows, [result], predictor=None)
     assert s["coverage"] == 0.5 and set(s["agent"]) >= {"auroc", "f1"} and "b0" not in s
+
+
+def test_summarise_scores_the_predictor_on_the_same_pairs(monkeypatch):
+    from src.eval import pring_test
+
+    rows = [
+        {"a": "A", "b": x, "label": y, "p": p}
+        for x, y, p in (("B", 1, 0.9), ("C", 0, 0.2), ("D", 1, 0.1), ("E", 0, 0.6))
+    ]
+    monkeypatch.setattr(pring_test, "predictor_p", lambda name, pairs: {k: 0.5 for k in pairs} | {("A", "B"): 0.7})
+    result = {"rejected": 0, "submission": [], "tool_calls": 2, "stats": None, "rows": rows, "predictor_pairs": 3}
+    s = pring_test.summarise(rows, [result], predictor="v3")
+    assert s["predictor_coverage"] == 0.75 and s["v3"]["auroc"] == 0.75  # B beats C, E; D ties both
+    assert s["agent_minus_v3"]["auroc"][0] == s["agent"]["auroc"] - s["v3"]["auroc"]  # 4 pairs: no interval
+
+
+def test_paired_bootstrap_of_identical_scores_is_zero():
+    from src.eval.pring_test import paired_bootstrap
+
+    y, p = [1, 0, 1, 0, 1, 0] * 10, [0.9, 0.1, 0.8, 0.3, 0.4, 0.6] * 10  # no one-class resample
+    assert paired_bootstrap(y, p, p, n=50) == {"auroc": [0.0, 0.0, 0.0], "ap": [0.0, 0.0, 0.0]}

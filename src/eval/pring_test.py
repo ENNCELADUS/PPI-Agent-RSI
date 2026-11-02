@@ -13,14 +13,20 @@ runs only the first N batches (a smoke run or a budget stop); a later call witho
 --data mus22t runs the same agent (same tools and backend) on the 22T mouse membrane split instead: pairs =
 data/MUS22T/agent_split/test.csv (transductive, 4,683 positives, 4,683 PRING-sampled negatives), sandbox =
 data/MUS22T/sandbox/ (build_mus22t_sandbox: KB = train), system prompt pring_test/system_mus22t.md, runs in
-data/MUS22T/runs/, no B0 arm (there is no mouse B0).
+data/MUS22T/runs/; its predictor arm is V3 (B0 v3_1 trained on the 22T train split; build_mus22t_scores).
+
+--predictor (mus22t only) gives the agent predict_pairs: V3's p for up to 200 pairs per call, from
+sandbox/scores.tsv.gz, with system prompt pring_test/system_mus22t_predictor.md (design:
+docs/superpowers/specs/2026-11-02-mus22t-llm-predictor-design.md). result.json records how many listed pairs
+got a score. --cap sets the tool calls per batch (default 80, submit_predictions included).
 
 Runs go to data/PRING/runs/<name>/batch<i>/: agent/ (pi session, tool calls, submission) and
 result.json (labels and predictions; evaluator only). A batch with result.json is replayed, so a
 stopped run resumes. A missing or invalid prediction scores p = 0.5 and counts against coverage. A
 batch that fails (provider or transport error, timeout) without a submission is rerun once; after a
 second failure it has no result.json and reruns on the next call. summary.json: AUROC, AP and Brier
-of the agent over the scored batches, and B0's AUROC and AP on the same pairs (evaluator-side logits).
+of the agent over the scored batches, the predictor (B0 for PRING, V3 for 22T) on the same pairs, and the paired
+bootstrap of agent - predictor (1,000 resamples, seed 0) for AUROC and AP.
 """
 
 import argparse
@@ -36,7 +42,7 @@ import numpy as np
 
 from src.agent.session import PROMPTS, prompt, run_session
 from src.agent.session import pi_version as get_pi_version
-from src.agent.tools import CAP, PairTools, Sandbox, tsv
+from src.agent.tools import CAP, PairTools, Sandbox, TestTools, tsv
 from src.data.ids import pair
 from src.data.paths import HIDDEN, MUS22T, PRING, PRING_RAW
 from src.eval.rounds import RUNS, commit, set_aside
@@ -45,9 +51,15 @@ from src.predictor.parity import average_ranks
 
 SEED = 0
 TEST_PROMPTS = PROMPTS / "pring_test"
-DATA = {  # labelled pairs, agent-visible sandbox, run root, system prompt; B0 exists for PRING only
-    "pring": (HIDDEN / "test.csv", PRING / "sandbox_cls", RUNS, "pring_test/system"),
-    "mus22t": (MUS22T / "agent_split" / "test.csv", MUS22T / "sandbox", MUS22T / "runs", "pring_test/system_mus22t"),
+DATA = {  # labelled pairs, agent-visible sandbox, run root, system prompt, predictor scored beside the agent
+    "pring": (HIDDEN / "test.csv", PRING / "sandbox_cls", RUNS, "pring_test/system", "b0"),
+    "mus22t": (
+        MUS22T / "agent_split" / "test.csv",
+        MUS22T / "sandbox",
+        MUS22T / "runs",
+        "pring_test/system_mus22t",
+        "v3",
+    ),
 }
 
 
@@ -133,18 +145,42 @@ def b0_logits(pairs):
     return out
 
 
-def summarise(rows, results, with_b0=True):
+def predictor_p(name, pairs):
+    """The predictor's probability for each accession pair: B0's raw sigmoid (PRING) or V3's (22T sandbox)."""
+    if name == "b0":
+        return {k: float(1 / (1 + np.exp(-x))) for k, x in b0_logits(pairs).items()}  # logit 0 = 0.5
+    with gzip.open(MUS22T / "sandbox" / "scores.tsv.gz", "rt") as f:
+        return {(r["a"], r["b"]): float(r["p"]) for r in csv.DictReader(f, delimiter="\t")}
+
+
+def paired_bootstrap(y, p, q, n=1000, seed=SEED):
+    """AUROC and AP of p minus q on the same pairs: [difference, 2.5 %, 97.5 %] over n resamples of the pairs."""
+    y, p, q = np.asarray(y), np.asarray(p, dtype=float), np.asarray(q, dtype=float)
+    rng = np.random.default_rng(seed)
+    diff = lambda i: {k: v - metrics(y[i], q[i])[k] for k, v in metrics(y[i], p[i]).items()}  # noqa: E731
+    boot = [diff(rng.integers(0, len(y), len(y))) for _ in range(n)]
+    whole = diff(np.arange(len(y)))
+    return {k: [whole[k], *np.percentile([b[k] for b in boot], [2.5, 97.5]).tolist()] for k in whole}
+
+
+def summarise(rows, results, predictor="b0"):
+    """predictor: "b0", "v3" or None (the agent only)."""
     scored = [r for r in rows if r["p"] is not None]
-    b0 = b0_logits([(r["a"], r["b"]) for r in rows]) if with_b0 else None
+    pred = predictor_p(predictor, [(r["a"], r["b"]) for r in rows]) if predictor else None
     stats = [x["stats"] or {} for x in results]
+    used = [x["predictor_pairs"] for x in results if x.get("predictor_pairs") is not None]
 
     def arms(rows):
         y = [r["label"] for r in rows]
         p = [0.5 if r["p"] is None else r["p"] for r in rows]
-        if b0 is None:
+        if pred is None:
             return {"agent": classification(y, p)}
-        b0_p = 1 / (1 + np.exp(-np.array([b0[(r["a"], r["b"])] for r in rows])))  # raw sigmoid: logit 0 = 0.5
-        return {"agent": classification(y, p), "b0": classification(y, b0_p)}
+        q = [pred[(r["a"], r["b"])] for r in rows]
+        return {
+            "agent": classification(y, p),
+            predictor: classification(y, q),
+            f"agent_minus_{predictor}": paired_bootstrap(y, p, q),
+        }
 
     return {
         "batches": len(results),
@@ -154,6 +190,7 @@ def summarise(rows, results, with_b0=True):
         "coverage": len(scored) / len(rows),
         "rejected_rows": sum(x["rejected"] for x in results),
         "failed_batches": sum(x["submission"] is None for x in results),
+        "predictor_coverage": sum(used) / sum(len(x["rows"]) for x in results) if used else None,
         **arms(rows),
         "non_self": arms([r for r in rows if r["a"] != r["b"]]),
         "tool_calls": sum(x["tool_calls"] for x in results),
@@ -170,7 +207,8 @@ def provenance(args, n_batches, labels):
         "batch": args.batch,
         "batches": n_batches,
         "seed": SEED,
-        "cap": CAP,
+        "cap": args.cap,
+        "predictor_tool": args.predictor,
         "git": commit(),
         "pi": get_pi_version(),
         "prompts": {p.name: hashlib.sha256(p.read_bytes()).hexdigest()[:16] for p in sorted(TEST_PROMPTS.glob("*.md"))},
@@ -202,6 +240,8 @@ def run_batch(i, batch, n_batches, sandbox, system, run_dir, args, make_tools):
         return None
     rows, rejected = evaluate(out["submission"], batch)
     result = {"batch": i, "rows": rows, "rejected": rejected, "failed_attempt": attempt == 2}
+    if isinstance(tools, TestTools):  # listed pairs whose predictor p the agent received
+        result["predictor_pairs"] = len(tools.scored & {(a, b) for a, b, _ in batch})
     result |= {
         k: out.get(k) for k in ("submission", "nudged", "aborted", "error", "stop_reasons", "tool_calls", "stats")
     }
@@ -220,9 +260,16 @@ def main():
     parser.add_argument("--model", default="deepseek/deepseek-flash")
     parser.add_argument("--thinking", default="high")
     parser.add_argument("--data", choices=DATA, default="pring")
+    parser.add_argument("--predictor", action="store_true", help="give the agent predict_pairs (22T only)")
+    parser.add_argument("--cap", type=int, default=CAP, help="tool calls per batch")
     args = parser.parse_args()
+    assert not args.predictor or args.data == "mus22t", (
+        "--predictor needs --data mus22t (PRING sandbox_cls has no scores)"
+    )
 
-    labels, sandbox_dir, runs, system_prompt = DATA[args.data]
+    labels, sandbox_dir, runs, system_prompt, predictor = DATA[args.data]
+    if args.predictor:
+        system_prompt += "_predictor"
     run_dir = runs / args.name
     run_dir.mkdir(parents=True, exist_ok=True)
     todo = batches(test_pairs(labels), args.batch)
@@ -230,21 +277,27 @@ def main():
         old = json.loads((run_dir / "run.json").read_text())
         assert old["batch"] == args.batch, "resume with the run's own batch size"
         assert old.get("data", "pring") == args.data, "resume with the run's own data"
+        assert (old.get("cap", CAP), old.get("predictor_tool", False)) == (args.cap, args.predictor), "same cap, arm"
     else:
         (run_dir / "run.json").write_text(json.dumps(provenance(args, len(todo), labels), indent=1) + "\n")
     sandbox = Sandbox(str(sandbox_dir))
-    system = prompt(system_prompt, proteins=len(sandbox.candidates), cap=CAP)
+    system = prompt(system_prompt, proteins=len(sandbox.candidates), cap=args.cap)
+    make_tools = (
+        (lambda d: TestTools(sandbox, d, cap=args.cap))
+        if args.predictor
+        else (lambda d: PairTools(sandbox, d, args.cap))
+    )
     n = len(todo)
     with ThreadPoolExecutor(args.workers) as pool:
         jobs = [
-            pool.submit(run_batch, i, b, n, sandbox, system, run_dir, args, lambda d: PairTools(sandbox, d))
+            pool.submit(run_batch, i, b, n, sandbox, system, run_dir, args, make_tools)
             for i, b in enumerate(todo[: args.limit], 1)
         ]
         results = [r for j in jobs if (r := j.result()) is not None]
     print(f"{len(results)} of {len(jobs)} batches scored")
     if not results:
         return
-    summary = summarise([row for r in results for row in r["rows"]], results, with_b0=args.data == "pring")
+    summary = summarise([row for r in results for row in r["rows"]], results, predictor)
     (run_dir / "summary.json").write_text(json.dumps(summary, indent=1) + "\n")
     print(json.dumps(summary, indent=1))
 

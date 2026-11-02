@@ -18,8 +18,8 @@ it is ("the inductive pool", "the permuted-label arm"), never by a bare label; g
 Replace this section on every update; history lives in git and the specs.
 
 - **Private split (built):** `data/TMP/agent_split/`: `train.csv` = agent KB; `test.csv` = 1:1 non-public positives.
-- **22T mouse agent sandbox (built; `pring_test --data mus22t`):** `data/MUS22T/agent_split/` (hidden) = transductive
-  8:1:1 + new PRING negatives (37,456/4,682/4,683 pos); `sandbox/` = PRING layout, KB = train; no web tools.
+- **22T mouse sandbox (`pring_test --data mus22t`):** `agent_split/` (hidden) = transductive 8:1:1 + PRING negatives; KB =
+  train. [Test AUPRC](results/mus22t-classification-test/summary.html): LLM-only 0.587, V3 0.716; [agent + V3](docs/superpowers/specs/2026-11-02-mus22t-llm-predictor-design.md) (`--predictor`): not run.
 - **SEAL-protocol splits (DL-comparable only):** random edge 80/10/10; propensity AUPRC 22T 0.944, TMP (≈ SEAL) 0.888.
 - **PRING sandbox (built, closed-world; agent sees `sandbox*/` only):** [design](docs/superpowers/specs/2026-10-23-pring-sandbox-design.md); roles ([spec](docs/superpowers/specs/2026-11-01-pring-classification-test-design.md)): train = KB; val = RSI data; test = final.
   LLM-only test (`sandbox_cls/`, smoke); B0 AUROC 0.701. [Two-layer memory agent](docs/superpowers/specs/2026-11-02-two-layer-memory-agent-design.md) (built): 60/40 split, final 1:1 test 10,280.
@@ -48,7 +48,7 @@ uv run python -m src.data.builders.build_pring_cls && uv run python -m src.eval.
 uv run python -m src.data.builders.build_pring_memory && uv run python -m src.eval.memory_agent rounds|test <name>  # test --arm memory|cases|empty
 uv run python -m src.eval.score <labels.csv> <ranking.csv>  # private test.csv (sandbox pools: not built)
 uv run --extra predictor python -m src.data.builders.build_seal_split mus22t|tmp  # SEAL-protocol split; tmp ~20 s
-uv run python -m src.data.builders.build_mus22t_agent_split && uv run python -m src.data.builders.build_mus22t_sandbox  # ~75 s
+uv run python -m src.data.builders.build_mus22t_agent_split && uv run python -m src.data.builders.build_mus22t_sandbox && uv run python -m src.data.builders.build_mus22t_scores  # ~75 s
 ```
 
 - `fetch_public.sh` resumes downloads (`curl -C -`), pipes each to `src.data.public_db`, then deletes it.

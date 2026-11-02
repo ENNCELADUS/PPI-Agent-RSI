@@ -17,7 +17,8 @@ data/MUS22T/sandbox/ (what the agent may read; no web tools, user decision 2026-
   mouse gene symbol are dropped, matched case-insensitively because mouse entries often name partners in human
   upper case; GO terms under protein binding or protein-containing complex are dropped.
 - homologs.tsv: best 20 non-self mmseqs2 hits of every protein against the KB proteins (build_pring_tools.homologs).
-No predictor scores. data/MUS22T/README.md records the counts and input checksums.
+scores.tsv.gz (V3's test-pair scores) comes from build_mus22t_scores.
+data/MUS22T/README.md records the counts and input checksums.
 """
 
 import csv
