@@ -229,13 +229,18 @@ def run_test(run_dir, args):
     sandbox = Sandbox(str(FINAL))
     book = casebook(records, FINAL) if args.arm != "empty" else None
     todo = batches(test_pairs(FINAL_TEST), args.batch)
-    if not (test_dir / "run.json").exists():
+    if (test_dir / "run.json").exists():
+        assert json.loads((test_dir / "run.json").read_text())["batch"] == args.batch, (
+            "resume with the run's batch size"
+        )
+    else:
         extra = {"arm": args.arm, "batch": args.batch, "batches": len(todo), "cases": len(records)}
         extra["test_csv"] = hashlib.sha256(FINAL_TEST.read_bytes()).hexdigest()[:16]
         (test_dir / "run.json").write_text(json.dumps(provenance(args, **extra), indent=1) + "\n")
     memory, cases_tool, cases_step, examples = memory_section(args.arm, records, lessons)
     system = prompt(
         "memory/test_system",
+        k=K,
         proteins=len(sandbox.candidates),
         cap=CAP,
         memory=memory,

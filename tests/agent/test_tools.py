@@ -154,5 +154,14 @@ def test_case_tools_and_test_tools(sandbox, tmp_path):
     empty = TestTools(sandbox, tmp_path / "t")
     with pytest.raises(ToolError, match="unknown tool"):
         empty.call("cases", {})
-    assert empty.call("predict_ppi", {"a": "B", "b": "A"}) == "A\tB\tp=0.9"  # score only, no untested rank
-    assert "cases" in TestTools(sandbox, tmp_path / "t2", book).names
+    got = empty.call("predict_pairs", {"pairs": [{"a": "B", "b": "A"}, {"a": "C", "b": "D"}]})
+    assert table(got) == [{"a": "A", "b": "B", "p": "0.9"}, {"a": "C", "b": "D", "p": "0.1"}]  # no untested rank
+    with pytest.raises(ToolError, match="not a candidate"):
+        empty.call("predict_pairs", {"pairs": [{"a": "A", "b": "K1"}]})
+    assert empty.scored == {("A", "B"), ("C", "D")}
+    sandbox.db.execute("DELETE FROM scores WHERE a = 'C' AND b = 'D'")  # 22T: only test pairs have a score
+    with pytest.raises(ToolError, match="no predictor score"):
+        empty.call("predict_pairs", {"pairs": [{"a": "C", "b": "D"}]})
+    other = Cases([case | {"a": "X1", "b": "X2"}], {"X1": {"gene": "GX"}}, {})  # case proteins outside the view
+    t = TestTools(sandbox, tmp_path / "t2", other)
+    assert "cases" in t.names and t.call("cases", {"protein": "X1"}).startswith("1 cases")

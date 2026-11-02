@@ -65,7 +65,8 @@ Lessons cite cases by pair id.
 ## Final test (protocol as `pring_test`)
 Pairs shuffled with seed 0, batches of 200, one fresh pi session per batch, 80 tool calls, one
 `submit_predictions` call (p and evidence_ids per pair). The memory is read-only and frozen at `round10/`.
-Tools: `predict_ppi`, `protein_info`, `search_proteins`, `similar_proteins`, `kb_partners`, and `cases`
+Tools: `predict_pairs` (B0's p for up to 200 pairs per call; added after the smoke batch spent 79 of 80 calls on
+single-pair `predict_ppi` lookups), `protein_info`, `search_proteins`, `similar_proteins`, `kb_partners`, and `cases`
 where the arm has cases. No `top_candidates`, `top_for_protein` or `submit_batch`.
 
 **Arms (one run each, user decision):**
@@ -81,8 +82,10 @@ the lessons. With one run per arm these are point estimates, not significance te
 pairs and without ribosome–ribosome pairs. Rounds: hits per round and cumulative, as before. Memory: lesson
 count, adds/revisions/retirements per round, cases cited per lesson.
 
-**LLM:** `deepseek/deepseek-flash`, thinking `high`, for selector, reviewer and every test arm. A smoke run
-first: 2 rounds + reviewer, then 1 test batch per LLM arm.
+**LLM:** `deepseek/deepseek-flash`, thinking `high`, for selector, reviewer and every test arm in the local smoke run
+(2 rounds + reviewer, then 1 test batch per LLM arm; all passed 2026-11-02). The full run uses `custom/deepseek-pro`,
+thinking `high`, 8 test workers, on the remote WSL host, as the earlier classification run did (user decision
+2026-11-02).
 
 ## Claim boundary
 PRING labels are public and can be memorised; all numbers are internal (project rule). One run per arm

@@ -100,6 +100,18 @@ SPECS = {
         {"a": ID, "b": ID},
         ["a", "b"],
     ),
+    "predict_pairs": (
+        "The predictor's calibrated probability p for up to 200 pairs of candidate proteins in one call.",
+        {
+            "pairs": {
+                "type": "array",
+                "items": {"type": "object", "properties": {"a": ID, "b": ID}, "required": ["a", "b"]},
+                "minItems": 1,
+                "maxItems": K,
+            }
+        },
+        ["pairs"],
+    ),
     "top_for_protein": (
         "The predictor's best untested partners of one candidate protein.",
         {"id": ID, "n": {"type": "integer", "minimum": 1, "maximum": 100}},
@@ -239,7 +251,7 @@ PAIR_TOOLS = (*PROTEIN_TOOLS, "submit_predictions")
 # the two-layer memory agent: selector round, reviewer, final test (the empty-memory arm drops cases)
 CASE_ROUND_TOOLS = (*PREDICTOR_TOOLS, *PROTEIN_TOOLS, "cases", "submit_batch")
 REVIEW_TOOLS = ("predict_ppi", *PROTEIN_TOOLS, "cases", "update_lessons")
-TEST_TOOLS = ("predict_ppi", *PROTEIN_TOOLS, "cases", "submit_predictions")
+TEST_TOOLS = ("predict_pairs", *PROTEIN_TOOLS, "cases", "submit_predictions")
 FINAL = ("submit_batch", "submit_predictions", "update_lessons")
 
 
@@ -399,9 +411,9 @@ class RoundTools:
         )
 
     def cases(self, protein=None, similar_to=None, query=None, pair=None, result=None, round=None, offset=0, limit=50):
-        for x in (protein, similar_to):
-            if x is not None:
-                self._protein(x)
+        for x in (protein, similar_to):  # in the final test, case proteins are not in the sandbox
+            if x is not None and x not in self.s.proteins and x not in self.casebook.proteins:
+                raise ToolError(f"unknown protein {x}")
         if pair is not None:
             ends = pair.removeprefix("case:").split("-")
             if len(ends) != 2:
@@ -484,13 +496,23 @@ class TestTools(PairTools):
         super().__init__(sandbox, agent_dir, cap)
         self.casebook = casebook
         self.names = TEST_TOOLS if casebook else tuple(n for n in TEST_TOOLS if n != "cases")
+        self.scored = set()  # pairs whose p the agent received; the evaluator reports coverage per batch
 
-    def predict_ppi(self, a, b):
-        a, b = pair(self._candidate(a), self._candidate(b))
-        if a == b:
-            raise ToolError("self pairs are not candidates")
-        ((p,),) = self.s.query("SELECT p FROM scores WHERE a = ? AND b = ?", [a, b])
-        return f"{a}\t{b}\tp={p:.4g}"
+    def predict_pairs(self, pairs):
+        if len(pairs) > K:
+            raise ToolError(f"at most {K} pairs per call")
+        rows = []
+        for r in pairs:
+            a, b = pair(self._candidate(r.get("a")), self._candidate(r.get("b")))
+            if a == b:
+                raise ToolError(f"{a}-{b}: self pairs are not candidates")
+            found = self.s.query("SELECT p FROM scores WHERE a = ? AND b = ?", [a, b])
+            if not found:  # the 22T sandbox scores the test pairs only
+                raise ToolError(f"{a}-{b}: no predictor score; only the listed test pairs have one")
+            rows.append((a, b, f"{found[0][0]:.4g}"))
+        with self.lock:
+            self.scored.update((a, b) for a, b, _ in rows)
+        return tsv(["a", "b", "p"], rows)
 
 
 def serve(tools):
