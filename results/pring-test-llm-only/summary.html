@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PRING Classification Test</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Condensed:wght@600&family=IBM+Plex+Sans:wght@400;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one reading column of prose and tables, as in results/deepseek-flash-high. */
+:root {
+  --bg: #f6f8f8; --surface: #ffffff; --fg: #17242a; --muted: #5a6b72; --rule: #d5dee1; --accent: #0f6b74;
+  --display: "IBM Plex Sans Condensed", "Arial Narrow", system-ui, sans-serif;
+  --body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #11181b; --surface: #182226; --fg: #e3eaec; --muted: #93a4aa; --rule: #2c3a3f; --accent: #5fc2cb; color-scheme: dark } }
+:root[data-theme="dark"] { --bg: #11181b; --surface: #182226; --fg: #e3eaec; --muted: #93a4aa; --rule: #2c3a3f; --accent: #5fc2cb; color-scheme: dark }
+* { box-sizing: border-box }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.6 var(--body);
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)) }
+main { max-width: 920px; margin: 0 auto; padding-block: 48px 72px; display: grid; gap: 18px }
+main > p, .read, h1, .meta { max-width: 68ch }
+h1 { font: 600 2.1rem/1.15 var(--display); margin: 0; text-wrap: balance; letter-spacing: -0.01em }
+h2 { font: 600 1.35rem/1.2 var(--display); margin: 20px 0 0; text-wrap: balance }
+.meta { display: flex; flex-wrap: wrap; gap: 6px 20px; font: 0.8rem var(--mono); color: var(--muted); margin: 0;
+  padding-block: 10px; border-block: 1px solid var(--rule) }
+.meta b { color: var(--fg); font-weight: 500 }
+p { margin: 0 }
+code { font: 0.88em var(--mono) }
+.cap { color: var(--muted); font-size: 0.9rem; max-width: none; margin-top: 8px }
+.cap b { color: var(--fg) }
+.tw { overflow-x: auto; background: var(--surface); border: 1px solid var(--rule); border-radius: 4px }
+table { border-collapse: collapse; width: 100%; font-size: 0.86rem }
+th, td { padding: 7px 12px; text-align: left; border-bottom: 1px solid var(--rule); vertical-align: top }
+th { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 600; white-space: nowrap }
+tbody tr:last-child td { border-bottom: 0 }
+td.n { font: 0.84rem var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap }
+td strong { color: var(--accent) }
+figure { margin: 8px 0 0; display: grid; gap: 6px }
+figure img { max-width: 100%; height: auto; background: #fff; border: 1px solid var(--rule); border-radius: 4px }
+figcaption { font: 0.78rem var(--mono); color: var(--muted) }
+.read { margin: 0; padding: 0; list-style: none; display: grid; gap: 10px }
+.read li { padding-left: 14px; border-left: 2px solid var(--accent) }
+</style>
+</head>
+<body>
+<main>
+<h1>PRING classification test: LLM-only agent vs DL predictor</h1>
+<div class="meta"><span><b>DeepSeek-V4.1-Flash-1017</b>, thinking high</span><span><b>50 batches × 200 pairs</b></span><span>code <b>fa11938</b> (uncommitted changes)</span><span>cost <b>$3.93</b></span><span>not for external reporting</span></div>
+<p>Can an LLM agent with no PPI predictor and no web access classify held-out protein pairs as well as a deep-learning predictor, on the same benchmark?</p>
+
+<h2>1. Benchmark and protocol</h2>
+<p>PRING human breadth-first split. Train (76,400 labelled pairs, 7,750 proteins) is the agent's knowledge base; validation is kept for the later self-improvement stage. The test split has 64,038 labelled pairs among 2,018 proteins (1:1, 1,891 self pairs, all positive), and no test protein is in the knowledge base. A random sample of 10,000 test pairs (seed 0; 5,051 positive, 283 self pairs) was scored.</p>
+<p>Each batch of 200 pairs is one fresh LLM session. The agent sees the pair list with gene names, may make up to 80 calls to four tools (protein annotation, annotation search, knowledge-base homologs, and the labelled knowledge-base pairs of a protein), and returns one probability per pair. The prompt does not state the share of positives. B0 scores the same pairs from ESM-3 sequence features.</p>
+
+<h2>2. Results</h2>
+<p>Accuracy, precision, recall, F1 and MCC count decisions at each model's own threshold with the highest F1 on these test labels (an oracle choice: no validation split selects it, because validation is kept for self-improvement); the Threshold column gives that probability (raw sigmoid for B0). AUPR (average precision) and AUROC use only the ranking; ECE (15 bins) and Brier measure calibration.</p>
+<p class="cap"><b>Table 1.</b> Binary classification on the PRING human BFS test sample, all 10,000 pairs, same pairs for both models, threshold metrics at each model's max-F1 test threshold. Bold: better of the two.</p>
+<div class="tw"><table><thead><tr><th>Model</th><th>Threshold</th><th>Accuracy↑</th><th>Precision↑</th><th>Recall↑</th><th>F1↑</th><th>AUPR↑</th><th>AUROC↑</th><th>MCC↑</th><th>ECE↓</th><th>Brier↓</th></tr></thead><tbody><tr><td>LLM-only agent</td><td class="n">0.080</td><td class="n"><strong>0.730</strong></td><td class="n"><strong>0.754</strong></td><td class="n">0.690</td><td class="n"><strong>0.721</strong></td><td class="n"><strong>0.815</strong></td><td class="n"><strong>0.786</strong></td><td class="n"><strong>0.462</strong></td><td class="n">0.343</td><td class="n">0.315</td></tr><tr><td>B0, ESM-3 DL predictor</td><td class="n">0.038</td><td class="n">0.576</td><td class="n">0.548</td><td class="n"><strong>0.916</strong></td><td class="n">0.686</td><td class="n">0.740</td><td class="n">0.703</td><td class="n">0.200</td><td class="n"><strong>0.207</strong></td><td class="n"><strong>0.268</strong></td></tr></tbody></table></div>
+<p class="cap"><b>Table 2.</b> The same metrics without self pairs (9,717 pairs).</p>
+<div class="tw"><table><thead><tr><th>Model</th><th>Threshold</th><th>Accuracy↑</th><th>Precision↑</th><th>Recall↑</th><th>F1↑</th><th>AUPR↑</th><th>AUROC↑</th><th>MCC↑</th><th>ECE↓</th><th>Brier↓</th></tr></thead><tbody><tr><td>LLM-only agent</td><td class="n">0.080</td><td class="n"><strong>0.722</strong></td><td class="n"><strong>0.738</strong></td><td class="n">0.673</td><td class="n"><strong>0.704</strong></td><td class="n"><strong>0.800</strong></td><td class="n"><strong>0.776</strong></td><td class="n"><strong>0.445</strong></td><td class="n">0.333</td><td class="n">0.309</td></tr><tr><td>B0, ESM-3 DL predictor</td><td class="n">0.038</td><td class="n">0.563</td><td class="n">0.532</td><td class="n"><strong>0.911</strong></td><td class="n">0.672</td><td class="n">0.703</td><td class="n">0.685</td><td class="n">0.190</td><td class="n"><strong>0.213</strong></td><td class="n"><strong>0.276</strong></td></tr></tbody></table></div>
+<p class="cap"><b>Table 3.</b> Agent − B0 on the same pairs, with paired bootstrap 95% intervals (1,000 resamples). Higher favours the agent.</p>
+<div class="tw"><table><thead><tr><th>Pairs</th><th>ΔAUROC</th><th>ΔAUPR</th></tr></thead><tbody>
+<tr><td>All pairs</td><td class="n">+0.083 [0.072, 0.094]</td><td class="n">+0.075 [0.065, 0.085]</td></tr><tr><td>Self pairs removed</td><td class="n">+0.091 [0.079, 0.102]</td><td class="n">+0.096 [0.085, 0.107]</td></tr>
+</tbody></table></div>
+<p class="cap"><b>Table 4.</b> Published reference values on the full 64,038-pair test (other pairs and thresholds; not directly comparable): PRING Table 8 and the motif-graph TUnA report (validation-selected threshold).</p>
+<div class="tw"><table><thead><tr><th>Model</th><th>Accuracy↑</th><th>Precision↑</th><th>Recall↑</th><th>F1↑</th><th>AUPR↑</th><th>AUROC↑</th><th>MCC↑</th></tr></thead><tbody>
+<tr><td>PPITrans (PRING)</td><td class="n">0.674</td><td class="n">0.657</td><td class="n">0.738</td><td class="n">0.694</td><td class="n">0.769</td><td class="n">—</td><td class="n">—</td></tr>
+<tr><td>TUnA (PRING)</td><td class="n">0.647</td><td class="n">0.676</td><td class="n">0.563</td><td class="n">0.614</td><td class="n">0.720</td><td class="n">—</td><td class="n">—</td></tr>
+<tr><td>PLM-interact 650M (PRING)</td><td class="n">0.671</td><td class="n">0.735</td><td class="n">0.534</td><td class="n">0.619</td><td class="n">0.707</td><td class="n">—</td><td class="n">—</td></tr>
+<tr><td>TUnA (motif-graph report)</td><td class="n">0.644</td><td class="n">0.623</td><td class="n">0.731</td><td class="n">0.673</td><td class="n">0.728</td><td class="n">0.713</td><td class="n">0.293</td></tr>
+</tbody></table></div>
+<figure><img src="figures/curves.svg" alt="ROC and precision-recall curves: the agent's curves lie above B0's over most of the range"><figcaption>Figure 1. ROC and precision–recall curves on all 10,000 pairs. The agent gives coarse probabilities, so its curves are steps.</figcaption></figure>
+
+<h2>Reading</h2>
+<ul class="read">
+<li><strong>The agent ranks pairs better than B0</strong>: AUPR 0.815 vs 0.740, AUROC 0.786 vs 0.703 (Tables 1, 3).</li>
+<li><strong>Self pairs do not explain the gap</strong>: without them, ΔAUPR is +0.096 (Tables 2, 3).</li>
+<li><strong>At each model's best-F1 threshold the agent also leads</strong>: F1 0.721 vs 0.686, MCC 0.462 vs 0.200; B0's best F1 needs a low threshold that finds 92% of positives at specificity 0.228 (Table 1).</li>
+<li><strong>The agent is poorly calibrated</strong>: its best threshold is p = 0.08, not 0.5, and ECE is 0.343 vs 0.207; it was not told that half the pairs interact (Table 1).</li>
+<li><strong>The gap may be memory, not reasoning</strong>: PRING labels are public and the agent sees gene names; no name-blind control has run.</li>
+</ul>
+</main>
+</body>
+</html>

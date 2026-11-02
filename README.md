@@ -14,7 +14,7 @@ fixed, expert-designed agent baseline before building any RSI.
 | `docs/research-reports/` | Dated deep-research reports; `research_notes/` holds the notes behind each |
 | `literature/` | PDFs by topic (`ppi`, `science-agents`, `self-improvement`, `feedback-benchmarks`); index in `literature/README.md` |
 | `docs/superpowers/specs/` | Dated design documents |
-| `results/` | Git-ignored readable summaries, one folder per run (raw artifacts in `data/PRING/runs/`) |
+| `results/` | Tracked readable summaries, one folder per run (raw artifacts in `data/PRING/runs/`) |
 | `src/` | The code, one package; module map in [`src/README.md`](src/README.md) |
 | `tests/` | pytest suite mirroring `src/` |
 | `data/` | Private TMP data, git-ignored; never shared outside the configured LLM |

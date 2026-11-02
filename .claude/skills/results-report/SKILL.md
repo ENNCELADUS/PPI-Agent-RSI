@@ -26,7 +26,7 @@ analysis or a results folder, anywhere.
 Write an HTML page only when the user asks for one:
 
 - **Location:** `results/<run>/` holds only `summary.html` and `figures/*.svg`; no README, index or copied reports.
-  `results/` is git-ignored and the GitHub repo is public, so sandbox numbers never leave the machine.
+  `results/` is tracked and the GitHub repo is public: never put private TMP data in it.
 - **Build:** load the `artifact-design` skill for its design rules, then write `summary.html` as a local,
   self-contained file. Never publish it with the Artifact tool or upload it anywhere. Because nothing wraps it, the
   file carries its own `<!doctype html>`, charset and viewport meta, `<title>` and `<style>`; colours are tokens with a
