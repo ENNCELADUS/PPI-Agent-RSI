@@ -31,7 +31,7 @@ fixed, expert-designed agent baseline before building any RSI.
   own picks before the next round. See the [design](docs/superpowers/specs/2026-10-23-pring-wave-discovery-design.md).
   Ribosome ablation (done): the same agent with the 71 cytosolic ribosomal proteins removed from the candidates. The
   agent's prompt no longer states the hit rate among candidate pairs (unknown in a real screen).
-- **PRING classification test (built, smoke run only):** PRING train is the agent's KB, val is kept for the RSI
+- **PRING classification test (implemented):** PRING train is the agent's KB, val is kept for the RSI
   part, and an LLM-only agent (no DL predictor, no web) predicts each pair of PRING's test split as released
   (self pairs included). See the [design](docs/superpowers/specs/2026-11-01-pring-classification-test-design.md).
 - **Other public tracks (surveyed):** [2026-10-19 survey](docs/research-reports/2026-10-19-public-ppi-benchmarks.md):
@@ -47,4 +47,5 @@ uv sync
 
 For a DeepSeek V4 Pro endpoint, set `LLM_API_KEY` and `LLM_API_BASE` in the shell, then use
 `--model custom/<model-id> --thinking high`. The provider reuses pi's built-in model settings.
-Use `--workers 8` for eight concurrent classification batches. See `src/README.md` for endpoint details.
+Use `--workers 8` for eight concurrent classification batches. Follow the
+[remote WSL guide](docs/remote-agent.md) for setup, complete-batch validation, background runs and resume.
