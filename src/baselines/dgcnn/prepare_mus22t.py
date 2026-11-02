@@ -8,7 +8,8 @@ Then: accelerate launch --num_processes 4 -m src.baselines.dgcnn.run train --dat
 Inputs: data/MUS22T/raw/raw_22T_node_sequences.csv, data/MUS22T/agent_split/{train,val,test}.csv (the same 1:1 pairs
 the agent is scored on). Features follow SEAL provenance/rebuild_esm_and_train.py: esm2_t36_3B_UR50D (fp16), layer 35,
 mean over real residue tokens (no BOS/EOS/padding), sequences cut at the 99th length percentile, every node. Node rows
-are the sorted node IDs (SEAL's canonical order). The SEAL payload keys are kept: x, split[train|valid|test][edge|
+are the sorted node IDs (SEAL's canonical order); a node without a sequence (22T: one, in no pair) keeps a zero row,
+as SEAL's unused rows do. The SEAL payload keys are kept: x, split[train|valid|test][edge|
 edge_neg] (2 x n index tensors), id_to_protein, num_nodes. The ESM checkpoint is fetched by fair-esm's hub loader.
 """
 
@@ -95,17 +96,17 @@ def main():
         rows = csv.DictReader(open(MUS22T / "agent_split" / f"{file}.csv"))
         splits[name] = [(r["uniprotID_A"], r["uniprotID_B"], int(r["isInteraction"])) for r in rows]
     OUT.mkdir(exist_ok=True)
-    rows = list(range(rank, len(ids), world))
-    np.save(OUT / f"esm_shard{rank}.npy", esm_means(seqs, accelerator.device, rows)[rows])
+    rows = [i for i in range(rank, len(ids), world) if seqs[i]]  # 22T lists one unpaired node with no sequence
+    np.save(OUT / f"esm_shard{rank}.npy", esm_means(seqs, accelerator.device, rows))
     accelerator.wait_for_everyone()
     if not accelerator.is_main_process:
         return
-    x = np.zeros((len(ids), 2560), dtype=np.float32)
+    x = sum(np.load(OUT / f"esm_shard{r}.npy") for r in range(world))  # each shard is zero outside its rows
     for r in range(world):
-        x[r::world] = np.load(OUT / f"esm_shard{r}.npy")
         (OUT / f"esm_shard{r}.npy").unlink()
-    assert (np.linalg.norm(x, axis=1) > 0).all(), "a node has no ESM feature"
     data = payload(ids, x, splits)
+    active = torch.unique(torch.cat([e.flatten() for d in data["split"].values() for e in d.values()]))
+    assert (data["x"][active].norm(dim=1) > 0).all(), "a paired node has no ESM feature"  # SEAL's run.py check
     torch.save(data, OUT / "fixed_data.pt")
     meta = {
         "nodes": len(ids),
@@ -113,6 +114,7 @@ def main():
         "layer": LAYER,
         "checkpoint": "esm2_t36_3B_UR50D (fair-esm hub)",
         "processes": world,
+        "nodes_without_sequence": [i for i, s in zip(ids, seqs, strict=True) if not s],
         "pairs": {s: {k: int(v.shape[1]) for k, v in d.items()} for s, d in data["split"].items()},
         "fixed_data_sha256": hashlib.sha256((OUT / "fixed_data.pt").read_bytes()).hexdigest(),
     }
