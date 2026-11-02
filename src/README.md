@@ -25,6 +25,14 @@ module from the repo root as `python -m src.<path>`. `data` never imports `eval`
 - `session`: Run one round of the agent: a fresh pi session (RPC mode) whose only tools are the round's tools.
 - `pi/ppi_tools.ts`: pi extension registering the tools from the server's spec file; `prompts/`: system, round, nudge.
 
+For a DeepSeek V4 Pro endpoint, set `LLM_API_KEY` and `LLM_API_BASE` in the shell that
+starts the run. Use `--model custom/<model-id> --thinking high`. The `pi/provider.ts` extension reads
+the connection settings from the process environment. It does not write them to configuration files.
+Set the complete SDK base URL in the shell; the client appends `/chat/completions`. The server must
+support streaming and function tools. The extension reuses pi's built-in DeepSeek V4 Pro definition;
+only the model ID and endpoint change. Cost estimates use the built-in official API prices and do not
+show the endpoint's actual charges. Other model families need their own model definition.
+
 ### `eval/`
 
 - `oracle`: The offline lab: answers submitted pairs from a sealed labels file. Never imported by src/agent.

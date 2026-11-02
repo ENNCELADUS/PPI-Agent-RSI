@@ -44,3 +44,7 @@ fixed, expert-designed agent baseline before building any RSI.
 uv sync
 (cd src/agent/pi && npm ci)   # the pi agent runtime (Node), for closed-loop discovery runs
 ```
+
+For a DeepSeek V4 Pro endpoint, set `LLM_API_KEY` and `LLM_API_BASE` in the shell, then use
+`--model custom/<model-id> --thinking high`. The provider reuses pi's built-in model settings.
+Use `--workers 8` for eight concurrent classification batches. See `src/README.md` for endpoint details.

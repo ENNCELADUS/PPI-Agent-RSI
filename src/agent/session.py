@@ -97,9 +97,16 @@ def run_round(sandbox_dir, round_dir, tested, memory, *, t, rounds, model, think
 def run_session(tools, agent_dir, system, message, nudge, *, model, thinking):
     """One pi session in agent_dir with tools (RoundTools or PairTools): send message, nudge once if nothing
     was submitted. Returns what happened, the submission and the tool-call count."""
+    custom_model = model.removeprefix("custom/") if model.startswith("custom/") else None
+    if custom_model is not None:
+        if not custom_model:
+            raise ValueError("custom/ requires a model ID")
+        for name in ("LLM_API_KEY", "LLM_API_BASE"):
+            if not os.environ.get(name, "").strip():
+                raise ValueError(f"{name} is required for custom models")
     assert PI.exists(), f"pi not installed: run `npm ci` in {PI_DIR}"
     (agent_dir / "tools.json").write_text(json.dumps(specs(tools.names), indent=1))
-    config = agent_dir / "pi-config"  # empty: no user settings, models or extensions reach the agent
+    config = agent_dir / "pi-config"  # isolated: no personal settings, models or extensions
     config.mkdir(exist_ok=True)
     server, url = serve(tools)
     cmd = [
@@ -125,6 +132,8 @@ def run_session(tools, agent_dir, system, message, nudge, *, model, thinking):
         "--no-mcp",
         "--no-approve",
     ]
+    if custom_model is not None:
+        cmd.extend(["-e", str(PI_DIR / "provider.ts")])
     env = {
         **os.environ,
         "PPI_TOOL_URL": url,
@@ -132,6 +141,7 @@ def run_session(tools, agent_dir, system, message, nudge, *, model, thinking):
         "PI_CODING_AGENT_DIR": str(config),
         "PI_OFFLINE": "1",
         "PI_TELEMETRY": "0",
+        "PPI_MODEL_ID": custom_model or "",
     }
     out = {"nudged": False, "aborted": False, "error": None, "stop_reasons": []}
     rpc = Rpc(cmd, agent_dir, env)
