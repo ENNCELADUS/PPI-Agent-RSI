@@ -13,7 +13,7 @@ dependencies = [
 
 [project.optional-dependencies]
 predictor = ["numpy>=1.26", "torch>=2.4"]  # src/predictor: uv sync --extra predictor
-dgcnn = ["torch>=2.4", "torch-geometric>=2.5", "scipy", "scikit-learn", "fair-esm"]  # src/baselines/dgcnn (SEAL)
+dgcnn = ["torch>=2.4,<2.11", "torch-geometric>=2.5", "scipy", "scikit-learn", "fair-esm"]  # src/baselines/dgcnn (SEAL)
 
 [dependency-groups]
 dev = ["pytest>=8.3.5", "ruff>=0.11.8"]
