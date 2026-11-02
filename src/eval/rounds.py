@@ -104,12 +104,12 @@ def evaluate(out, known, tested, oracle, t):
     }
 
 
-def set_aside(round_dir, name):
-    """Move an earlier attempt's agent/ to the first free <name>, <name>2, ... so logs never mix."""
-    if (round_dir / "agent").exists():
+def set_aside(round_dir, name, sub="agent"):
+    """Move an earlier attempt's <sub>/ to the first free <name>, <name>2, ... so logs never mix."""
+    if (round_dir / sub).exists():
         free = (round_dir / f"{name}{i or ''}" for i in range(100))
         target = next(d for d in free if not d.exists())
-        shutil.move(round_dir / "agent", target)
+        shutil.move(round_dir / sub, target)
 
 
 def commit():

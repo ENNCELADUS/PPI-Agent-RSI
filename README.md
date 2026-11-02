@@ -43,6 +43,9 @@ fixed, expert-designed agent baseline before building any RSI.
 - **PRING classification test (implemented):** PRING train is the agent's KB, val is kept for the RSI
   part, and an LLM-only agent (no DL predictor, no web) predicts each pair of PRING's test split as released
   (self pairs included). See the [design](docs/superpowers/specs/2026-11-01-pring-classification-test-design.md).
+- **Two-layer memory agent (built, smoke only):** the PRING test proteins are split 60/40. Ten discovery rounds
+  on the 60% build a case memory and reviewer-updated lessons. A fixed 1:1 test (~10.3k pairs) on the 40% compares
+  memory, cases-only, empty-memory and B0. See the [design](docs/superpowers/specs/2026-11-02-two-layer-memory-agent-design.md).
 - **Other public tracks (surveyed):** [2026-10-19 survey](docs/research-reports/2026-10-19-public-ppi-benchmarks.md):
   BioDiscoveryAgent screens, SKEMPI 2.0 via `ppi-mutation-ddg`, and a post-cutoff IntAct/BioGRID slice.
   All are run closed-world, because their labels are retrievable online.

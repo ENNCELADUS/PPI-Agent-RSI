@@ -131,3 +131,28 @@ def test_pair_tools_have_no_predictor_or_memory(sandbox, tmp_path):
     w.call("submit_predictions", {"predictions": [{"a": "A", "b": "B", "p": 0.7, "evidence_ids": []}]})
     assert w.submitted[0]["p"] == 0.7
     assert [s["name"] for s in specs(PAIR_TOOLS) if s["terminate"]] == ["submit_predictions"]
+
+
+def test_case_tools_and_test_tools(sandbox, tmp_path):
+    from src.agent.memory import Cases
+    from src.agent.tools import CaseRoundTools, ReviewTools, TestTools
+
+    case = {"round": 1, "a": "A", "b": "B", "result": "hit", "b0_p": 0.9, "ranking_score": 0.8}
+    case |= {"uncertainty": 0.2, "rationale": "kinase\npair", "evidence_ids": ["pred:A-B"]}
+    book = Cases([case], sandbox.proteins, {"C": [("A", "40.0")]})
+    w = CaseRoundTools(sandbox, tmp_path / "w", {("A", "B")}, book)
+    with pytest.raises(ToolError, match="unknown tool"):
+        w.call("memory", {})
+    (row,) = table(w.call("cases", {"similar_to": "C"}).split("\n", 1)[1])
+    assert row["case"] == "A-B" and row["via"] == "A 40.0%" and row["rationale"] == "kinase pair"
+    assert w.call("cases", {"pair": "B-A", "result": "not detected"}) == "no matching cases"
+
+    r = ReviewTools(sandbox, tmp_path / "r", {("A", "B")}, book)
+    r.call("update_lessons", {"operations": []})
+    assert r.submitted == [] and [s["name"] for s in specs(r.names) if s["terminate"]] == ["update_lessons"]
+
+    empty = TestTools(sandbox, tmp_path / "t")
+    with pytest.raises(ToolError, match="unknown tool"):
+        empty.call("cases", {})
+    assert empty.call("predict_ppi", {"a": "B", "b": "A"}) == "A\tB\tp=0.9"  # score only, no untested rank
+    assert "cases" in TestTools(sandbox, tmp_path / "t2", book).names

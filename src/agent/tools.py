@@ -139,6 +139,48 @@ SPECS = {
         {"protein": ID, "hits_only": {"type": "boolean"}},
         [],
     ),
+    "cases": (
+        "Your case memory: every pair tested in earlier rounds, with its round, measured result, the predictor's "
+        "p before the test, your ranking_score and uncertainty, evidence and rationale. Filters combine: protein "
+        "(cases with this protein), similar_to (cases with this protein or one of its sequence homologs among case "
+        "proteins; via shows which), query (text in either protein's names or annotations), pair (case id A-B), "
+        "result, round. Page with offset and limit.",
+        {
+            "protein": ID,
+            "similar_to": ID,
+            "query": {"type": "string", "minLength": 2},
+            "pair": {"type": "string", "description": "case id, e.g. P12345-Q67890"},
+            "result": {"type": "string", "enum": ["hit", "not detected"]},
+            "round": {"type": "integer", "minimum": 1},
+            "offset": {"type": "integer", "minimum": 0},
+            "limit": {"type": "integer", "minimum": 1, "maximum": 100},
+        },
+        [],
+    ),
+    "update_lessons": (
+        "Change the lessons. Final: call it once with all operations, applied in order. add: text, scope, "
+        "supporting, contrary (case ids). revise: id and the fields that change (supporting or contrary replace "
+        "the old list). retire: id and reason.",
+        {
+            "operations": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "op": {"type": "string", "enum": ["add", "revise", "retire"]},
+                        "id": {"type": "string", "description": "lesson id, for revise and retire"},
+                        "text": {"type": "string"},
+                        "scope": {"type": "string", "description": "the pairs or proteins the lesson applies to"},
+                        "supporting": {"type": "array", "items": ID},
+                        "contrary": {"type": "array", "items": ID},
+                        "reason": {"type": "string"},
+                    },
+                    "required": ["op"],
+                },
+            }
+        },
+        ["operations"],
+    ),
     "submit_batch": (
         f"Send this round's {K} pairs to the lab. Final: call it once, with exactly {K} untested candidate pairs.",
         {
@@ -190,8 +232,15 @@ SPECS = {
         ["predictions"],
     ),
 }
-ROUND_TOOLS = tuple(n for n in SPECS if n != "submit_predictions")
-PAIR_TOOLS = ("protein_info", "search_proteins", "similar_proteins", "kb_partners", "submit_predictions")
+PROTEIN_TOOLS = ("protein_info", "search_proteins", "similar_proteins", "kb_partners")
+PREDICTOR_TOOLS = ("top_candidates", "predict_ppi", "top_for_protein")
+ROUND_TOOLS = (*PREDICTOR_TOOLS, *PROTEIN_TOOLS, "memory", "submit_batch")
+PAIR_TOOLS = (*PROTEIN_TOOLS, "submit_predictions")
+# the two-layer memory agent: selector round, reviewer, final test (the empty-memory arm drops cases)
+CASE_ROUND_TOOLS = (*PREDICTOR_TOOLS, *PROTEIN_TOOLS, "cases", "submit_batch")
+REVIEW_TOOLS = ("predict_ppi", *PROTEIN_TOOLS, "cases", "update_lessons")
+TEST_TOOLS = ("predict_ppi", *PROTEIN_TOOLS, "cases", "submit_predictions")
+FINAL = ("submit_batch", "submit_predictions", "update_lessons")
 
 
 def specs(names=ROUND_TOOLS):
@@ -200,7 +249,7 @@ def specs(names=ROUND_TOOLS):
         {
             "name": n,
             "description": d,
-            "terminate": n.startswith("submit_"),
+            "terminate": n in FINAL,
             "parameters": {"type": "object", "properties": p, "required": r},
         }
         for n, (d, p, r) in SPECS.items()
@@ -349,6 +398,38 @@ class RoundTools:
             ["round", "a", "b", "result"], [(m["round"], m["a"], m["b"], m["result"]) for m in rows]
         )
 
+    def cases(self, protein=None, similar_to=None, query=None, pair=None, result=None, round=None, offset=0, limit=50):
+        for x in (protein, similar_to):
+            if x is not None:
+                self._protein(x)
+        if pair is not None:
+            ends = pair.removeprefix("case:").split("-")
+            if len(ends) != 2:
+                raise ToolError("pair must be a case id A-B")
+            pair = "-".join(sorted(ends))
+        rows = self.casebook.find(protein, similar_to, query, pair, result, round)
+        if not rows:
+            return "no matching cases"
+        gene = lambda x: self.casebook.proteins.get(x, {}).get("gene", "")  # noqa: E731
+        header = ["case", "round", "gene_a", "gene_b", "result", "b0_p", "ranking_score", "uncertainty", "via"]
+        body = [
+            (
+                f"{c['a']}-{c['b']}",
+                c["round"],
+                gene(c["a"]),
+                gene(c["b"]),
+                c["result"],
+                f"{c['b0_p']:.4g}",
+                c["ranking_score"],
+                c["uncertainty"],
+                c["via"],
+                " ".join(map(str, c["evidence_ids"] or [])),
+                " ".join(str(c["rationale"] or "").split()),
+            )
+            for c in rows[offset : offset + limit]
+        ]
+        return f"{len(rows)} cases\n" + tsv([*header, "evidence_ids", "rationale"], body)
+
     def _submit(self, rows):
         with self.lock:
             if self.submitted is not None:
@@ -374,6 +455,42 @@ class PairTools(RoundTools):
     def submit_predictions(self, predictions):
         self._submit(predictions)
         return f"received {len(predictions)} predictions"
+
+
+class CaseRoundTools(RoundTools):
+    """One selector round of the two-layer memory agent: the round tools with `cases` instead of `memory`."""
+
+    names = CASE_ROUND_TOOLS
+
+    def __init__(self, sandbox, round_dir, tested, casebook, cap=CAP):
+        super().__init__(sandbox, round_dir, tested, [], cap)
+        self.casebook = casebook
+
+
+class ReviewTools(CaseRoundTools):
+    """The reviewer session after a round: evidence tools, cases, and one final update_lessons call."""
+
+    names, final = REVIEW_TOOLS, "update_lessons"
+
+    def update_lessons(self, operations):
+        self._submit(operations)
+        return f"received {len(operations)} operations"
+
+
+class TestTools(PairTools):
+    """One final-test batch: predictor score lookup, protein and KB tools, and `cases` if casebook is given."""
+
+    def __init__(self, sandbox, agent_dir, casebook=None, cap=CAP):
+        super().__init__(sandbox, agent_dir, cap)
+        self.casebook = casebook
+        self.names = TEST_TOOLS if casebook else tuple(n for n in TEST_TOOLS if n != "cases")
+
+    def predict_ppi(self, a, b):
+        a, b = pair(self._candidate(a), self._candidate(b))
+        if a == b:
+            raise ToolError("self pairs are not candidates")
+        ((p,),) = self.s.query("SELECT p FROM scores WHERE a = ? AND b = ?", [a, b])
+        return f"{a}\t{b}\tp={p:.4g}"
 
 
 def serve(tools):

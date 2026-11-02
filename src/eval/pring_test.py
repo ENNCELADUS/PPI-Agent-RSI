@@ -179,7 +179,7 @@ def provenance(args, n_batches, labels):
     }
 
 
-def run_batch(i, batch, n_batches, sandbox, system, run_dir, args):
+def run_batch(i, batch, n_batches, sandbox, system, run_dir, args, make_tools):
     batch_dir = run_dir / f"batch{i:04d}"
     result_path = batch_dir / "result.json"
     if result_path.exists():
@@ -193,7 +193,7 @@ def run_batch(i, batch, n_batches, sandbox, system, run_dir, args):
     for attempt in (1, 2):
         if attempt == 2:
             set_aside(batch_dir, "agent_failed")
-        tools = PairTools(sandbox, batch_dir / "agent")
+        tools = make_tools(batch_dir / "agent")
         out = run_session(tools, batch_dir / "agent", system, message, nudge, model=args.model, thinking=args.thinking)
         if out["submission"] is not None or not out["error"]:
             break
@@ -237,7 +237,8 @@ def main():
     n = len(todo)
     with ThreadPoolExecutor(args.workers) as pool:
         jobs = [
-            pool.submit(run_batch, i, b, n, sandbox, system, run_dir, args) for i, b in enumerate(todo[: args.limit], 1)
+            pool.submit(run_batch, i, b, n, sandbox, system, run_dir, args, lambda d: PairTools(sandbox, d))
+            for i, b in enumerate(todo[: args.limit], 1)
         ]
         results = [r for j in jobs if (r := j.result()) is not None]
     print(f"{len(results)} of {len(jobs)} batches scored")
