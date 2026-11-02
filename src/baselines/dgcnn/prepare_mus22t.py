@@ -1,6 +1,7 @@
 """Build the SEAL DGCNN input (fixed_data.pt) for the 22T agent split: ESM2-3B node features + the split's pairs.
 
-Run on a GPU host (H20): uv run --extra dgcnn python -m src.baselines.dgcnn.prepare_mus22t [--device cuda:0]
+Run on a GPU host (H20): accelerate launch --num_processes 4 -m src.baselines.dgcnn.prepare_mus22t
+(each process embeds every num_processes-th node; the main process merges the shards and writes the payload).
 Then: accelerate launch --num_processes 4 -m src.baselines.dgcnn.run train --data data/MUS22T/dgcnn/fixed_data.pt \
     --output data/MUS22T/dgcnn/train_<date> --workers 8 --microbatch 64 --epochs 20
 
@@ -25,15 +26,16 @@ OUT = MUS22T / "dgcnn"
 LAYER, TOKEN_BUDGET = 35, 2048
 
 
-def esm_means(seqs, device):
-    """Mean layer-35 embedding over each sequence's residues, as SEAL computes it (OOM halves the batch)."""
+def esm_means(seqs, device, rows):
+    """Mean layer-35 embedding over the residues of seqs[rows], as SEAL computes it (OOM halves the batch); other
+    rows stay zero."""
     import esm
 
     model, alphabet = esm.pretrained.esm2_t36_3B_UR50D()
     model = model.half().to(device).eval()
     convert = alphabet.get_batch_converter()
     out = np.zeros((len(seqs), 2560), dtype=np.float32)
-    order = sorted(range(len(seqs)), key=lambda i: len(seqs[i]))
+    order = sorted(rows, key=lambda i: len(seqs[i]))
     batches, batch, longest = [], [], 0
     for i in order:
         longest = max(longest, len(seqs[i]) + 2)
@@ -61,7 +63,7 @@ def esm_means(seqs, device):
         run(idx)
         if k % 100 == 0 or k == len(batches):
             print(f"esm {k}/{len(batches)} batches", flush=True)
-    assert np.isfinite(out).all() and (np.linalg.norm(out, axis=1) > 0).all(), "invalid ESM output"
+    assert np.isfinite(out).all() and (np.linalg.norm(out[rows], axis=1) > 0).all(), "invalid ESM output"
     return out
 
 
@@ -76,9 +78,11 @@ def payload(ids, x, splits):
 
 
 def main():
-    parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    parser.add_argument("--device", default="cuda:0")
-    args = parser.parse_args()
+    from accelerate import Accelerator
+
+    argparse.ArgumentParser(description=__doc__.split("\n")[0]).parse_args()
+    accelerator = Accelerator()
+    rank, world = accelerator.process_index, accelerator.num_processes
     seq = {r["id"]: r["sequence"].upper() for r in csv.DictReader(open(MUS22T / "raw" / "raw_22T_node_sequences.csv"))}
     ids = sorted(seq)
     maxlen = int(np.percentile([len(s) for s in seq.values()], 99))
@@ -88,13 +92,24 @@ def main():
         rows = csv.DictReader(open(MUS22T / "agent_split" / f"{file}.csv"))
         splits[name] = [(r["uniprotID_A"], r["uniprotID_B"], int(r["isInteraction"])) for r in rows]
     OUT.mkdir(exist_ok=True)
-    data = payload(ids, esm_means(seqs, torch.device(args.device)), splits)
+    rows = list(range(rank, len(ids), world))
+    np.save(OUT / f"esm_shard{rank}.npy", esm_means(seqs, accelerator.device, rows)[rows])
+    accelerator.wait_for_everyone()
+    if not accelerator.is_main_process:
+        return
+    x = np.zeros((len(ids), 2560), dtype=np.float32)
+    for r in range(world):
+        x[r::world] = np.load(OUT / f"esm_shard{r}.npy")
+        (OUT / f"esm_shard{r}.npy").unlink()
+    assert (np.linalg.norm(x, axis=1) > 0).all(), "a node has no ESM feature"
+    data = payload(ids, x, splits)
     torch.save(data, OUT / "fixed_data.pt")
     meta = {
         "nodes": len(ids),
         "max_length": maxlen,
         "layer": LAYER,
         "checkpoint": "esm2_t36_3B_UR50D (fair-esm hub)",
+        "processes": world,
         "pairs": {s: {k: int(v.shape[1]) for k, v in d.items()} for s, d in data["split"].items()},
         "fixed_data_sha256": hashlib.sha256((OUT / "fixed_data.pt").read_bytes()).hexdigest(),
     }
