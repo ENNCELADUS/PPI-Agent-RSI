@@ -23,6 +23,15 @@ fixed, expert-designed agent baseline before building any RSI.
 
 - **Private (built):** human transmembrane PPIs; test positives have no evidence in any public PPI
   database, with 1:1 degree-preserving negatives. See `CLAUDE.md` for the build commands.
+- **22T mouse agent split and sandbox (built; run with `src.eval.pring_test --data mus22t`):** the private 22T mouse membrane positives split at
+  random 8:1:1 (transductive: proteins appear in every split) with new PRING degree-preserving negatives at 1:1;
+  train = KB, val = RSI data, test = final. Labels may be public; the agent's sandbox has no web tools. The agent
+  sees `data/MUS22T/sandbox/` (PRING-sandbox layout, mouse UniProt annotations, KB = train). See
+  `build_mus22t_agent_split.py` and `build_mus22t_sandbox.py` in `src/data/builders/`.
+- **SEAL-protocol splits (built):** the SEAL PPI baseline protocol (random edge 80/10/10, 1:1), so DL numbers compare
+  with SEAL's: the private 22T mouse membrane data (22-tissue proteomics) and the human TMP data (all stages). Most
+  positives are public or orthologs of public pairs, so these are not agent test pools. See
+  `src/data/builders/build_seal_split.py`.
 - **PRING dev sandbox (built):** an internal, closed-world benchmark built from PRING human data, for
   debugging the agent before it sees the private test set. Its 1:1 train and val splits form the agent's
   reference KB; the test proteins are the closed-loop discovery candidates. Its numbers are never reported. See the [design](docs/superpowers/specs/2026-10-23-pring-sandbox-design.md).

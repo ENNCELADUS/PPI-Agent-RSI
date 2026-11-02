@@ -10,6 +10,11 @@ shuffled with seed 0 and cut into batches. The agent sees data/PRING/sandbox_cls
 tools only (PairTools: no predictor, no memory, no web) that calls submit_predictions once. --limit N
 runs only the first N batches (a smoke run or a budget stop); a later call without it continues.
 
+--data mus22t runs the same agent (same tools and backend) on the 22T mouse membrane split instead: pairs =
+data/MUS22T/agent_split/test.csv (transductive, 4,683 positives, 4,683 PRING-sampled negatives), sandbox =
+data/MUS22T/sandbox/ (build_mus22t_sandbox: KB = train), system prompt pring_test/system_mus22t.md, runs in
+data/MUS22T/runs/, no B0 arm (there is no mouse B0).
+
 Runs go to data/PRING/runs/<name>/batch<i>/: agent/ (pi session, tool calls, submission) and
 result.json (labels and predictions; evaluator only). A batch with result.json is replayed, so a
 stopped run resumes. A missing or invalid prediction scores p = 0.5 and counts against coverage. A
@@ -33,16 +38,20 @@ from src.agent.session import PROMPTS, prompt, run_session
 from src.agent.session import pi_version as get_pi_version
 from src.agent.tools import CAP, PairTools, Sandbox, tsv
 from src.data.ids import pair
-from src.data.paths import HIDDEN, PRING, PRING_RAW
+from src.data.paths import HIDDEN, MUS22T, PRING, PRING_RAW
 from src.eval.rounds import RUNS, commit, set_aside
 from src.eval.score import read_pairs
 from src.predictor.parity import average_ranks
 
 SEED = 0
 TEST_PROMPTS = PROMPTS / "pring_test"
+DATA = {  # labelled pairs, agent-visible sandbox, run root, system prompt; B0 exists for PRING only
+    "pring": (HIDDEN / "test.csv", PRING / "sandbox_cls", RUNS, "pring_test/system"),
+    "mus22t": (MUS22T / "agent_split" / "test.csv", MUS22T / "sandbox", MUS22T / "runs", "pring_test/system_mus22t"),
+}
 
 
-def test_pairs(path=HIDDEN / "test.csv"):
+def test_pairs(path):
     return [(*p, int(r["isInteraction"])) for p, r in read_pairs(path)]
 
 
@@ -124,14 +133,16 @@ def b0_logits(pairs):
     return out
 
 
-def summarise(rows, results):
+def summarise(rows, results, with_b0=True):
     scored = [r for r in rows if r["p"] is not None]
-    b0 = b0_logits([(r["a"], r["b"]) for r in rows])
+    b0 = b0_logits([(r["a"], r["b"]) for r in rows]) if with_b0 else None
     stats = [x["stats"] or {} for x in results]
 
     def arms(rows):
         y = [r["label"] for r in rows]
         p = [0.5 if r["p"] is None else r["p"] for r in rows]
+        if b0 is None:
+            return {"agent": classification(y, p)}
         b0_p = 1 / (1 + np.exp(-np.array([b0[(r["a"], r["b"])] for r in rows])))  # raw sigmoid: logit 0 = 0.5
         return {"agent": classification(y, p), "b0": classification(y, b0_p)}
 
@@ -151,8 +162,9 @@ def summarise(rows, results):
     }
 
 
-def provenance(args, n_batches):
+def provenance(args, n_batches, labels):
     return {
+        "data": args.data,
         "model": args.model,
         "thinking": args.thinking,
         "batch": args.batch,
@@ -162,7 +174,7 @@ def provenance(args, n_batches):
         "git": commit(),
         "pi": get_pi_version(),
         "prompts": {p.name: hashlib.sha256(p.read_bytes()).hexdigest()[:16] for p in sorted(TEST_PROMPTS.glob("*.md"))},
-        "test_csv": hashlib.sha256((HIDDEN / "test.csv").read_bytes()).hexdigest()[:16],
+        "test_csv": hashlib.sha256(labels.read_bytes()).hexdigest()[:16],
         "started": datetime.now(UTC).isoformat(timespec="seconds"),
     }
 
@@ -207,18 +219,21 @@ def main():
     parser.add_argument("--limit", type=int, help="run only the first N batches")
     parser.add_argument("--model", default="deepseek/deepseek-flash")
     parser.add_argument("--thinking", default="high")
+    parser.add_argument("--data", choices=DATA, default="pring")
     args = parser.parse_args()
 
-    run_dir = RUNS / args.name
+    labels, sandbox_dir, runs, system_prompt = DATA[args.data]
+    run_dir = runs / args.name
     run_dir.mkdir(parents=True, exist_ok=True)
-    todo = batches(test_pairs(), args.batch)
+    todo = batches(test_pairs(labels), args.batch)
     if (run_dir / "run.json").exists():
         old = json.loads((run_dir / "run.json").read_text())
         assert old["batch"] == args.batch, "resume with the run's own batch size"
+        assert old.get("data", "pring") == args.data, "resume with the run's own data"
     else:
-        (run_dir / "run.json").write_text(json.dumps(provenance(args, len(todo)), indent=1) + "\n")
-    sandbox = Sandbox(str(PRING / "sandbox_cls"))
-    system = prompt("pring_test/system", proteins=len(sandbox.candidates), cap=CAP)
+        (run_dir / "run.json").write_text(json.dumps(provenance(args, len(todo), labels), indent=1) + "\n")
+    sandbox = Sandbox(str(sandbox_dir))
+    system = prompt(system_prompt, proteins=len(sandbox.candidates), cap=CAP)
     n = len(todo)
     with ThreadPoolExecutor(args.workers) as pool:
         jobs = [
@@ -228,7 +243,7 @@ def main():
     print(f"{len(results)} of {len(jobs)} batches scored")
     if not results:
         return
-    summary = summarise([row for r in results for row in r["rows"]], results)
+    summary = summarise([row for r in results for row in r["rows"]], results, with_b0=args.data == "pring")
     (run_dir / "summary.json").write_text(json.dumps(summary, indent=1) + "\n")
     print(json.dumps(summary, indent=1))
 

@@ -25,3 +25,6 @@ PRING = ROOT / "data" / "PRING"
 PRING_RAW = PRING / "raw"
 SANDBOX = PRING / "sandbox"  # what the agent may read
 HIDDEN = PRING / "hidden"  # labels; never given to the agent
+
+# Private 22T mouse membrane PPIs (custom_ppi.zip) and the splits and agent sandbox built from them.
+MUS22T = ROOT / "data" / "MUS22T"

@@ -13,22 +13,19 @@ PDFs live in git-ignored `literature/<topic>/`; the index `literature/README.md`
 modes must come out of evaluation, never be assumed in advance. Name every pool, arm, baseline and run by what
 it is ("the inductive pool", "the permuted-label arm"), never by a bare label; give a code label once in parentheses.
 
-## Current state (2026-11-01, PRING split roles redesigned; LLM-only classification test)
+## Current state (2026-11-02, 22T mouse agent split + sandbox; SEAL-protocol splits)
 
 Replace this section on every update; history lives in git and the specs.
 
-- **Private split (built):** `build_agent_split` → `data/TMP/agent_split/`: `train.csv` = agent KB; `test.csv` = 1:1
-  held-out pool, positives with no evidence in any public PPI database. No validation split. Open: web retrieval.
-- **PRING sandbox (built):** `build_pring_sandbox` → `data/PRING/` ([design](docs/superpowers/specs/2026-10-23-pring-sandbox-design.md)).
-  Internal, closed-world; agent sees a `sandbox*/` directory only. Split roles (user decision 2026-11-01,
-  [spec](docs/superpowers/specs/2026-11-01-pring-classification-test-design.md)): train = KB; val = RSI data (agent
-  picks val pairs to reveal; transductive, accepted); test = final, PRING test as released (`hidden/test.csv`).
-- **Classification test (built, smoke only):** LLM-only arm, no DL tools, no web (`build_pring_cls` → `sandbox_cls/`,
-  `src.eval.pring_test`). B0: AUROC 0.701, AP 0.736 (self pairs all positive). Topology test and RSI loop not built.
-- **Closed-loop discovery (earlier, [spec](docs/superpowers/specs/2026-10-23-pring-wave-discovery-design.md)):** 10 × 200 picks of
-  2.04M test pairs. `deepseek-flash-high` (5 runs): 88% of hits ribosome; `-noribo` (3 runs): other complexes, 1.9× B0;
-  both told the hit rate. Agent = pi over RPC; B0 in `src/predictor/`; LLM `deepseek-flash` (DeepSeek-V4.1-Flash-1017),
-  thinking high. Never vendor/retrain DIPPI. [Public tracks](docs/research-reports/2026-10-19-public-ppi-benchmarks.md), [RSI positioning](docs/research-reports/2026-10-27-rsi-active-learning-positioning.md).
+- **Private split (built):** `data/TMP/agent_split/`: `train.csv` = agent KB; `test.csv` = 1:1 non-public positives.
+- **22T mouse agent sandbox (built; `pring_test --data mus22t`):** `data/MUS22T/agent_split/` (hidden) = transductive
+  8:1:1 + new PRING negatives (37,456/4,682/4,683 pos); `sandbox/` = PRING layout, KB = train; no web tools.
+- **SEAL-protocol splits (DL-comparable only):** random edge 80/10/10; propensity AUPRC 22T 0.944, TMP (≈ SEAL) 0.888.
+- **PRING sandbox (built, closed-world; agent sees `sandbox*/` only):** [design](docs/superpowers/specs/2026-10-23-pring-sandbox-design.md); roles ([spec](docs/superpowers/specs/2026-11-01-pring-classification-test-design.md)): train = KB; val = RSI data; test = final.
+  LLM-only classification test (`sandbox_cls/`, smoke only); B0 AUROC 0.701. No RSI loop.
+- **Closed-loop discovery ([spec](docs/superpowers/specs/2026-10-23-pring-wave-discovery-design.md)):** 10 × 200 picks of 2.04M pairs; ribosome
+  dominates unless ablated. Agent = pi; B0 in `src/predictor/`; LLM `deepseek-flash` (V4.1-Flash-1017, thinking high). Never vendor/retrain DIPPI.
+  [Public tracks](docs/research-reports/2026-10-19-public-ppi-benchmarks.md), [RSI positioning](docs/research-reports/2026-10-27-rsi-active-learning-positioning.md).
 
 ## Commands
 
@@ -47,8 +44,10 @@ uv run python -m src.data.builders.build_pring_tools  # ~80 s, needs mmseqs; sco
 uv run python -m src.data.builders.build_pring_noribo  # ~5 s; ribosome-ablation sandbox (--sandbox sandbox_noribo)
 (cd src/agent/pi && npm ci)                           # pinned pi for the agent harness
 uv run python -m src.eval.rounds <name> <R>           # one true-feedback replicate; --until T stops after round T
-uv run python -m src.data.builders.build_pring_cls && uv run python -m src.eval.pring_test <name>  # --limit N batches
+uv run python -m src.data.builders.build_pring_cls && uv run python -m src.eval.pring_test <name>  # --limit N; --data mus22t
 uv run python -m src.eval.score <labels.csv> <ranking.csv>  # private test.csv (sandbox pools: not built)
+uv run --extra predictor python -m src.data.builders.build_seal_split mus22t|tmp  # SEAL-protocol split; tmp ~20 s
+uv run python -m src.data.builders.build_mus22t_agent_split && uv run python -m src.data.builders.build_mus22t_sandbox  # ~75 s
 ```
 
 - `fetch_public.sh` resumes downloads (`curl -C -`), pipes each to `src.data.public_db`, then deletes it.

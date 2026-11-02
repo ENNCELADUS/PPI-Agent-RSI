@@ -33,3 +33,12 @@ def test_classification_at_max_f1_threshold():
     assert (m["accuracy"], m["precision"], m["recall"], m["specificity"]) == (0.75, 2 / 3, 1.0, 0.5)
     assert abs(m["mcc"] - 2 / 12**0.5) < 1e-12
     assert abs(m["brier"] - (0.01 + 0.36 + 0.36 + 0.01) / 4) < 1e-12
+
+
+def test_summarise_without_b0_scores_the_agent_only():
+    from src.eval.pring_test import summarise
+
+    rows = [{"a": "A", "b": "B", "label": 1, "p": 0.9}, {"a": "A", "b": "C", "label": 0, "p": None}]
+    result = {"rejected": 0, "submission": [], "tool_calls": 3, "stats": None}
+    s = summarise(rows, [result], with_b0=False)
+    assert s["coverage"] == 0.5 and set(s["agent"]) >= {"auroc", "f1"} and "b0" not in s

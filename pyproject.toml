@@ -6,7 +6,10 @@ build-backend = "hatchling.build"
 name = "ppi-agent-rsi"
 version = "0.1.0"
 requires-python = ">=3.11"
-dependencies = ["duckdb"]
+dependencies = [
+    "duckdb",
+    "pandas>=3.1.0",
+]
 
 [project.optional-dependencies]
 predictor = ["numpy>=1.26", "torch>=2.4"]  # src/predictor: uv sync --extra predictor

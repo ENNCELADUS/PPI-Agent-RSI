@@ -17,6 +17,9 @@ module from the repo root as `python -m src.<path>`. `data` never imports `eval`
 - `build_pring_tools`: Build the agent's tool files for PRING closed-loop discovery: calibrated predictor scores and KB homologs.
 - `build_pring_noribo`: Build the ribosome-ablation sandbox: the PRING sandbox with the cytosolic ribosome removed from the candidates.
 - `build_pring_cls`: Build the classification-test sandbox: the PRING sandbox with the KB cut to train and no predictor.
+- `build_mus22t_agent_split`: Split the 22T mouse membrane PPIs transductively 8:1:1 by positive pairs, with new PRING negatives.
+- `build_mus22t_sandbox`: Build the 22T agent sandbox: the agent-visible files for the 22T mouse membrane split, PRING-sandbox layout.
+- `build_seal_split`: Split a PPI dataset (22T mouse, or human TMP) with the SEAL PPI baseline protocol, so its numbers compare with SEAL's.
 - `fetch_public.sh`: Fetch each public PPI source (resumable) and pipe it to `public_db`.
 
 ### `agent/` (pi runtime: `npm ci` in `agent/pi/`)
@@ -38,7 +41,7 @@ Remote runs follow the local, untracked `remote-api-agent` skill.
 
 - `oracle`: The offline lab: answers submitted pairs from a sealed labels file. Never imported by src/agent.
 - `rounds`: Run PRING closed-loop discovery with the pi agent: rounds of K submitted pairs, oracle results, true feedback.
-- `pring_test`: Classification test on PRING: the agent predicts every pair of PRING's human BFS test split.
+- `pring_test`: Classification test on PRING: the agent predicts every pair of PRING's human BFS test split. `--data mus22t`: the same agent on the 22T mouse test split.
 - `score`: Score a global top-N ranking against a labels file (the private `test.csv`; sandbox pools not built yet).
 - `verify_live_string`: Spot-check that sampled test pairs are absent from the live STRING API.
 
