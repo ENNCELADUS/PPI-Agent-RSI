@@ -1,12 +1,12 @@
 # 22T classification test: LLM agent + V3 predictor
 
-Date: 2026-11-02. Status: built; smoke run not done.
+Date: 2026-11-02. Status: run (`mus22t-llm-v3-pro-high-cap100-20261102T190420Z`, $33.66): test AUPRC 0.708 vs V3 0.716.
 
 ## Question
 
 On private 22T mouse membrane PPIs, does an LLM agent that sees a DL predictor's score classify test pairs better
 than the predictor alone? The LLM-only agent has test AUPRC 0.587 and V3 (B0 v3_1) has 0.716 on the same 9,366
-pairs ([results](../../../results/mus22t-classification-test/summary.html)). This experiment adds the third cell:
+pairs ([results](../../../results/classification-test/summary.html)). This experiment adds the third cell:
 the agent with V3's score.
 
 ## Arms (all on `data/MUS22T/agent_split/test.csv`, same 9,366 pairs)
@@ -56,7 +56,7 @@ cap did not limit that arm.
 
 ## Report
 
-Add the new arm to `results/mus22t-classification-test/summary.html`:
+Added to `results/classification-test/summary.html` (one p = 0.5 table with the PRING test, per user). Planned:
 - Table 1 (test AUPRC, AUROC): degree-only, V3, LLM-only, predictor-assisted agent.
 - Table 2 (paired bootstrap 95% intervals): predictor-assisted − V3 (the main result) and predictor-assisted −
   LLM-only.

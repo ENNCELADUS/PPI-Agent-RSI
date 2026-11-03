@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>PPI Classification Tests</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Condensed:wght@600&family=IBM+Plex+Sans:wght@400;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one reading column of prose and tables, as in results/deepseek-flash-high. */
+:root {
+  --bg: #f6f8f8; --surface: #ffffff; --fg: #17242a; --muted: #5a6b72; --rule: #d5dee1; --accent: #0f6b74;
+  --display: "IBM Plex Sans Condensed", "Arial Narrow", system-ui, sans-serif;
+  --body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #11181b; --surface: #182226; --fg: #e3eaec; --muted: #93a4aa; --rule: #2c3a3f; --accent: #5fc2cb; color-scheme: dark } }
+:root[data-theme="dark"] { --bg: #11181b; --surface: #182226; --fg: #e3eaec; --muted: #93a4aa; --rule: #2c3a3f; --accent: #5fc2cb; color-scheme: dark }
+* { box-sizing: border-box }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.6 var(--body);
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)) }
+main { max-width: 920px; margin: 0 auto; padding-block: 48px 72px; display: grid; gap: 18px; min-width: 0 }
+main > p, .read, h1, .meta { max-width: 68ch }
+h1 { font: 600 2.1rem/1.15 var(--display); margin: 0; text-wrap: balance; letter-spacing: -0.01em }
+h2 { font: 600 1.35rem/1.2 var(--display); margin: 20px 0 0; text-wrap: balance }
+.meta { display: flex; flex-wrap: wrap; gap: 6px 20px; font: 0.8rem var(--mono); color: var(--muted); margin: 0;
+  padding-block: 10px; border-block: 1px solid var(--rule) }
+.meta b { color: var(--fg); font-weight: 500 }
+p { margin: 0 }
+code { font: 0.88em var(--mono) }
+.cap { color: var(--muted); font-size: 0.9rem; max-width: none; margin-top: 8px }
+.cap b { color: var(--fg) }
+.tw { overflow-x: auto; background: var(--surface); border: 1px solid var(--rule); border-radius: 4px }
+table { border-collapse: collapse; width: 100%; font-size: 0.86rem }
+th, td { padding: 7px 12px; text-align: left; border-bottom: 1px solid var(--rule); vertical-align: top }
+th { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 600; white-space: nowrap }
+tbody tr:last-child td { border-bottom: 0 }
+td.n { font: 0.84rem var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap }
+td strong { color: var(--accent) }
+figure { margin: 8px 0 0; display: grid; gap: 6px }
+figure img { max-width: 100%; height: auto; background: #fff; border: 1px solid var(--rule); border-radius: 4px }
+figcaption { font: 0.78rem var(--mono); color: var(--muted) }
+.read { margin: 0; padding: 0; list-style: none; display: grid; gap: 10px }
+.read li { padding-left: 14px; border-left: 2px solid var(--accent) }
+tr.g td { font: 600 0.78rem var(--body); color: var(--muted); background: var(--bg); letter-spacing: 0.04em }
+tbody td:first-child { white-space: nowrap }
+th, td { padding: 7px 8px } main { max-width: 1000px }
+</style>
+</head>
+<body>
+<main>
+<h1>PPI classification tests: LLM agents vs DL predictors</h1>
+
+<h2>Benchmarks</h2>
+<p>Every agent is DeepSeek-V4 Pro (thinking high). Each batch of 200 pairs is one fresh LLM session with protein-annotation, homolog and knowledge-base tools (no web) that returns one probability per pair. An agent "+ DL predictor" also gets the predictor's probability for its pairs. The DL predictor is an ESM-3 pair classifier trained on the same knowledge base and scores the same pairs.</p>
+<p><b>PRING, full test</b> (public, human; the DL benchmark task): breadth-first split; train (76,400 labelled pairs) is the knowledge base, and no test protein is in it. The LLM-only agent scores all 64,038 test pairs.</p>
+<p><b>PRING, after discovery rounds</b> (loop with revealed labels): the 2,018 test proteins are split 60/40. On the 60% side the agent runs 10 rounds; each round it picks 200 pairs, and their labels are revealed and kept as memory (1,624 hits in 2,000 picks). The final test is 10,280 labelled pairs (1:1) among the 40% side, scored by the LLM agent with the DL predictor.</p>
+<p><b>22T</b> (private, mouse membrane): 46,821 positives split 8:1:1 at random, each split filled with 1:1 negatives; the test has 9,366 pairs (4,683 positive) among 2,154 proteins.</p>
+
+<h2>Results</h2>
+<p class="cap"><b>Table 1.</b> Test classification on the train/test splits (no loop); threshold-free metrics. AUPRC and AUROC use only the ranking (chance ≈ 0.5); Brier score measures calibration and accuracy of the probabilities. Bold: best within each benchmark.</p>
+<div class="tw"><table><thead><tr><th>Model</th><th>AUPRC↑</th><th>AUROC↑</th><th>Brier↓</th></tr></thead><tbody><tr class="g"><td colspan="4">PRING human BFS test, full (public), 64,038 pairs</td></tr>
+<tr><td>ESM-3 DL predictor</td><td class="n">0.736</td><td class="n">0.701</td><td class="n"><strong>0.266</strong></td></tr>
+<tr><td>LLM-only agent</td><td class="n"><strong>0.799</strong></td><td class="n"><strong>0.770</strong></td><td class="n">0.326</td></tr>
+<tr class="g"><td colspan="4">22T mouse membrane agent split (private), 9,366 pairs</td></tr>
+<tr><td>ESM-3 DL predictor</td><td class="n"><strong>0.716</strong></td><td class="n"><strong>0.717</strong></td><td class="n">0.222</td></tr>
+<tr><td>LLM-only agent</td><td class="n">0.587</td><td class="n">0.570</td><td class="n">0.309</td></tr>
+<tr><td>LLM agent + DL predictor</td><td class="n">0.708</td><td class="n">0.715</td><td class="n"><strong>0.218</strong></td></tr></tbody></table></div>
+<figure><img src="figures/pring_curves.svg" alt="ROC and precision-recall curves on the full PRING test: the LLM-only agent lies above the DL predictor"><figcaption>Figure 1. ROC and precision–recall curves, PRING full test; the legend gives AUROC or AUPRC. Dashed lines: chance.</figcaption></figure>
+<figure><img src="figures/mus22t_curves.svg" alt="ROC and precision-recall curves on the 22T test: the DL predictor and the LLM agent with it lie above the LLM-only agent"><figcaption>Figure 2. ROC and precision–recall curves, 22T test.</figcaption></figure>
+<p class="cap"><b>Table 2.</b> PRING final test after 10 discovery rounds with revealed labels; threshold-free metrics only. Bold: best.</p>
+<div class="tw"><table><thead><tr><th>Model</th><th>AUPRC↑</th><th>AUROC↑</th><th>Brier↓</th></tr></thead><tbody><tr class="g"><td colspan="4">PRING final test after 10 discovery rounds (public), 10,280 pairs</td></tr>
+<tr><td>ESM-3 DL predictor</td><td class="n">0.695</td><td class="n">0.667</td><td class="n"><strong>0.286</strong></td></tr>
+<tr><td>LLM-only agent</td><td class="n">0.781</td><td class="n">0.748</td><td class="n">0.333</td></tr>
+<tr><td>LLM agent + DL predictor</td><td class="n"><strong>0.804</strong></td><td class="n"><strong>0.769</strong></td><td class="n">0.326</td></tr></tbody></table></div>
+<figure><img src="figures/loop_curves.svg" alt="ROC and precision-recall curves on the PRING final test after discovery rounds: the LLM agent with the DL predictor lies highest"><figcaption>Figure 3. ROC and precision–recall curves, PRING final test after 10 discovery rounds.</figcaption></figure>
+
+<h2>Why the LLM-only agent differs between public and private data</h2>
+<p class="cap"><b>Table 3.</b> The two LLM-only runs (same model, tools and prompt design; full PRING test and 22T test). Annotation third: pairs split by the shorter UniProt function text of the two proteins. Cited evidence: share of the source IDs the agent lists with its predictions.</p>
+<div class="tw"><table><thead><tr><th>Check</th><th>PRING (public, human)</th><th>22T (private, mouse)</th></tr></thead><tbody>
+<tr><td>AUROC / AUPRC</td><td class="n">0.770 / 0.799</td><td class="n">0.570 / 0.587</td></tr><tr><td>Precision of confident calls (p ≥ 0.8; share of pairs)</td><td class="n"><strong>0.997</strong> (3.2%)</td><td class="n">0.830 (2.0%)</td></tr><tr><td>AUROC by annotation third (least → most)</td><td class="n">0.681 → 0.810 → 0.818</td><td class="n">0.531 → 0.584 → 0.592</td></tr><tr><td>Cited evidence: protein annotation / knowledge-base pairs</td><td class="n">86% / 2%</td><td class="n">59% / 37%</td></tr>
+</tbody></table></div>
+
+<h2>Reading</h2>
+<ul class="read">
+<li><strong>On public PRING, the agent probably recalls interactions that it already knows.</strong> When it is confident (p ≥ 0.8), it is almost always correct: precision 0.997, against 0.830 on 22T. It cites knowledge-base pairs for only 2% of its evidence. Thus the labelled data does not explain its score (Table 3).</li>
+<li><strong>On PRING, the agent does better on well-known proteins.</strong> Its AUROC increases from 0.68 to 0.82 as the annotation increases. On 22T, its AUROC stays between 0.53 and 0.59. Thus the annotation text alone does not help the agent (Table 3).</li>
+<li><strong>On 22T, the agent uses the knowledge base more, but this does not help.</strong> The agent knows few 22T interactions, so it cites knowledge-base pairs for 37% of its evidence, against 2% on PRING. Its AUROC stays at 0.570 (Table 3).</li>
+</ul>
+</main>
+</body>
+</html>

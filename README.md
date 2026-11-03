@@ -28,8 +28,8 @@ fixed, expert-designed agent baseline before building any RSI.
   train = KB, val = RSI data, test = final. Labels may be public; the agent's sandbox has no web tools. The agent
   sees `data/MUS22T/sandbox/` (PRING-sandbox layout, mouse UniProt annotations, KB = train). See
   `build_mus22t_agent_split.py` and `build_mus22t_sandbox.py` in `src/data/builders/`. Test AUPRC: LLM-only
-  agent 0.587 vs the V3 predictor 0.716 (`results/mus22t-classification-test/summary.html`). `--predictor` gives the agent V3's
-  scores through `predict_pairs` (`build_mus22t_scores.py`; built, not run yet).
+  agent 0.587, the V3 predictor 0.716, and the agent with V3's scores (`--predictor`, `predict_pairs`, `build_mus22t_scores.py`)
+  0.708 (`results/classification-test/summary.html`, with the PRING test).
 - **SEAL-protocol splits (built):** the SEAL PPI baseline protocol (random edge 80/10/10, 1:1), so DL numbers compare
   with SEAL's: the private 22T mouse membrane data (22-tissue proteomics) and the human TMP data (all stages). Most
   positives are public or orthologs of public pairs, so these are not agent test pools. See
@@ -44,10 +44,11 @@ fixed, expert-designed agent baseline before building any RSI.
   agent's prompt no longer states the hit rate among candidate pairs (unknown in a real screen).
 - **PRING classification test (implemented):** PRING train is the agent's KB, val is kept for the RSI
   part, and an LLM-only agent (no DL predictor, no web) predicts each pair of PRING's test split as released
-  (self pairs included). See the [design](docs/superpowers/specs/2026-11-01-pring-classification-test-design.md).
-- **Two-layer memory agent (built, smoke only):** the PRING test proteins are split 60/40. Ten discovery rounds
+  (self pairs included). Full test, DeepSeek-V4 Pro: AUPRC 0.799 vs B0 0.736
+  ([results](results/classification-test/summary.html)). See the [design](docs/superpowers/specs/2026-11-01-pring-classification-test-design.md).
+- **Two-layer memory agent (run, DeepSeek-V4 Pro):** the PRING test proteins are split 60/40. Ten discovery rounds
   on the 60% build a case memory and reviewer-updated lessons. A fixed 1:1 test (~10.3k pairs) on the 40% compares
-  memory, cases-only, empty-memory and B0. See the [design](docs/superpowers/specs/2026-11-02-two-layer-memory-agent-design.md).
+  memory (AUPRC 0.803), cases-only (0.804), empty-memory (0.775) and B0 (0.695). See the [design](docs/superpowers/specs/2026-11-02-two-layer-memory-agent-design.md).
 - **Other public tracks (surveyed):** [2026-10-19 survey](docs/research-reports/2026-10-19-public-ppi-benchmarks.md):
   BioDiscoveryAgent screens, SKEMPI 2.0 via `ppi-mutation-ddg`, and a post-cutoff IntAct/BioGRID slice.
   All are run closed-world, because their labels are retrievable online.
