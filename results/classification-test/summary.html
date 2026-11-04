@@ -46,6 +46,15 @@ figcaption { font: 0.78rem var(--mono); color: var(--muted) }
 tr.g td { font: 600 0.78rem var(--body); color: var(--muted); background: var(--bg); letter-spacing: 0.04em }
 tbody td:first-child { white-space: nowrap }
 th, td { padding: 7px 8px } main { max-width: 1000px }
+/* Print: keep captions with their tables and figures; wrap wide cells instead of clipping them. */
+@media print {
+  main { padding-block: 0; display: block }  /* Chrome does not keep grid items whole across pages */
+  main > * + * { margin-top: 14px }
+  .cap, h2 { break-after: avoid; break-inside: avoid }
+  .tw, figure { break-inside: avoid }
+  .tw { overflow: visible }
+  td.n, tbody td:first-child { white-space: normal }
+}
 </style>
 </head>
 <body>
