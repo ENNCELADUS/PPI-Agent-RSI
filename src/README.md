@@ -45,6 +45,7 @@ Remote runs follow the local, untracked `remote-api-agent` skill.
 - `rounds`: Run PRING closed-loop discovery with the pi agent: rounds of K submitted pairs, oracle results, true feedback.
 - `pring_test`: Classification test on PRING: the agent predicts every pair of PRING's human BFS test split. `--data mus22t`: the same agent on the 22T mouse test split.
 - `memory_agent`: Run the two-layer memory agent: discovery rounds with case memory and reviewer-updated lessons, then the final test.
+- `al_predictor`: Active-learning B0 arm of the memory agent's final test: B0 retrained on the knowledge base plus the round labels.
 - `score`: Score a global top-N ranking against a labels file (the private `test.csv`; sandbox pools not built yet).
 - `verify_live_string`: Spot-check that sampled test pairs are absent from the live STRING API.
 

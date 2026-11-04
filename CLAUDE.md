@@ -13,7 +13,7 @@ PDFs live in git-ignored `literature/<topic>/`; the index `literature/README.md`
 modes must come out of evaluation, never be assumed in advance. Name every pool, arm, baseline and run by what
 it is ("the inductive pool", "the permuted-label arm"), never by a bare label; give a code label once in parentheses.
 
-## Current state (2026-11-02, two-layer memory agent built; 22T mouse split; SEAL-protocol splits)
+## Current state (2026-11-04, two-layer memory agent; B0 retrained on round labels; 22T; SEAL-protocol splits)
 
 Replace this section on every update; history lives in git and the specs.
 
@@ -22,7 +22,7 @@ Replace this section on every update; history lives in git and the specs.
   train. [Test AUPRC](results/classification-test/summary.html): LLM-only 0.587, V3 0.716, [agent + V3](docs/superpowers/specs/2026-11-02-mus22t-llm-predictor-design.md) (`--predictor`) 0.708.
 - **SEAL-protocol splits (DL-comparable only):** random edge 80/10/10; propensity AUPRC 22T 0.944, TMP (≈ SEAL) 0.888.
 - **PRING sandbox (built, closed-world; agent sees `sandbox*/` only):** [design](docs/superpowers/specs/2026-10-23-pring-sandbox-design.md); roles ([spec](docs/superpowers/specs/2026-11-01-pring-classification-test-design.md)): train = KB; val = RSI data; test = final.
-  [Results](results/classification-test/summary.html) (V4 Pro): LLM-only full test AUPRC 0.799 vs B0 0.736; [two-layer memory agent](docs/superpowers/specs/2026-11-02-two-layer-memory-agent-design.md) final test 0.775 / cases 0.804 / + lessons 0.803.
+  [Results](results/classification-test/summary.html) (V4 Pro): LLM-only full test AUPRC 0.799 vs B0 0.736; [two-layer memory agent](docs/superpowers/specs/2026-11-02-two-layer-memory-agent-design.md) final test 0.775 / cases 0.804 / + lessons 0.803 / cases, no predictor 0.811; B0 retrained on the round labels 0.717 (frozen 0.695; `al_predictor`).
 - **Closed-loop discovery ([spec](docs/superpowers/specs/2026-10-23-pring-wave-discovery-design.md)):** 10 × 200 picks of 2.04M pairs; ribosome
   dominates unless ablated. Agent = pi; B0 in `src/predictor/`; LLM `deepseek-flash` (V4.1-Flash-1017, thinking high). Never vendor/retrain DIPPI.
   [Public tracks](docs/research-reports/2026-10-19-public-ppi-benchmarks.md), [RSI positioning](docs/research-reports/2026-10-27-rsi-active-learning-positioning.md).
@@ -45,7 +45,7 @@ uv run python -m src.data.builders.build_pring_noribo  # ~5 s; ribosome-ablation
 (cd src/agent/pi && npm ci)                           # pinned pi for the agent harness
 uv run python -m src.eval.rounds <name> <R>           # one true-feedback replicate; --until T stops after round T
 uv run python -m src.data.builders.build_pring_cls && uv run python -m src.eval.pring_test <name>  # --limit N; --data mus22t
-uv run python -m src.data.builders.build_pring_memory && uv run python -m src.eval.memory_agent rounds|test <name>  # test --arm memory|cases|empty
+uv run python -m src.data.builders.build_pring_memory && uv run python -m src.eval.memory_agent rounds|test <name>  # test --arm memory|cases|empty [--no-predictor]
 uv run python -m src.eval.score <labels.csv> <ranking.csv>  # private test.csv (sandbox pools: not built)
 uv run --extra predictor python -m src.data.builders.build_seal_split mus22t|tmp  # SEAL-protocol split; tmp ~20 s
 uv run python -m src.data.builders.build_mus22t_agent_split && uv run python -m src.data.builders.build_mus22t_sandbox && uv run python -m src.data.builders.build_mus22t_scores  # ~75 s

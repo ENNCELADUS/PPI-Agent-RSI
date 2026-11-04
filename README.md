@@ -48,7 +48,8 @@ fixed, expert-designed agent baseline before building any RSI.
   ([results](results/classification-test/summary.html)). See the [design](docs/superpowers/specs/2026-11-01-pring-classification-test-design.md).
 - **Two-layer memory agent (run, DeepSeek-V4 Pro):** the PRING test proteins are split 60/40. Ten discovery rounds
   on the 60% build a case memory and reviewer-updated lessons. A fixed 1:1 test (~10.3k pairs) on the 40% compares
-  memory (AUPRC 0.803), cases-only (0.804), empty-memory (0.775) and B0 (0.695). See the [design](docs/superpowers/specs/2026-11-02-two-layer-memory-agent-design.md).
+  memory (AUPRC 0.803), cases-only (0.804), cases without the predictor (0.811), empty-memory (0.775), B0 (0.695)
+  and B0 retrained on the 1,895 revealed pairs (0.717, `src.eval.al_predictor`). See the [design](docs/superpowers/specs/2026-11-02-two-layer-memory-agent-design.md).
 - **Other public tracks (surveyed):** [2026-10-19 survey](docs/research-reports/2026-10-19-public-ppi-benchmarks.md):
   BioDiscoveryAgent screens, SKEMPI 2.0 via `ppi-mutation-ddg`, and a post-cutoff IntAct/BioGRID slice.
   All are run closed-world, because their labels are retrievable online.

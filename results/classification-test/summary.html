@@ -69,12 +69,12 @@ th, td { padding: 7px 8px } main { max-width: 1000px }
 <tr><td>LLM agent + DL predictor</td><td class="n">0.708</td><td class="n">0.715</td><td class="n"><strong>0.218</strong></td></tr></tbody></table></div>
 <figure><img src="figures/pring_curves.svg" alt="ROC and precision-recall curves on the full PRING test: the LLM-only agent lies above the DL predictor"><figcaption>Figure 1. ROC and precision–recall curves, PRING full test; the legend gives AUROC or AUPRC. Dashed lines: chance.</figcaption></figure>
 <figure><img src="figures/mus22t_curves.svg" alt="ROC and precision-recall curves on the 22T test: the DL predictor and the LLM agent with it lie above the LLM-only agent"><figcaption>Figure 2. ROC and precision–recall curves, 22T test.</figcaption></figure>
-<p class="cap"><b>Table 2.</b> PRING final test after 10 discovery rounds with revealed labels; threshold-free metrics only. Bold: best.</p>
+<p class="cap"><b>Table 2.</b> PRING final test after 10 discovery rounds with revealed labels; threshold-free metrics only. The DL predictor is retrained from scratch (same configuration and seed) on its knowledge base plus the 1,895 revealed pairs (1,624 hits), as in pool-based active learning; the frozen predictor scores AUPRC 0.695, AUROC 0.667, Brier 0.286. Bold: best.</p>
 <div class="tw"><table><thead><tr><th>Model</th><th>AUPRC↑</th><th>AUROC↑</th><th>Brier↓</th></tr></thead><tbody><tr class="g"><td colspan="4">PRING final test after 10 discovery rounds (public), 10,280 pairs</td></tr>
-<tr><td>ESM-3 DL predictor</td><td class="n">0.695</td><td class="n">0.667</td><td class="n"><strong>0.286</strong></td></tr>
+<tr><td>ESM-3 DL predictor, retrained on the round labels</td><td class="n">0.717</td><td class="n">0.695</td><td class="n"><strong>0.304</strong></td></tr>
 <tr><td>LLM-only agent</td><td class="n">0.781</td><td class="n">0.748</td><td class="n">0.333</td></tr>
 <tr><td>LLM agent + DL predictor</td><td class="n"><strong>0.804</strong></td><td class="n"><strong>0.769</strong></td><td class="n">0.326</td></tr></tbody></table></div>
-<figure><img src="figures/loop_curves.svg" alt="ROC and precision-recall curves on the PRING final test after discovery rounds: the LLM agent with the DL predictor lies highest"><figcaption>Figure 3. ROC and precision–recall curves, PRING final test after 10 discovery rounds.</figcaption></figure>
+<figure><img src="figures/loop_curves.svg" alt="ROC and precision-recall curves on the PRING final test after discovery rounds: the LLM agent with the DL predictor lies highest"><figcaption>Figure 3. ROC and precision–recall curves, PRING final test after 10 discovery rounds; the DL predictor curve is the frozen predictor, before retraining.</figcaption></figure>
 
 <h2>Why the LLM-only agent differs between public and private data</h2>
 <p class="cap"><b>Table 3.</b> The two LLM-only runs (same model, tools and prompt design; full PRING test and 22T test). Annotation third: pairs split by the shorter UniProt function text of the two proteins. Cited evidence: share of the source IDs the agent lists with its predictions.</p>
