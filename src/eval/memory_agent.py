@@ -1,7 +1,7 @@
 """Run the two-layer memory agent: discovery rounds with case memory and reviewer-updated lessons, then the final test.
 
     uv run python -m src.eval.memory_agent rounds <name> [--rounds 10] [--until T] [--model ...] [--thinking ...]
-    uv run python -m src.eval.memory_agent test <name> --arm memory|cases|empty [--limit N] [--workers 4]
+    uv run python -m src.eval.memory_agent test <name> --arm memory|cases|empty [--no-predictor] [--limit N]
 
 Design: docs/superpowers/specs/2026-11-02-two-layer-memory-agent-design.md. Data: build_pring_memory
 (sandbox_disc/, sandbox_final/, hidden/final_test.csv). Runs go to data/PRING/runs/<name>/.
@@ -17,7 +17,8 @@ lessons unchanged (logged in memory/round<t>/review.json).
 test: the final-test pairs (seed 0, batches of 200) in data/PRING/runs/<name>/test_<arm>/ with the pring_test
 protocol and metrics. memory: lessons (system prompt) + cases from memory/round<--rounds>/; cases: cases only;
 empty: nothing from the rounds. The memory is read-only. summary.json adds B0 on the same pairs and every metric
-without ribosome-ribosome pairs.
+without ribosome-ribosome pairs. --no-predictor (test_<arm>_nopred/): no predict_pairs tool and no predictor p in
+the prompt or the `cases` table.
 """
 
 import argparse
@@ -219,7 +220,7 @@ def memory_section(arm, records, lessons):
 
 
 def run_test(run_dir, args):
-    test_dir = run_dir / f"test_{args.arm}"
+    test_dir = run_dir / (f"test_{args.arm}" + ("" if args.predictor else "_nopred"))
     test_dir.mkdir(parents=True, exist_ok=True)
     records, lessons = [], Lessons()
     if args.arm != "empty":
@@ -234,7 +235,13 @@ def run_test(run_dir, args):
             "resume with the run's batch size"
         )
     else:
-        extra = {"arm": args.arm, "batch": args.batch, "batches": len(todo), "cases": len(records)}
+        extra = {
+            "arm": args.arm,
+            "predictor_tool": args.predictor,
+            "batch": args.batch,
+            "batches": len(todo),
+            "cases": len(records),
+        }
         extra["test_csv"] = hashlib.sha256(FINAL_TEST.read_bytes()).hexdigest()[:16]
         (test_dir / "run.json").write_text(json.dumps(provenance(args, **extra), indent=1) + "\n")
     memory, cases_tool, cases_step, examples = memory_section(args.arm, records, lessons)
@@ -247,11 +254,29 @@ def run_test(run_dir, args):
         cases_tool=cases_tool,
         cases_step=cases_step,
         evidence_examples=examples,
+        predictor_tool=(
+            "- A fixed PPI predictor trained on the knowledge base: `predict_pairs` gives its calibrated probability p "
+            f"for up\n  to {K} pairs of test proteins in one call.\n"
+        )
+        if args.predictor
+        else "",
+        predictor_step="the predictor's p, " if args.predictor else "",
+        pred_example="`pred:A-B`, " if args.predictor else "",
     )
     n = len(todo)
     with ThreadPoolExecutor(args.workers) as pool:
         jobs = [
-            pool.submit(run_batch, i, b, n, sandbox, system, test_dir, args, lambda d: TestTools(sandbox, d, book))
+            pool.submit(
+                run_batch,
+                i,
+                b,
+                n,
+                sandbox,
+                system,
+                test_dir,
+                args,
+                lambda d: TestTools(sandbox, d, book, predictor=args.predictor),
+            )
             for i, b in enumerate(todo[: args.limit], 1)
         ]
         results = [r for j in jobs if (r := j.result()) is not None]
@@ -277,6 +302,9 @@ def main():
     parser.add_argument("--until", type=int, help="rounds: stop after this round; prompts still say 'of --rounds'")
     parser.add_argument(
         "--arm", choices=("memory", "cases", "empty"), help="test: what the agent keeps from the rounds"
+    )
+    parser.add_argument(
+        "--no-predictor", dest="predictor", action="store_false", help="test: no predict_pairs, no b0_p in cases"
     )
     parser.add_argument("--batch", type=int, default=200)
     parser.add_argument("--workers", type=int, default=4)

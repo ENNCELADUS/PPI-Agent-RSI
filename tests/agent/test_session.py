@@ -83,7 +83,7 @@ def test_custom_provider_uses_environment_without_saving_connection_settings(tmp
     monkeypatch.setenv("LLM_API_KEY", "test-secret-from-shell")
     monkeypatch.setenv("LLM_API_BASE", base)
     monkeypatch.setattr("src.agent.session.TIMEOUT", 20)
-    tools = SimpleNamespace(names=[], submitted=None, calls=0)
+    tools = SimpleNamespace(names=[], descriptions={}, submitted=None, calls=0)
     try:
         result = run_session(tools, tmp_path, "Reply OK", "ping", "ping", model="custom/test-chat", thinking=thinking)
     finally:

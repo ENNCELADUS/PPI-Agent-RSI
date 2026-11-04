@@ -105,7 +105,7 @@ def run_session(tools, agent_dir, system, message, nudge, *, model, thinking):
             if not os.environ.get(name, "").strip():
                 raise ValueError(f"{name} is required for custom models")
     assert PI.exists(), f"pi not installed: run `npm ci` in {PI_DIR}"
-    (agent_dir / "tools.json").write_text(json.dumps(specs(tools.names), indent=1))
+    (agent_dir / "tools.json").write_text(json.dumps(specs(tools.names, tools.descriptions), indent=1))
     config = agent_dir / "pi-config"  # isolated: no personal settings, models or extensions
     config.mkdir(exist_ok=True)
     server, url = serve(tools)

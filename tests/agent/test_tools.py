@@ -165,3 +165,10 @@ def test_case_tools_and_test_tools(sandbox, tmp_path):
     other = Cases([case | {"a": "X1", "b": "X2"}], {"X1": {"gene": "GX"}}, {})  # case proteins outside the view
     t = TestTools(sandbox, tmp_path / "t2", other)
     assert "cases" in t.names and t.call("cases", {"protein": "X1"}).startswith("1 cases")
+    blind = TestTools(sandbox, tmp_path / "t3", other, predictor=False)  # LLM-only arm: no predictor anywhere
+    with pytest.raises(ToolError, match="unknown tool"):
+        blind.call("predict_pairs", {"pairs": [{"a": "A", "b": "B"}]})
+    (row,) = table(blind.call("cases", {"protein": "X1"}).split("\n", 1)[1])
+    assert "b0_p" not in row and row["case"] == "X1-X2"
+    (spec,) = [s for s in specs(blind.names, blind.descriptions) if s["name"] == "cases"]
+    assert "predictor" not in spec["description"]

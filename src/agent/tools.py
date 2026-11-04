@@ -255,12 +255,12 @@ TEST_TOOLS = ("predict_pairs", *PROTEIN_TOOLS, "cases", "submit_predictions")
 FINAL = ("submit_batch", "submit_predictions", "update_lessons")
 
 
-def specs(names=ROUND_TOOLS):
-    """JSON-schema tool definitions for the pi extension."""
+def specs(names=ROUND_TOOLS, descriptions=None):
+    """JSON-schema tool definitions for the pi extension; descriptions overrides some tools' text."""
     return [
         {
             "name": n,
-            "description": d,
+            "description": (descriptions or {}).get(n, d),
             "terminate": n in FINAL,
             "parameters": {"type": "object", "properties": p, "required": r},
         }
@@ -274,6 +274,7 @@ class RoundTools:
     as dicts with a, b, round, result ("hit", "not detected" or "withheld")."""
 
     names, final = ROUND_TOOLS, "submit_batch"
+    descriptions, show_b0 = {}, True  # the `cases` table shows the predictor's p unless the agent has no predictor
 
     def __init__(self, sandbox, round_dir, tested, memory, cap=CAP):
         self.s, self.dir, self.tested, self.facts, self.cap = sandbox, Path(round_dir), set(tested), memory, cap
@@ -423,7 +424,8 @@ class RoundTools:
         if not rows:
             return "no matching cases"
         gene = lambda x: self.casebook.proteins.get(x, {}).get("gene", "")  # noqa: E731
-        header = ["case", "round", "gene_a", "gene_b", "result", "b0_p", "ranking_score", "uncertainty", "via"]
+        b0 = ["b0_p"] if self.show_b0 else []
+        header = ["case", "round", "gene_a", "gene_b", "result", *b0, "ranking_score", "uncertainty", "via"]
         body = [
             (
                 f"{c['a']}-{c['b']}",
@@ -431,7 +433,7 @@ class RoundTools:
                 gene(c["a"]),
                 gene(c["b"]),
                 c["result"],
-                f"{c['b0_p']:.4g}",
+                *([f"{c['b0_p']:.4g}"] if self.show_b0 else []),
                 c["ranking_score"],
                 c["uncertainty"],
                 c["via"],
@@ -490,12 +492,17 @@ class ReviewTools(CaseRoundTools):
 
 
 class TestTools(PairTools):
-    """One final-test batch: predictor score lookup, protein and KB tools, and `cases` if casebook is given."""
+    """One final-test batch: predictor score lookup (unless predictor=False), protein and KB tools, and `cases` if
+    casebook is given. Without the predictor the `cases` table also hides the predictor's p of each case."""
 
-    def __init__(self, sandbox, agent_dir, casebook=None, cap=CAP):
+    def __init__(self, sandbox, agent_dir, casebook=None, cap=CAP, predictor=True):
         super().__init__(sandbox, agent_dir, cap)
         self.casebook = casebook
-        self.names = TEST_TOOLS if casebook else tuple(n for n in TEST_TOOLS if n != "cases")
+        drop = ({"cases"} if casebook is None else set()) | (set() if predictor else {"predict_pairs"})
+        self.names = tuple(n for n in TEST_TOOLS if n not in drop)
+        if not predictor:
+            self.show_b0 = False
+            self.descriptions = {"cases": SPECS["cases"][0].replace("the predictor's p before the test, ", "")}
         self.scored = set()  # pairs whose p the agent received; the evaluator reports coverage per batch
 
     def predict_pairs(self, pairs):
