@@ -104,3 +104,91 @@ def test_custom_provider_uses_environment_without_saving_connection_settings(tmp
             content = path.read_text()
             assert "test-secret-from-shell" not in content
             assert base not in content
+
+
+@pytest.mark.parametrize("model", ["shanghaitech/unknown", "shanghaitech/"])
+def test_gateway_rejects_unknown_model_before_starting(tmp_path, model):
+    with pytest.raises(ValueError, match="unsupported gateway model"):
+        run_session(None, tmp_path, "system", "message", "nudge", model=model, thinking="off")
+    assert not list(tmp_path.iterdir())
+
+
+def test_gateway_requires_key_before_starting(tmp_path, monkeypatch):
+    monkeypatch.delenv("SHANGHAITECH_API_KEY", raising=False)
+    with pytest.raises(ValueError, match="SHANGHAITECH_API_KEY"):
+        run_session(None, tmp_path, "system", "message", "nudge", model="shanghaitech/gpt-6.1-sol", thinking="off")
+    assert not list(tmp_path.iterdir())
+
+
+@pytest.mark.skipif(not PI.exists(), reason="pi runtime is not installed")
+@pytest.mark.parametrize("model", ["deepseek-pro", "kimi"])
+def test_gateway_routes_stream_and_executes_tool(tmp_path, monkeypatch, model):
+    from src.agent.tools import PairTools
+
+    requests = []
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_POST(self):
+            body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
+            requests.append((self.path, self.headers.get("Authorization"), body))
+            chunk = {
+                "choices": [
+                    {
+                        "index": 0,
+                        "delta": {
+                            "role": "assistant",
+                            "tool_calls": [
+                                {
+                                    "index": 0,
+                                    "id": "call_1",
+                                    "type": "function",
+                                    "function": {
+                                        "name": "submit_predictions",
+                                        "arguments": json.dumps(
+                                            {"predictions": [{"a": "A", "b": "B", "p": 0.5, "evidence_ids": []}]}
+                                        ),
+                                    },
+                                }
+                            ],
+                        },
+                        "finish_reason": "tool_calls",
+                    }
+                ]
+            }
+            data = f"data: {json.dumps(chunk)}\n\ndata: [DONE]\n\n".encode()
+            self.send_response(200)
+            self.send_header("Content-Type", "text/event-stream")
+            self.send_header("Content-Length", str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
+
+        def log_message(self, *_):
+            pass
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    monkeypatch.setenv("SHANGHAITECH_API_KEY", "gateway-test-secret")
+    monkeypatch.setenv("SHANGHAITECH_API_BASE", f"http://127.0.0.1:{server.server_port}/api/v1")
+    monkeypatch.setattr("src.agent.session.TIMEOUT", 20)
+    try:
+        out = run_session(
+            PairTools(None, tmp_path),
+            tmp_path,
+            "Submit",
+            "Submit",
+            "Submit",
+            model=f"shanghaitech/{model}",
+            thinking="high",
+        )
+    finally:
+        server.shutdown()
+        server.server_close()
+    assert out["error"] is None, out
+    assert out["submission"][0]["p"] == 0.5
+    assert requests[0][0] == "/api/v1/start"
+    assert requests[0][1] == "Bearer gateway-test-secret"
+    assert requests[0][2]["model"] == model
+    assert requests[0][2]["max_completion_tokens"] == 16384
+    for path in tmp_path.rglob("*"):
+        if path.is_file():
+            assert "gateway-test-secret" not in path.read_text(encoding="utf-8")

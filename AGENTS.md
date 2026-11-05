@@ -13,9 +13,10 @@ PDFs live in git-ignored `literature/<topic>/`; the index `literature/README.md`
 modes must come out of evaluation, never be assumed in advance. Name every pool, arm, baseline and run by what
 it is ("the inductive pool", "the permuted-label arm"), never by a bare label; give a code label once in parentheses.
 
-## Current state (2026-11-02, 22T mouse agent split + sandbox; SEAL-protocol splits)
+## Current state (2026-11-05, ShanghaiTech gateway + existing benchmark splits)
 
-Replace this section on every update; history lives in git and the specs.
+Default API: `shanghaitech/deepseek-pro` via `/api/v1/start`; GPT uses `/api/v1/response`.
+Credentials: `SHANGHAITECH_API_KEY`; Windows launcher: `run-agent.ps1`. See README for limits and setup.
 
 - **Private split (built):** `data/TMP/agent_split/`: `train.csv` = agent KB; `test.csv` = 1:1 non-public positives.
 - **22T mouse agent sandbox (built, not run):** `data/MUS22T/agent_split/` (hidden) = transductive 8:1:1 by positives +

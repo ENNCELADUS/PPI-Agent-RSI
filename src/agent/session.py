@@ -10,6 +10,7 @@ discovery round; src/eval/pring_test.py calls run_session with PairTools for a c
 import json
 import os
 import queue
+import shutil
 import subprocess
 import threading
 import time
@@ -18,7 +19,9 @@ from pathlib import Path
 from src.agent.tools import CAP, K, RoundTools, Sandbox, serve, specs
 
 PI_DIR = Path(__file__).parent / "pi"
-PI = PI_DIR / "node_modules" / ".bin" / "pi"
+PI = PI_DIR / "node_modules" / "@earendil-works" / "pi-coding-agent" / "dist" / "bundle" / "cli.js"
+DEFAULT_MODEL = "shanghaitech/deepseek-pro"
+GATEWAY_MODELS = {"gpt-6.1-sol", "deepseek-pro", "kimi"}
 PROMPTS = Path(__file__).parent / "prompts"
 TIMEOUT = 3600  # seconds per round
 
@@ -97,6 +100,12 @@ def run_round(sandbox_dir, round_dir, tested, memory, *, t, rounds, model, think
 def run_session(tools, agent_dir, system, message, nudge, *, model, thinking):
     """One pi session in agent_dir with tools (RoundTools or PairTools): send message, nudge once if nothing
     was submitted. Returns what happened, the submission and the tool-call count."""
+    gateway_model = model.removeprefix("shanghaitech/") if model.startswith("shanghaitech/") else None
+    if gateway_model is not None:
+        if gateway_model not in GATEWAY_MODELS:
+            raise ValueError(f"unsupported gateway model: {gateway_model}")
+        if not os.environ.get("SHANGHAITECH_API_KEY", "").strip():
+            raise ValueError("SHANGHAITECH_API_KEY is required")
     custom_model = model.removeprefix("custom/") if model.startswith("custom/") else None
     if custom_model is not None:
         if not custom_model:
@@ -110,6 +119,7 @@ def run_session(tools, agent_dir, system, message, nudge, *, model, thinking):
     config.mkdir(exist_ok=True)
     server, url = serve(tools)
     cmd = [
+        shutil.which("node") or "node",
         str(PI),
         "--mode",
         "rpc",
@@ -134,6 +144,8 @@ def run_session(tools, agent_dir, system, message, nudge, *, model, thinking):
     ]
     if custom_model is not None:
         cmd.extend(["-e", str(PI_DIR / "provider.ts")])
+    if gateway_model is not None:
+        cmd.extend(["-e", str(PI_DIR / "shanghaitech.ts")])
     env = {
         **os.environ,
         "PPI_TOOL_URL": url,

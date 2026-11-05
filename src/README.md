@@ -55,3 +55,6 @@ Remote runs follow the local, untracked `remote-api-agent` skill.
 - `features`: Read-only accessor for the motif-graph per-node feature store (per-residue ESM-3, keys node_*).
 - `score`: Score protein pairs with the frozen B0 checkpoint: one process per GPU (`score --shard K`), then `merge`.
 - `parity`: Parity of the vendored B0 scorer against a reference motif-graph scores artifact (e.g. the PRING test.npz).
+
+Default gateway: `shanghaitech/deepseek-pro`; see the root README for credentials, routes and model selection.
+`agent/pi/shanghaitech.ts` adapts gateway routes; `session` launches pi through Node on Windows and Unix.

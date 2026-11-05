@@ -64,3 +64,22 @@ uv sync
 For a DeepSeek V4 Pro endpoint, set `LLM_API_KEY` and `LLM_API_BASE` in the shell, then use
 `--model custom/<model-id> --thinking high`. The provider reuses pi's built-in model settings.
 Use `--workers 8` for eight concurrent classification batches. Remote runs follow the local, untracked `remote-api-agent` skill.
+
+## ShanghaiTech API gateway
+
+The default model is `shanghaitech/deepseek-pro`. GPT uses the streaming `/api/v1/response`
+endpoint (the gateway restricts reasoning with tools on `/start`); `shanghaitech/deepseek-pro`
+and `shanghaitech/kimi` use `/api/v1/start`. pi still manages the tool loop and Python tools.
+Set `SHANGHAITECH_API_KEY` in the environment; credentials are never written to run artifacts.
+`SHANGHAITECH_API_BASE` optionally overrides `https://genaiapi.shanghaitech.edu.cn/api/v1`.
+On Windows, `run-agent.ps1` also reads the key from the current user's environment:
+
+```powershell
+.\run-agent.ps1 -m src.eval.memory_agent rounds gateway-run --model shanghaitech/deepseek-pro --thinking high
+.\run-agent.ps1 -m src.eval.pring_test gateway-test --model shanghaitech/deepseek-pro --limit 1
+```
+
+Build the corresponding sandbox data before running experiments. Gateway model limits use conservative
+local budgets (128k context, 16k output), not advertised server limits. Reported gateway costs are zero
+placeholders because actual pricing is unknown. Kimi's thinking level is not mapped to an effort parameter.
+The original `custom/` provider remains available with `LLM_API_KEY` and `LLM_API_BASE`.

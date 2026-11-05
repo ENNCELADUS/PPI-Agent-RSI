@@ -1,7 +1,7 @@
 """Classification test on PRING: the agent predicts every pair of PRING's human BFS test split.
 
     uv run python -m src.eval.pring_test <name> [--batch 200] [--workers 4] [--limit N]
-        [--model deepseek/deepseek-flash] [--thinking high]
+        [--model shanghaitech/deepseek-pro] [--thinking high]
 
 Design: docs/superpowers/specs/2026-11-01-pring-classification-test-design.md. The pairs are
 hidden/test.csv (PRING's labelled test split as released: 32,019 positives incl. 1,891 self pairs, 32,019 negatives),
@@ -40,7 +40,7 @@ from datetime import UTC, datetime
 
 import numpy as np
 
-from src.agent.session import PROMPTS, prompt, run_session
+from src.agent.session import DEFAULT_MODEL, PROMPTS, prompt, run_session
 from src.agent.session import pi_version as get_pi_version
 from src.agent.tools import CAP, PairTools, Sandbox, TestTools, tsv
 from src.data.ids import pair
@@ -257,7 +257,7 @@ def main():
     parser.add_argument("--batch", type=int, default=200)
     parser.add_argument("--workers", type=int, default=4)
     parser.add_argument("--limit", type=int, help="run only the first N batches")
-    parser.add_argument("--model", default="deepseek/deepseek-flash")
+    parser.add_argument("--model", default=DEFAULT_MODEL)
     parser.add_argument("--thinking", default="high")
     parser.add_argument("--data", choices=DATA, default="pring")
     parser.add_argument("--predictor", action="store_true", help="give the agent predict_pairs (22T only)")

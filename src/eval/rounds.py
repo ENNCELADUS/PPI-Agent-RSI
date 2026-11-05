@@ -30,7 +30,7 @@ import shutil
 import subprocess
 from datetime import UTC, datetime
 
-from src.agent.session import PROMPTS, run_round
+from src.agent.session import DEFAULT_MODEL, PROMPTS, run_round
 from src.agent.session import pi_version as get_pi_version
 from src.agent.tools import K
 from src.data.ids import pair
@@ -187,7 +187,7 @@ def main():
     parser.add_argument("--rounds", type=int, default=10)
     parser.add_argument("--until", type=int, help="stop after this round; prompts still say 'of --rounds'")
     parser.add_argument("--sandbox", default="sandbox", help="agent-visible directory under data/PRING/")
-    parser.add_argument("--model", default="deepseek/deepseek-flash")
+    parser.add_argument("--model", default=DEFAULT_MODEL)
     parser.add_argument("--thinking", default="high")
     args = parser.parse_args()
     run(RUNS / args.name / f"r{args.replicate}", args.replicate, args)

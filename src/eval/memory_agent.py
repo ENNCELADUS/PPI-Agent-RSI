@@ -28,7 +28,7 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime
 
 from src.agent.memory import MAX_ACTIVE, Cases, Lessons, case_id, read_homologs
-from src.agent.session import PROMPTS, prompt, run_session
+from src.agent.session import DEFAULT_MODEL, PROMPTS, prompt, run_session
 from src.agent.session import pi_version as get_pi_version
 from src.agent.tools import CAP, K, CaseRoundTools, ReviewTools, Sandbox, TestTools, tsv
 from src.data.builders.build_pring_noribo import is_ribosomal
@@ -309,7 +309,7 @@ def main():
     parser.add_argument("--batch", type=int, default=200)
     parser.add_argument("--workers", type=int, default=4)
     parser.add_argument("--limit", type=int, help="test: run only the first N batches")
-    parser.add_argument("--model", default="deepseek/deepseek-flash")
+    parser.add_argument("--model", default=DEFAULT_MODEL)
     parser.add_argument("--thinking", default="high")
     args = parser.parse_args()
     run_dir = RUNS / args.name
