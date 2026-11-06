@@ -26,7 +26,7 @@ fixed, expert-designed agent baseline before building any RSI.
   database, with 1:1 degree-preserving negatives. See `CLAUDE.md` for the build commands.
 - **22T mouse agent split and sandbox (built; run with `src.eval.pring_test --data mus22t`):** the private 22T mouse membrane positives split at
   random 8:1:1 (transductive: proteins appear in every split) with new PRING degree-preserving negatives at 1:1;
-  train = KB, val = RSI data, test = final. Labels may be public; the agent's sandbox has no web tools. The agent
+  train = KB, val = DL predictor validation, test = final (RSI reveals part of test). Labels may be public; the agent's sandbox has no web tools. The agent
   sees `data/MUS22T/sandbox/` (PRING-sandbox layout, mouse UniProt annotations, KB = train). See
   `build_mus22t_agent_split.py` and `build_mus22t_sandbox.py` in `src/data/builders/`. Test AUPRC: LLM-only
   agent 0.587, the V3 predictor 0.716, and the agent with V3's scores (`--predictor`, `predict_pairs`, `build_mus22t_scores.py`)
