@@ -4,12 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>PRING Discovery Baseline</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Condensed:wght@600&family=IBM+Plex+Sans:wght@400;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <style>
 /* Layout: one reading column of prose and tables; figures may run a little wider. */
 :root {
   --bg: #f6f8f8; --surface: #ffffff; --fg: #17242a; --muted: #5a6b72; --rule: #d5dee1; --accent: #0f6b74;
-  --display: "IBM Plex Sans Condensed", "Arial Narrow", system-ui, sans-serif;
+  --display: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
   --body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
   --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
   color-scheme: light;
@@ -42,7 +42,6 @@ td strong { color: var(--accent) }
 figure { margin: 8px 0 0; display: grid; gap: 6px }
 figure img { max-width: 100%; height: auto; background: #fff; border: 1px solid var(--rule); border-radius: 4px }
 figcaption { font: 0.78rem var(--mono); color: var(--muted) }
-.eq { text-align: center; margin: 4px 0 }
 .read { margin: 0; padding: 0; list-style: none; display: grid; gap: 10px }
 .read li { padding-left: 14px; border-left: 2px solid var(--accent) }
 .read strong { font-weight: 600 }
@@ -53,42 +52,23 @@ figcaption { font: 0.78rem var(--mono); color: var(--muted) }
 td.grp { vertical-align: middle; text-align: center; border-right: 1px solid var(--rule) }
 h3 { font: 600 1.08rem/1.25 var(--display); margin: 14px 0 0; text-wrap: balance }
 </style>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
-<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
-<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js" onload="renderMathInElement(document.body)"></script>
 </head>
 <body>
 <main>
 <h1>PRING PPI discovery: true-feedback baseline</h1>
 <div class="meta"><span><b>DeepSeek-V4.1-Flash-1017</b>, thinking high</span><span><b>5 runs × 10 rounds × 200 pairs</b></span><span>ribosome ablation: <b>3 runs × 10 rounds × 200 pairs</b></span><span>true feedback</span><span>not for external reporting</span></div>
-<p>Can scientific agents effectively integrate predictive models and biological evidence to prioritize novel PPIs for experimental validation?</p>
-<p>Our broader goal is to build an agent that designs experiments, reasons about their outcomes, and efficiently navigates the hypothesis space. For PPI discovery, this means selecting a small subset of promising protein pairs from a vast candidate space for testing under a limited experimental budget.</p>
-<p>The experiments on this page provide an initial baseline for this first research question: we evaluate how a fixed agent combines PPI predictions, biological evidence, and feedback to prioritize candidates across rounds.</p>
+<p>This page reports the first baseline: a fixed agent in the discovery-only setting of the <a href="../../docs/task-setting.html">task setting</a>. The acquisition split is all 2,018 PRING test proteins (2,035,153 candidate pairs, 30,128 hits, 1.48%), the knowledge base is PRING train and validation, and there is no final test split. Each round the agent selects 200 untested pairs and the closed-world oracle reveals which are hits; we count the hits over 10 rounds.</p>
 
-<h2>1. The task</h2>
-<p>We pose PPI discovery as closed-loop experimental design (Roohani et al., ICLR 2025). Let \(V\) be the \(n\) candidate proteins. Any pair \(\{u, v\}\) of two different proteins in \(V\) can be tested, \(\binom{n}{2}\) pairs, and \(H\) is the unknown set of pairs that interact. In each round \(t = 1, \dots, T\), the agent selects a batch \(B_t\) of \(b\) untested pairs, and experimental feedback reveals which of them are in \(H\). When it chooses \(B_t\), the agent knows the results for \(B_1, \dots, B_{t-1}\). The goal is to maximise the hits found over \(T\) rounds:</p>
-<p class="eq">\[ \text{hits} = \Big|\, H \cap \bigcup_{t=1}^{T} B_t \Big| \;\le\; bT \]</p>
-<p>A random pick is a hit with probability \(|H| / \binom{n}{2}\).</p>
-
-
-
+<h2>1. The runs</h2>
 <figure><img src="figures/workflow.svg" alt="Workflow: (a) the predictor alone takes its top 200 untested pairs each round; (b) the LLM agent reads its memory, uses predictor, annotation, homolog and memory tools, submits 200 pairs with rationales, and the lab's results return to memory"><figcaption>Figure 1. (a) Predictor alone: fixed scores; each round it takes its top 200 untested pairs and ignores the results. (b) LLM agent: the prompt gives the task and round number; the agent queries its tools, submits 200 pairs with a probability and rationale each, and the results return to memory. Insets: the current prompt (it gives no hit rate), and the memory and batch of run r0, round 3.</figcaption></figure>
 
-<h2>2. The benchmark</h2>
-<p>We use PRING's human breadth-first split. Train and validation proteins train the predictor and form the agent's knowledge base. The 2,018 test proteins are the discovery pool: all n(n−1)/2 = 2,035,153 unordered pairs among them are candidates, and 30,128 (1.48%) interact. No test protein is in the knowledge base.</p>
-<p class="cap"><b>Table 1.</b> Data splits.</p>
-<div class="tw"><table><thead><tr><th>Split</th><th>Role</th><th>Proteins</th><th>Interacting pairs</th><th>Labelled pairs</th></tr></thead><tbody>
-<tr><td>Train</td><td>Predictor training; agent knowledge base</td><td class="n">7,750</td><td class="n">38,200</td><td class="n">76,400</td></tr>
-<tr><td>Validation</td><td>Predictor calibration; agent knowledge base</td><td class="n">6,327</td><td class="n">9,562</td><td class="n">19,124</td></tr>
-<tr><td>Test</td><td>Discovery pool, labels hidden from the agent</td><td class="n">2,018</td><td class="n">30,128</td><td class="n">2,035,153 candidates</td></tr>
-</tbody></table></div>
 <p>We ran 5 runs × 10 rounds × 200 pairs, so each run tests 2,000 pairs. Every run starts from the full pool with an empty memory; the spread across runs is LLM sampling variation.</p>
 
-<h2>3. The agent</h2>
+<h2>2. The agent</h2>
 <p>The agent is DeepSeek-V4.1-Flash-1017 (thinking high) running in the pi agent harness, with a fixed prompt and no internet access. Code fixes the outer loop of each round; inside it the LLM decides which tools to call, in what order, and which 200 pairs to submit. The system prompt suggests a five-step workflow, but nothing enforces it.</p>
 <figure><img src="figures/agent.svg" alt="One round: the harness starts a fresh LLM session with the system prompt and round number; the LLM calls tools in a free loop of at most 80 calls and submits 200 pairs; the harness aborts the session, scores the batch with the oracle and adds results to memory for the next round. Below, the five steps the prompt suggests."><figcaption>Figure 2. One round of the agent. Solid brown: fixed by code. Dashed magenta: chosen by the LLM. The bottom panel is the workflow the system prompt suggests; the agent may skip or reorder its steps.</figcaption></figure>
 <p>The agent sees the 2 million pairs only through tools that return small slices.</p>
-<p class="cap"><b>Table 2.</b> The agent's tools.</p>
+<p class="cap"><b>Table 1.</b> The agent's tools.</p>
 <div class="tw"><table><thead><tr><th>Source</th><th>Tool</th><th>Input</th><th>Returns</th></tr></thead><tbody>
 <tr><td rowspan="3" class="grp">Predictor</td><td><code>top_candidates</code></td><td>offset, limit (≤ 200)</td><td>A page of the untested pairs ranked by predictor probability <i>p</i>; ranks count untested pairs only</td></tr>
 <tr><td><code>top_for_protein</code></td><td>one protein, n (≤ 100)</td><td>That protein's n best untested partners by <i>p</i></td></tr>
@@ -101,7 +81,7 @@ h3 { font: 600 1.08rem/1.25 var(--display); margin: 14px 0 0; text-wrap: balance
 <tr><td class="grp">Submit</td><td><code>submit_batch</code></td><td>200 pairs, each with probability, uncertainty, evidence, rationale</td><td>Sends the batch to the lab; final, once per round</td></tr>
 </tbody></table></div>
 
-<h2>4. Results</h2>
+<h2>3. Results</h2>
 <figure><img src="figures/cumulative-hits.svg" alt="Cumulative hits over rounds 1 to 10: agent near the every-pick-a-hit line, predictor alone below, random near zero"><figcaption>Figure 3. Cumulative hits, rounds 1–10 (higher is better). Thin lines: each of the 5 runs (1,941–1,961). Predictor alone takes its top 200 untested pairs each round; random is the expected count at the 1.48% base rate.</figcaption></figure>
 
 <h3>Where the hits come from</h3>
@@ -118,7 +98,7 @@ h3 { font: 600 1.08rem/1.25 var(--display); margin: 14px 0 0; text-wrap: balance
 <li><span><b>Rounds 4–10: exhaust the ribosome.</b> 61–100% of picks join two proteins with earlier hits (95–100% from round 6), and each batch holds 56–75 distinct proteins, mostly RPL/RPS. The median pick ranks 2,000–63,000 among untested pairs. The agent finds the remaining ribosome pairs with <code>top_for_protein</code> and <code>memory</code>, rarely calls homolog, knowledge-base or annotation tools, and uses 18–37 of its 80 calls per round (Figure 8).</span></li>
 </ol>
 
-<h2>5. Ablation: the ribosome removed</h2>
+<h2>4. Ablation: the ribosome removed</h2>
 <p>Is the ribosome the agent's whole advantage? We removed the 71 cytosolic ribosomal proteins (RPL/RPS genes and RACK1) from the candidate space and reran the same agent. Their rows leave the protein, annotation and homolog files, every pair containing one of them leaves the predictor's scores, and the prompt states the new pool size and hit rate. Nothing else changes: same model, prompts, tools, knowledge base and predictor scores. The pool keeps 1,947 proteins and 1,894,431 pairs, of which 24,323 (1.28%) interact. We ran 3 runs × 10 rounds × 200 pairs.</p>
 <figure><img src="figures/ablation-cumulative-hits.svg" alt="Cumulative hits with the ribosome removed: the agent's three runs reach 1,361 to 1,457, the predictor alone 758, random near zero; the dashed ceiling reaches 2,000"><figcaption>Figure 6. Cumulative hits with the ribosome removed. Thin lines: each of the 3 runs (1,361–1,457). Predictor alone takes its top 200 untested pairs of the reduced pool; random is the expected count at the 1.28% base rate. Dashed grey: the ceiling of 200 cumulative hits per round (every pick a hit; 2,000 after round 10).</figcaption></figure>
 
@@ -128,7 +108,7 @@ h3 { font: 600 1.08rem/1.25 var(--display); margin: 14px 0 0; text-wrap: balance
 <h3>How the agent decides</h3>
 <figure><img src="figures/ablation-decisions.svg" alt="Left: share of picks joining proteins that already had a hit rises and falls between rounds. Right: share of picks in the predictor's top 200 drops after round 2, then returns to most of the batch in round 10"><figcaption>Figure 7. Origin of each round's picks with the ribosome removed (mean of 3 runs), as in Figure 5.</figcaption></figure>
 <figure><img src="figures/tool-calls.svg" alt="Stacked bars of tool calls per round by tool group. Full pool: 18 to 41 calls per round, mostly predictor and memory, with knowledge-base calls in round 1. Ribosome removed: calls rise to about 70 per round from round 4 with many memory and annotation searches, reaching the 80-call cap in round 10"><figcaption>Figure 8. Tool calls per round by tool group, full pool vs ribosome removed (dashed: the 80-call cap; refused calls included).</figcaption></figure>
-<p>The policy is the one in Section 4, run on smaller blocks. Round 1 follows the predictor (183 of 200 picks in its top 200). From round 3 the agent works through one complex after another: in round 4, 185 of 200 picks join two proteins that already had a hit, and in round 8 each batch holds 29 distinct proteins with a median rank of 173,347. No single complex fills ten rounds, so the agent keeps searching: it makes 69 calls per round from round 3 (18–37 on the full pool; Figure 8) and runs into the 80-call cap in 7 of 30 rounds. In round 10 it returns to the predictor (165 of 200 picks in its top 200) and finds 61.0 hits.</p>
+<p>The policy is the one in Section 3, run on smaller blocks. Round 1 follows the predictor (183 of 200 picks in its top 200). From round 3 the agent works through one complex after another: in round 4, 185 of 200 picks join two proteins that already had a hit, and in round 8 each batch holds 29 distinct proteins with a median rank of 173,347. No single complex fills ten rounds, so the agent keeps searching: it makes 69 calls per round from round 3 (18–37 on the full pool; Figure 8) and runs into the 80-call cap in 7 of 30 rounds. In round 10 it returns to the predictor (165 of 200 picks in its top 200) and finds 61.0 hits.</p>
 
 </main>
 </body>

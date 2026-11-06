@@ -10,6 +10,7 @@ fixed, expert-designed agent baseline before building any RSI.
 | --- | --- |
 | `docs/introduction.md` | Motivation and the three research directions |
 | `docs/initial_baseline.md` | Baseline agent design and evaluation protocol |
+| `docs/task-setting.html` | Problem formulation: train / validation / acquisition / final test splits |
 | `docs/literature.md` | Related work, with links to local PDFs |
 | `docs/research-reports/` | Dated deep-research reports; `research_notes/` holds the notes behind each |
 | `literature/` | PDFs by topic (`ppi`, `science-agents`, `self-improvement`, `feedback-benchmarks`); index in `literature/README.md` |

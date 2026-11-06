@@ -6,7 +6,7 @@ LLM scientific agents for membrane protein–protein interaction (PPI) discovery
 (RSI) of the agent workflow and, later, the PPI predictor under sparse experimental feedback. Docs:
 `docs/introduction.md` (motivation), `docs/initial_baseline.md` (baseline design), `docs/literature.md`,
 `docs/research-reports/<date>-<slug>.md` (git-ignored deep research), `docs/superpowers/specs/` (dated designs).
-Readable run summaries: tracked `results/<run>/` (raw artifacts stay in `data/PRING/runs/<run>/`).
+Task formulation and splits: `docs/task-setting.html`; run summaries: `results/<run>/` (raw: `data/PRING/runs/`).
 PDFs live in git-ignored `literature/<topic>/`; the index `literature/README.md` is tracked.
 
 **Core thesis — do not let it drift:** measure a *fixed*, expert-designed agent before building any RSI. Failure

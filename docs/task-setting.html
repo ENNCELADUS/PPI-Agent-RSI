@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PPI Task Setting</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one reading column of prose and tables; figures may run a little wider. */
+:root {
+  --bg: #f6f8f8; --surface: #ffffff; --fg: #17242a; --muted: #5a6b72; --rule: #d5dee1; --accent: #0f6b74;
+  --display: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #11181b; --surface: #182226; --fg: #e3eaec; --muted: #93a4aa; --rule: #2c3a3f; --accent: #5fc2cb; color-scheme: dark } }
+:root[data-theme="dark"] { --bg: #11181b; --surface: #182226; --fg: #e3eaec; --muted: #93a4aa; --rule: #2c3a3f; --accent: #5fc2cb; color-scheme: dark }
+* { box-sizing: border-box }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.6 var(--body);
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)) }
+main { max-width: 920px; margin: 0 auto; padding-block: 48px 72px; display: grid; gap: 20px }
+main > p, .read, h1 { max-width: 68ch }
+h1 { font: 600 2.1rem/1.15 var(--display); margin: 0; text-wrap: balance; letter-spacing: -0.01em }
+h1 code { font: 500 0.8em var(--mono); color: var(--accent) }
+h2 { font: 600 1.35rem/1.2 var(--display); margin: 24px 0 0; text-wrap: balance }
+p { margin: 0 }
+code { font: 0.88em var(--mono) }
+.cap { color: var(--muted); font-size: 0.9rem; max-width: none; margin-top: 12px }
+.cap b { color: var(--fg) }
+.tw { overflow-x: auto; background: var(--surface); border: 1px solid var(--rule); border-radius: 4px }
+table { border-collapse: collapse; width: 100%; font-size: 0.86rem }
+th, td { padding: 7px 12px; text-align: left; border-bottom: 1px solid var(--rule); vertical-align: top }
+th { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 600; white-space: nowrap }
+tbody tr:last-child td { border-bottom: 0 }
+td.n { font: 0.84rem var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap }
+td strong { color: var(--accent) }
+figure { margin: 8px 0 0; display: grid; gap: 6px }
+figure img { max-width: 100%; height: auto; background: #fff; border: 1px solid var(--rule); border-radius: 4px }
+figcaption { font: 0.78rem var(--mono); color: var(--muted) }
+.eq { text-align: center; margin: 4px 0 }
+.read { margin: 0; padding: 0; list-style: none; display: grid; gap: 10px }
+.read li { padding-left: 14px; border-left: 2px solid var(--accent) }
+.read strong { font-weight: 600 }
+.flow { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; counter-reset: step; max-width: 68ch }
+.flow li { counter-increment: step; display: grid; grid-template-columns: 2.2em 1fr; gap: 8px; align-items: baseline }
+.flow li::before { content: counter(step); font: 500 0.8rem var(--mono); color: var(--accent); text-align: right }
+h3 { font: 600 1.08rem/1.25 var(--display); margin: 14px 0 0; text-wrap: balance }
+</style>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js" onload="renderMathInElement(document.body)"></script>
+</head>
+<body>
+<main>
+<h1>PPI discovery task setting</h1>
+<p>Can scientific agents effectively integrate predictive models and biological evidence to prioritize novel PPIs for experimental validation?</p>
+<p>Our broader goal is to build an agent that designs experiments, reasons about their outcomes, and efficiently navigates the hypothesis space. For PPI discovery, this means selecting a small subset of promising protein pairs from a vast candidate space for testing under a limited experimental budget.</p>
+<p>The system must also improve from the results of its own experiments (recursive self-improvement, RSI). This page defines the task, the four data splits and what the system can see in each. Results pages refer to it.</p>
+
+<h2>1. Problem formulation</h2>
+<p>Let \(V\) be a set of proteins. An unordered pair \(e = \{u, v\}\), \(u \ne v\), has a label \(y(e) \in \{0, 1\}\): \(y(e) = 1\) if the two proteins interact. \(H = \{e : y(e) = 1\}\) is the unknown interaction set. We partition \(V\) into disjoint protein sets and use the pairs inside each set as one split:</p>
+<p class="eq">\[ V = V_{\text{tr}} \cup V_{\text{va}} \cup V_{\text{acq}} \cup V_{\text{fin}}, \qquad V_{\text{acq}} \cap V_{\text{fin}} = \varnothing, \qquad (V_{\text{tr}} \cup V_{\text{va}}) \cap (V_{\text{acq}} \cup V_{\text{fin}}) = \varnothing . \]</p>
+<ul class="read">
+<li><strong>Training split</strong> \(\mathcal{D}_{\text{tr}}\) and <strong>validation split</strong> \(\mathcal{D}_{\text{va}}\): labelled pairs, as in a usual ML split. They train and calibrate the predictor \(f_\theta(e) \in [0, 1]\), and they form the agent's knowledge base \(\mathcal{K} = \mathcal{D}_{\text{tr}} \cup \mathcal{D}_{\text{va}}\). The system sees all of their labels from the start.</li>
+<li><strong>Acquisition split</strong> \(\mathcal{C} = \{\{u, v\} : u, v \in V_{\text{acq}},\ u \ne v\}\): all pairs among the acquisition proteins. Their labels are hidden. The system obtains a label only when it selects the pair for a (simulated) experiment. These labels are the only feedback for the evolution of the system.</li>
+<li><strong>Final test split</strong> \(\mathcal{D}_{\text{fin}}\): labelled pairs among \(V_{\text{fin}}\). It is fixed before any run, hidden during all rounds and scored once, after the last round.</li>
+</ul>
+<p>Pairs with one protein in \(V_{\text{acq}}\) and one in \(V_{\text{fin}}\) are in no split, so no acquired label is a final-test label.</p>
+
+<h3>Acquisition rounds</h3>
+<p>The system has a state \(S_t\): the parts that may change, for example the agent's memory of tested cases, its written lessons or the predictor parameters \(\theta\). \(S_0\) depends only on \(\mathcal{K}\). In each round \(t = 1, \dots, T\):</p>
+<ol class="flow">
+<li><span><b>Select.</b> The selection policy \(\pi\) picks a batch of \(b\) untested pairs, \(B_t = \pi(S_{t-1}) \subseteq \mathcal{C} \setminus \bigcup_{s &lt; t} B_s\), \(|B_t| = b\).</span></li>
+<li><span><b>Experiment.</b> The oracle returns \(y(e)\) for each \(e \in B_t\). This simulates a wet-lab assay.</span></li>
+<li><span><b>Update.</b> The update rule \(U\) gives the new state from the revealed labels: \(S_t = U\big(S_{t-1},\ \{(e, y(e)) : e \in B_t\}\big)\).</span></li>
+</ol>
+<p>The total experimental budget is \(bT\) labels, a small fraction of \(|\mathcal{C}|\). Then the final state \(S_T\) is frozen.</p>
+
+<h3>Objectives</h3>
+<p>We measure two things. <b>Discovery:</b> the interactions found during the rounds (Roohani et al., ICLR 2025),</p>
+<p class="eq">\[ \text{hits}(T) = \Big|\, H \cap \bigcup_{t=1}^{T} B_t \Big| \;\le\; bT . \]</p>
+<p>A random pick is a hit with probability \(|H \cap \mathcal{C}| / |\mathcal{C}|\). <b>Generalization:</b> how well the frozen system \(S_T\) predicts new pairs. The system gives a probability \(\hat p(e \mid S_T)\) for each \(e \in \mathcal{D}_{\text{fin}}\), and we report AUPRC, AUROC and Brier score. The improvement from the rounds is the score of \(S_T\) minus the score of \(S_0\) on the same \(\mathcal{D}_{\text{fin}}\).</p>
+<p>The acquisition split takes the role that a validation set has in usual ML (the system is tuned on its labels), but the system pays for each label and chooses which labels it gets. The final test split takes the role of the usual test set.</p>
+
+<h2>2. Instantiation on PRING</h2>
+<p>We use PRING's human breadth-first split. PRING's train and validation proteins give \(\mathcal{D}_{\text{tr}}\) and \(\mathcal{D}_{\text{va}}\). PRING's 2,018 test proteins share no protein with the knowledge base. We divide them at random (seed 0) into 1,211 acquisition proteins (60%) and 807 final-test proteins (40%).</p>
+<p class="cap"><b>Table 1.</b> Data splits. Labelled pairs: positives plus negatives. Train and validation are filled to 1:1 with PRING negatives.</p>
+<div class="tw"><table><thead><tr><th>Split</th><th>Role</th><th>Labels visible</th><th>Proteins</th><th>Interacting pairs</th><th>Pairs</th></tr></thead><tbody>
+<tr><td>Train \(\mathcal{D}_{\text{tr}}\)</td><td>Predictor training; agent knowledge base</td><td>Always</td><td class="n">7,750</td><td class="n">38,200</td><td class="n">76,400</td></tr>
+<tr><td>Validation \(\mathcal{D}_{\text{va}}\)</td><td>Predictor calibration; agent knowledge base</td><td>Always</td><td class="n">6,327</td><td class="n">9,562</td><td class="n">19,124</td></tr>
+<tr><td>Acquisition \(\mathcal{C}\)</td><td>Simulated experiments; feedback for the evolution of the system</td><td>Only for pairs the system selects</td><td class="n">1,211</td><td class="n">10,334 (1.41%)</td><td class="n">732,655 candidates</td></tr>
+<tr><td>Final test \(\mathcal{D}_{\text{fin}}\)</td><td>Fixed held-out evaluation of \(S_T\)</td><td>Never; scored once after round \(T\)</td><td class="n">807</td><td class="n">5,140</td><td class="n">10,280</td></tr>
+</tbody></table></div>
+<ul class="read">
+<li><strong>Oracle.</strong> The oracle is closed-world: a pair in \(\mathcal{C}\) is a hit if PRING lists it as a positive, and every other pair counts as not detected.</li>
+<li><strong>Final test pairs.</strong> PRING's released labelled test pairs with both proteins in \(V_{\text{fin}}\), no self pairs, balanced 1:1 by sampling the larger class down (seed 0). Its negatives are PRING's sampled negatives, so chance AUPRC ≈ 0.5.</li>
+<li><strong>Budget.</strong> \(T = 10\) rounds of \(b = 200\) pairs: 2,000 labels, 0.27% of \(|\mathcal{C}|\).</li>
+<li><strong>Homology.</strong> Acquisition and final-test proteins share at most ~40% sequence identity with any knowledge-base protein. Only 281 of the 807 final-test proteins have a sequence homolog among the acquisition proteins, so most transfer from acquired labels must go through annotations, not homology.</li>
+<li><strong>Information boundary.</strong> The system sees protein sequences and annotations (interaction text removed), the knowledge base, predictor scores and the labels it acquired. It never sees acquisition labels it did not select, any final-test label or the cross pairs. The page's numbers come from public data that the LLM may have memorised, so they are internal only.</li>
+</ul>
+
+<h3>The discovery-only setting</h3>
+<p>The first baseline (<a href="../results/deepseek-flash-high/summary.html">true-feedback discovery runs</a>) uses an earlier, simpler setting: the acquisition split is all 2,018 PRING test proteins (2,035,153 candidate pairs, 30,128 hits, 1.48%) and there is no final test split. It measures discovery only.</p>
+</main>
+</body>
+</html>
