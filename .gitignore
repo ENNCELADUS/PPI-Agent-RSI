@@ -13,3 +13,4 @@ graphify-out/
 pytest.txt
 node_modules/
 .graphifyignore
+docs/superpowers/
