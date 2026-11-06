@@ -27,10 +27,9 @@ import json
 import random
 import shutil
 
-from src.data.builders.build_mus22t_agent_split import OUT as SPLIT
 from src.data.paths import MUS22T
 
-OUT = MUS22T / "rsi"
+SPLIT, OUT = MUS22T / "agent_split", MUS22T / "rsi"  # stdlib only: H20's checkout venv has no numpy
 SEED, ROUNDS, BATCH = 0, 10, 100
 HEADER = ["uniprotID_A", "uniprotID_B", "isInteraction"]
 
