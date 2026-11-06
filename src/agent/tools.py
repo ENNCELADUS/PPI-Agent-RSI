@@ -522,6 +522,39 @@ class TestTools(PairTools):
         return tsv(["a", "b", "p"], rows)
 
 
+REVEAL_CASES = (
+    "The pairs revealed in earlier rounds (cases), with round, label (result: hit = the pair interacts, not detected "
+    "= labelled as not interacting), {pred}your p before the reveal (ranking_score) and your evidence_ids. Filters "
+    "combine: protein (cases with this protein), similar_to (cases with this protein or one of its knowledge-base "
+    "sequence homologs; via shows which), query (text in either protein's names or annotations), pair (case id A-B), "
+    "result, round. Page with offset and limit."
+)
+
+
+class RevealTools(TestTools):
+    """One batch of the 22T reveal rounds or final test: TestTools whose `cases` are the revealed pairs."""
+
+    def __init__(self, sandbox, agent_dir, casebook, cap=CAP, predictor=True):
+        super().__init__(sandbox, agent_dir, casebook, cap, predictor)
+        self.descriptions = {
+            "cases": REVEAL_CASES.format(pred="the predictor's p you saw (b0_p), " if predictor else "")
+        }
+
+
+class RevealReviewTools(RevealTools):
+    """The reviewer after a reveal round: cases, protein and KB tools, one update_lessons call; no predictor tool."""
+
+    final = "update_lessons"
+
+    def __init__(self, sandbox, agent_dir, casebook, cap=CAP, predictor=True):
+        super().__init__(sandbox, agent_dir, casebook, cap, predictor)
+        self.names = ("cases", *PROTEIN_TOOLS, "update_lessons")
+
+    def update_lessons(self, operations):
+        self._submit(operations)
+        return f"received {len(operations)} operations"
+
+
 def serve(tools):
     """Serve tools on an ephemeral localhost port in a daemon thread; returns (server, url)."""
 

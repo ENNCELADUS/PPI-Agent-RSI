@@ -10,7 +10,8 @@ Protocol (user decisions 2026-11-02: 8:1:1 by positive pairs, transductive):
 - Negatives: PRING negative_sample.py (github.com/SophieSarceau/PRING) via src.data.negatives.pring_negatives,
   random.Random(0), split by split in the order train, val, test, 1:1: both ends drawn from that split's positive
   endpoints (degree-preserving), redrawn until not self, not any 22T positive, not a negative of any split.
-Sandbox roles follow the PRING sandbox: train = KB, val = RSI data, test = final.
+Roles (user decision 2026-11-06): train = KB, val = DL predictor validation (hyperparameters, architecture),
+test = final. RSI rounds reveal labels from a part of test, never from val (build_mus22t_rsi).
 
 Output data/MUS22T/agent_split/: train.csv, val.csv, test.csv (uniprotID_A < uniprotID_B, isInteraction),
 split_stats.json (counts, proteins, val/test positives with both ends in train, endpoint propensity baseline).
