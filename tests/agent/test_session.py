@@ -106,17 +106,20 @@ def test_custom_provider_uses_environment_without_saving_connection_settings(tmp
             assert base not in content
 
 
-@pytest.mark.parametrize("model", ["shanghaitech/unknown", "shanghaitech/"])
+@pytest.mark.parametrize("model", ["gateway/unknown", "gateway/"])
 def test_gateway_rejects_unknown_model_before_starting(tmp_path, model):
     with pytest.raises(ValueError, match="unsupported gateway model"):
         run_session(None, tmp_path, "system", "message", "nudge", model=model, thinking="off")
     assert not list(tmp_path.iterdir())
 
 
-def test_gateway_requires_key_before_starting(tmp_path, monkeypatch):
-    monkeypatch.delenv("SHANGHAITECH_API_KEY", raising=False)
-    with pytest.raises(ValueError, match="SHANGHAITECH_API_KEY"):
-        run_session(None, tmp_path, "system", "message", "nudge", model="shanghaitech/gpt-6.1-sol", thinking="off")
+@pytest.mark.parametrize("missing", ["GATEWAY_API_KEY", "GATEWAY_API_BASE"])
+def test_gateway_requires_settings_before_starting(tmp_path, monkeypatch, missing):
+    monkeypatch.setenv("GATEWAY_API_KEY", "test-key")
+    monkeypatch.setenv("GATEWAY_API_BASE", "https://example.invalid/api/v1")
+    monkeypatch.delenv(missing)
+    with pytest.raises(ValueError, match=missing):
+        run_session(None, tmp_path, "system", "message", "nudge", model="gateway/gpt-6.1-sol", thinking="off")
     assert not list(tmp_path.iterdir())
 
 
@@ -167,8 +170,8 @@ def test_gateway_routes_stream_and_executes_tool(tmp_path, monkeypatch, model):
 
     server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
     threading.Thread(target=server.serve_forever, daemon=True).start()
-    monkeypatch.setenv("SHANGHAITECH_API_KEY", "gateway-test-secret")
-    monkeypatch.setenv("SHANGHAITECH_API_BASE", f"http://127.0.0.1:{server.server_port}/api/v1")
+    monkeypatch.setenv("GATEWAY_API_KEY", "gateway-test-secret")
+    monkeypatch.setenv("GATEWAY_API_BASE", f"http://127.0.0.1:{server.server_port}/api/v1")
     monkeypatch.setattr("src.agent.session.TIMEOUT", 20)
     try:
         out = run_session(
@@ -177,7 +180,7 @@ def test_gateway_routes_stream_and_executes_tool(tmp_path, monkeypatch, model):
             "Submit",
             "Submit",
             "Submit",
-            model=f"shanghaitech/{model}",
+            model=f"gateway/{model}",
             thinking="high",
         )
     finally:

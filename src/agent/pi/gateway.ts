@@ -1,13 +1,14 @@
-// ShanghaiTech gateway: reuse pi's streaming/tool-call parser, changing only the HTTP route.
+// Reuse pi's streaming/tool-call parser, changing only the HTTP route.
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { streamSimple as streamResponses } from "@earendil-works/pi-ai/api/openai-responses";
 import { streamSimple } from "@earendil-works/pi-ai/api/openai-completions";
 
 export default function gateway(pi: ExtensionAPI) {
-    const baseUrl = process.env.SHANGHAITECH_API_BASE || "https://genaiapi.shanghaitech.edu.cn/api/v1";
+    const baseUrl = process.env.GATEWAY_API_BASE;
+    if (!baseUrl?.trim()) throw new Error("GATEWAY_API_BASE is required");
     const endpoint = new URL(baseUrl);
     if (!["http:", "https:"].includes(endpoint.protocol) || endpoint.username || endpoint.password) {
-        throw new Error("SHANGHAITECH_API_BASE must be an HTTP(S) URL without credentials");
+        throw new Error("GATEWAY_API_BASE must be an HTTP(S) URL without credentials");
     }
     const gatewayFetch: typeof fetch = (input, init) => {
         const url = new URL(input instanceof Request ? input.url : String(input));
@@ -17,9 +18,9 @@ export default function gateway(pi: ExtensionAPI) {
         url.pathname = url.pathname.replace(/\/chat\/completions$/, "/start").replace(/\/responses$/, "/response");
         return fetch(url, init);
     };
-    pi.registerProvider("shanghaitech", {
+    pi.registerProvider("gateway", {
         baseUrl,
-        apiKey: "$SHANGHAITECH_API_KEY",
+        apiKey: "$GATEWAY_API_KEY",
         api: "openai-completions",
         streamSimple: (model, context, options) => model.id === "gpt-6.1-sol"
             ? streamResponses({ ...model, api: "openai-responses" }, context, { ...options, fetch: gatewayFetch })

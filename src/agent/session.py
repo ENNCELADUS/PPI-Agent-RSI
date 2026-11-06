@@ -20,7 +20,7 @@ from src.agent.tools import CAP, K, RoundTools, Sandbox, serve, specs
 
 PI_DIR = Path(__file__).parent / "pi"
 PI = PI_DIR / "node_modules" / "@earendil-works" / "pi-coding-agent" / "dist" / "bundle" / "cli.js"
-DEFAULT_MODEL = "shanghaitech/deepseek-pro"
+DEFAULT_MODEL = "gateway/deepseek-pro"
 GATEWAY_MODELS = {"gpt-6.1-sol", "deepseek-pro", "kimi"}
 PROMPTS = Path(__file__).parent / "prompts"
 TIMEOUT = 3600  # seconds per round
@@ -100,12 +100,13 @@ def run_round(sandbox_dir, round_dir, tested, memory, *, t, rounds, model, think
 def run_session(tools, agent_dir, system, message, nudge, *, model, thinking):
     """One pi session in agent_dir with tools (RoundTools or PairTools): send message, nudge once if nothing
     was submitted. Returns what happened, the submission and the tool-call count."""
-    gateway_model = model.removeprefix("shanghaitech/") if model.startswith("shanghaitech/") else None
+    gateway_model = model.removeprefix("gateway/") if model.startswith("gateway/") else None
     if gateway_model is not None:
         if gateway_model not in GATEWAY_MODELS:
             raise ValueError(f"unsupported gateway model: {gateway_model}")
-        if not os.environ.get("SHANGHAITECH_API_KEY", "").strip():
-            raise ValueError("SHANGHAITECH_API_KEY is required")
+        for name in ("GATEWAY_API_KEY", "GATEWAY_API_BASE"):
+            if not os.environ.get(name, "").strip():
+                raise ValueError(f"{name} is required")
     custom_model = model.removeprefix("custom/") if model.startswith("custom/") else None
     if custom_model is not None:
         if not custom_model:
@@ -145,7 +146,7 @@ def run_session(tools, agent_dir, system, message, nudge, *, model, thinking):
     if custom_model is not None:
         cmd.extend(["-e", str(PI_DIR / "provider.ts")])
     if gateway_model is not None:
-        cmd.extend(["-e", str(PI_DIR / "shanghaitech.ts")])
+        cmd.extend(["-e", str(PI_DIR / "gateway.ts")])
     env = {
         **os.environ,
         "PPI_TOOL_URL": url,

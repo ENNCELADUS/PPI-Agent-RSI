@@ -1,7 +1,7 @@
 """Classification test on PRING: the agent predicts every pair of PRING's human BFS test split.
 
     uv run python -m src.eval.pring_test <name> [--batch 200] [--workers 4] [--limit N]
-        [--model shanghaitech/deepseek-pro] [--thinking high]
+        [--model gateway/deepseek-pro] [--thinking high]
 
 Design: docs/superpowers/specs/2026-11-01-pring-classification-test-design.md. The pairs are
 hidden/test.csv (PRING's labelled test split as released: 32,019 positives incl. 1,891 self pairs, 32,019 negatives),

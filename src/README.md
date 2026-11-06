@@ -56,5 +56,5 @@ Remote runs follow the local, untracked `remote-api-agent` skill.
 - `score`: Score protein pairs with the frozen B0 checkpoint: one process per GPU (`score --shard K`), then `merge`.
 - `parity`: Parity of the vendored B0 scorer against a reference motif-graph scores artifact (e.g. the PRING test.npz).
 
-Default gateway: `shanghaitech/deepseek-pro`; see the root README for credentials, routes and model selection.
-`agent/pi/shanghaitech.ts` adapts gateway routes; `session` launches pi through Node on Windows and Unix.
+Default gateway: `gateway/deepseek-pro`; see the root README for credentials, routes and model selection.
+`agent/pi/gateway.ts` adapts gateway routes; `session` launches pi through Node on Windows and Unix.
