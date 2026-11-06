@@ -8,7 +8,7 @@
 #   nohup bash src/data/builders/train_mus22t_al.sh [first] [last] > data/MUS22T/predictor/al.log 2>&1 &
 #
 # A round with its .tsv.gz is skipped, so a stopped run resumes. Needs grasppi-mus22t (branch mus22t) with the V3
-# package data/mus22t/ built (its ESM-3 store is shared through a symlink).
+# package data/mus22t/ built (its ESM-3 store is shared through hard links).
 set -euo pipefail
 R=/2023533015/PPI-Agent-RSI/data/MUS22T
 W=/2023533015/grasppi-mus22t
@@ -22,7 +22,8 @@ for t in $(seq -f %02g "${1:-1}" "${2:-10}"); do
   D=data/mus22t_al/round$t
   S=$D/features/frozen_node_features_1024
   mkdir -p $S
-  ln -sfn $W/data/mus22t/features/frozen_node_features_1024/embeddings $S/embeddings
+  # hard links: the packer rejects feature paths that resolve outside the store (a symlinked directory)
+  [ -d $S/embeddings ] || cp -al $W/data/mus22t/features/frozen_node_features_1024/embeddings $S/embeddings
   cp data/mus22t/features/frozen_node_features_1024/metadata.json $S/
   # accession entries only; src.data.mus22t adds this package's role copies (t_, v_, x_)
   $P -c "import json, sys; i = json.load(open(sys.argv[1])); json.dump({k: v for k, v in i.items() if k[:2] not in ('t_', 'v_', 'x_')}, open(sys.argv[2], 'w'), indent=2)" \
