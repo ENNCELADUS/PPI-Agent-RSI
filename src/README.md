@@ -20,6 +20,9 @@ module from the repo root as `python -m src.<path>`. `data` never imports `eval`
 - `build_pring_memory`: Build the two-layer memory agent's split: discovery and final-test views of the PRING test proteins.
 - `build_mus22t_agent_split`: Split the 22T mouse membrane PPIs transductively 8:1:1 by positive pairs, with new PRING negatives.
 - `build_mus22t_sandbox`: Build the 22T agent sandbox: the agent-visible files for the 22T mouse membrane split, PRING-sandbox layout.
+- `build_mus22t_rsi`: Split the 22T test set into fixed reveal rounds and a final set, for RSI under sparse labels (no acquisition).
+- `build_mus22t_rsi_sandbox`: Build the agent's sandboxes for the 22T reveal rounds with the DL predictor: each round sees the newest checkpoint.
+- `train_mus22t_al.sh`: DL active learning for the 22T reveal rounds on H20: V3 retrained on train plus the revealed rounds.
 - `build_seal_split`: Split a PPI dataset (22T mouse, or human TMP) with the SEAL PPI baseline protocol, so its numbers compare with SEAL's.
 - `fetch_public.sh`: Fetch each public PPI source (resumable) and pipe it to `public_db`.
 
@@ -45,6 +48,7 @@ Remote runs follow the local, untracked `remote-api-agent` skill.
 - `rounds`: Run PRING closed-loop discovery with the pi agent: rounds of K submitted pairs, oracle results, true feedback.
 - `pring_test`: Classification test on PRING: the agent predicts every pair of PRING's human BFS test split. `--data mus22t`: the same agent on the 22T mouse test split.
 - `memory_agent`: Run the two-layer memory agent: discovery rounds with case memory and reviewer-updated lessons, then the final test.
+- `reveal_rounds`: 22T reveal rounds: the agent classifies fixed batches, their labels become cases, a reviewer updates the lessons.
 - `al_predictor`: Active-learning B0 arm of the memory agent's final test: B0 retrained on the knowledge base plus the round labels.
 - `score`: Score a global top-N ranking against a labels file (the private `test.csv`; sandbox pools not built yet).
 - `verify_live_string`: Spot-check that sampled test pairs are absent from the live STRING API.
