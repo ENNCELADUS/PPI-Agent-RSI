@@ -85,13 +85,17 @@ th, td { padding: 7px 8px } main { max-width: 1000px }
 <tr><td>LLM agent + DL predictor</td><td class="n"><strong>0.804</strong></td><td class="n"><strong>0.769</strong></td><td class="n">0.326</td></tr></tbody></table></div>
 <figure><img src="figures/loop_curves.svg" alt="ROC and precision-recall curves on the PRING final test after discovery rounds: the LLM agent with the DL predictor lies highest, the retrained DL predictor lowest"><figcaption>Figure 3. ROC and precision–recall curves, PRING final test after 10 discovery rounds; the DL predictor is retrained on the round labels.</figcaption></figure>
 
-<p class="cap"><b>Table 3.</b> 22T final set after 10 reveal rounds (1,000 revealed pairs); threshold-free metrics only, higher is better. Paired-bootstrap AUPRC difference to the frozen DL predictor (95% CI): LLM agent + DL predictor −0.025 (−0.034 to −0.016), LLM-only agent −0.143 (−0.157 to −0.131). Bold: best.</p>
-<div class="tw"><table><thead><tr><th>Model</th><th>AUPRC↑</th><th>AUROC↑</th></tr></thead><tbody><tr class="g"><td colspan="3">22T final set after 10 reveal rounds (private), 8,366 pairs</td></tr>
+<p class="cap"><b>Table 3.</b> 22T final set (the same 8,366 pairs in every row); threshold-free metrics only, higher is better. "No reveal rounds": the Table 1 runs (empty memory, frozen predictor) scored on these pairs only. Paired-bootstrap AUPRC difference, after minus before the reveal rounds (95% CI): LLM agent + DL predictor −0.018 (−0.027 to −0.009), LLM-only agent −0.018 (−0.030 to −0.005). Bold: best.</p>
+<div class="tw"><table><thead><tr><th>Model</th><th>AUPRC↑</th><th>AUROC↑</th></tr></thead><tbody><tr class="g"><td colspan="3">22T final set, no reveal rounds (private), 8,366 pairs</td></tr>
 <tr><td>ESM-3 DL predictor, frozen</td><td class="n"><strong>0.716</strong></td><td class="n"><strong>0.718</strong></td></tr>
+<tr><td>LLM-only agent</td><td class="n">0.590</td><td class="n">0.571</td></tr>
+<tr><td>LLM agent + DL predictor</td><td class="n">0.710</td><td class="n">0.716</td></tr>
+<tr class="g"><td colspan="3">22T final set after 10 reveal rounds (private), 8,366 pairs</td></tr>
 <tr><td>ESM-3 DL predictor, retrained on the round labels (checkpoint 10)</td><td class="n">0.712</td><td class="n"><strong>0.718</strong></td></tr>
 <tr><td>LLM-only agent</td><td class="n">0.573</td><td class="n">0.565</td></tr>
 <tr><td>LLM agent + DL predictor</td><td class="n">0.691</td><td class="n">0.704</td></tr></tbody></table></div>
 <figure><img src="figures/mus22t_al_checkpoints.svg" alt="Final-set AUPRC of the DL predictor retrained after each reveal round: it moves between 0.712 and 0.734 with no trend"><figcaption>Figure 4. 22T final-set AUPRC of the DL predictor retrained on its knowledge base plus the pairs revealed in rounds 1..t; checkpoint 0 is the frozen predictor (dashed).</figcaption></figure>
+<figure><img src="figures/mus22t_reveal_rounds.svg" alt="Per-round AUPRC on 22T: the LLM agent with the DL predictor starts above the predictor and falls below it from round 3, while it moves further from the predictor's probabilities"><figcaption>Figure 5. 22T reveal rounds. (a) AUPRC on each round's 100 pairs, scored before their labels are revealed; in round t the agent + DL predictor sees checkpoint t − 1. (b) Mean absolute difference between that agent's probability and the predictor's, per round.</figcaption></figure>
 
 <h2>Why the LLM-only agent differs between public and private data</h2>
 <p class="cap"><b>Table 4.</b> The two LLM-only runs (same model, tools and prompt design; full PRING test and 22T test). Annotation third: pairs split by the shorter UniProt function text of the two proteins. Cited evidence: share of the source IDs the agent lists with its predictions.</p>
@@ -104,8 +108,8 @@ th, td { padding: 7px 8px } main { max-width: 1000px }
 <li><strong>On public PRING, the agent probably recalls interactions that it already knows.</strong> When it is confident (p ≥ 0.8), it is almost always correct: precision 0.997, against 0.830 on 22T. It cites knowledge-base pairs for only 2% of its evidence. Thus the labelled data does not explain its score (Table 4).</li>
 <li><strong>On PRING, the agent does better on well-known proteins.</strong> Its AUROC increases from 0.68 to 0.82 as the annotation increases. On 22T, its AUROC stays between 0.53 and 0.59. Thus the annotation text alone does not help the agent (Table 4).</li>
 <li><strong>On 22T, the agent uses the knowledge base more, but this does not help.</strong> The agent knows few 22T interactions, so it cites knowledge-base pairs for 37% of its evidence, against 2% on PRING. Its AUROC stays at 0.570 (Table 4).</li>
-<li><strong>On 22T, the revealed labels help no model.</strong> The retrained DL predictor moves between 0.712 and 0.734 AUPRC with no trend; 1,000 pairs are about 1% of its training data. The LLM-only agent with memory scores 0.573, below 0.587 without it (Tables 1 and 3, Figure 4).</li>
-<li><strong>On 22T, the agent + DL predictor stays below the predictor alone.</strong> Its memory of 1,000 labelled pairs does not make up for the 0.025 AUPRC it loses to the frozen predictor (Table 3).</li>
+<li><strong>On 22T, the revealed labels help no model, and the memory makes both agents worse.</strong> The retrained DL predictor moves between 0.712 and 0.734 AUPRC with no trend; 1,000 pairs are about 1% of its training data. On the same pairs, both agents lose 0.018 AUPRC against their runs without reveal rounds (Table 3, Figure 4).</li>
+<li><strong>The agent + DL predictor gets worse because its lessons teach it to distrust the predictor.</strong> The reviewer wrote rules from 100-pair rounds such as "never score below about 0.40" and "the predictor may move p only moderately". The agent's distance from the predictor grows from 0.11 in round 1 to about 0.27, and its AUPRC drops below the predictor from round 3 (Figure 5). On the final set, its mean probability is 0.49 for positives and 0.46 for negatives, against 0.56 and 0.38 without reveal rounds.</li>
 </ul>
 </main>
 </body>
