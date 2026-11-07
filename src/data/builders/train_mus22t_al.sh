@@ -44,7 +44,7 @@ score_val() {  # checkpoint, package root, pack dir, output .tsv.gz
   hpc/run.sh score --checkpoint "$1" --pairs val_cls --data-root "$2" --strategy gold_standard --pack-dir "$3" \
     --output "$OUT/val.npz"
   to_tsv "$OUT/val.npz" "$4"
-  rm "$OUT/val.npz"
+  rm "$OUT"/val.npz "$OUT"/val.shard-*.npz
 }
 mkdir -p $OUT/val
 [ -f $R/rsi/al/gate.json ] || $RSI gate 0 "$(val_auprc outputs/mus22t/b0_v31)"
