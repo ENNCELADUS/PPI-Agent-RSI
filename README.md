@@ -33,9 +33,10 @@ fixed, expert-designed agent baseline before building any RSI.
   0.708 (`results/classification-test/summary.html`, with the PRING test).
 - **22T reveal rounds (done):** the 22T test split is cut once into 10 fixed rounds of 100 revealed pairs and a final
   set of 8,366 pairs (`build_mus22t_rsi.py`). Every arm gets the same rounds and final set: V3 retrained on each round's
-  labels (`train_mus22t_al.sh`, H20), the LLM-only agent, and the LLM agent with the newest checkpoint
+  labels (`train_mus22t_al.sh`, H20; since 2026-11-07 a round's labels stay in training only if the retrained V3's val
+  AUPRC beats every earlier kept checkpoint), the LLM-only agent, and the LLM agent with the newest checkpoint
   (`src.eval.reveal_rounds`). Final-set AUPRC: V3 0.716, V3 retrained on all rounds 0.712, LLM-only 0.573, LLM +
-  checkpoint 0.691. Design notes in `docs/superpowers/` are local and not tracked.
+  checkpoint 0.691 (ungated runs). Design notes in `docs/superpowers/` are local and not tracked.
 - **SEAL-protocol splits (built):** the SEAL PPI baseline protocol (random edge 80/10/10, 1:1), so DL numbers compare
   with SEAL's: the private 22T mouse membrane data (22-tissue proteomics) and the human TMP data (all stages). Most
   positives are public or orthologs of public pairs, so these are not agent test pools. See
