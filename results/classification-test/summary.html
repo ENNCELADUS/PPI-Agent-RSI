@@ -65,6 +65,7 @@ th, td { padding: 7px 8px } main { max-width: 1000px }
 <p><b>PRING, full test</b> (public, human; the DL benchmark task): breadth-first split; train (76,400 labelled pairs) is the knowledge base, and no test protein is in it. The LLM-only agent scores all 64,038 test pairs.</p>
 <p><b>PRING, after discovery rounds</b> (loop with revealed labels): the 2,018 test proteins are split 60/40. On the 60% side the agent runs 10 rounds; each round it picks 200 pairs, and their labels are revealed and kept as memory (1,624 hits in 2,000 picks). The final test is 10,280 labelled pairs (1:1) among the 40% side, scored by the LLM agent with the DL predictor.</p>
 <p><b>22T</b> (private, mouse membrane): 46,821 positives split 8:1:1 at random, each split filled with 1:1 negatives; the test has 9,366 pairs (4,683 positive) among 2,154 proteins.</p>
+<p><b>22T, after reveal rounds</b> (private; labels revealed without picking): the 22T test is cut once into 10 fixed rounds of 100 pairs (50 positive) and a final set of 8,366 pairs (4,183 positive); validation stays for the DL predictor only. Each round, a fresh agent session scores the round's 100 pairs, then their labels are revealed and kept as memory (cases and lessons, as on PRING). After round 10 the memory is frozen and the agent scores the final set. Every model sees the same rounds and the same final set. The DL predictor is retrained from scratch after each round on its knowledge base plus all pairs revealed so far (checkpoint t); in round t the agent + DL predictor gets checkpoint t − 1, and checkpoint 10 for the final set.</p>
 
 <h2>Results</h2>
 <p class="cap"><b>Table 1.</b> Test classification on the train/test splits (no loop); threshold-free metrics. AUPRC and AUROC use only the ranking (chance ≈ 0.5); Brier score measures calibration and accuracy of the probabilities. Bold: best within each benchmark.</p>
@@ -84,17 +85,27 @@ th, td { padding: 7px 8px } main { max-width: 1000px }
 <tr><td>LLM agent + DL predictor</td><td class="n"><strong>0.804</strong></td><td class="n"><strong>0.769</strong></td><td class="n">0.326</td></tr></tbody></table></div>
 <figure><img src="figures/loop_curves.svg" alt="ROC and precision-recall curves on the PRING final test after discovery rounds: the LLM agent with the DL predictor lies highest, the retrained DL predictor lowest"><figcaption>Figure 3. ROC and precision–recall curves, PRING final test after 10 discovery rounds; the DL predictor is retrained on the round labels.</figcaption></figure>
 
+<p class="cap"><b>Table 3.</b> 22T final set after 10 reveal rounds (1,000 revealed pairs); threshold-free metrics only, higher is better. Paired-bootstrap AUPRC difference to the frozen DL predictor (95% CI): LLM agent + DL predictor −0.025 (−0.034 to −0.016), LLM-only agent −0.143 (−0.157 to −0.131). Bold: best.</p>
+<div class="tw"><table><thead><tr><th>Model</th><th>AUPRC↑</th><th>AUROC↑</th></tr></thead><tbody><tr class="g"><td colspan="3">22T final set after 10 reveal rounds (private), 8,366 pairs</td></tr>
+<tr><td>ESM-3 DL predictor, frozen</td><td class="n"><strong>0.716</strong></td><td class="n"><strong>0.718</strong></td></tr>
+<tr><td>ESM-3 DL predictor, retrained on the round labels (checkpoint 10)</td><td class="n">0.712</td><td class="n"><strong>0.718</strong></td></tr>
+<tr><td>LLM-only agent</td><td class="n">0.573</td><td class="n">0.565</td></tr>
+<tr><td>LLM agent + DL predictor</td><td class="n">0.691</td><td class="n">0.704</td></tr></tbody></table></div>
+<figure><img src="figures/mus22t_al_checkpoints.svg" alt="Final-set AUPRC of the DL predictor retrained after each reveal round: it moves between 0.712 and 0.734 with no trend"><figcaption>Figure 4. 22T final-set AUPRC of the DL predictor retrained on its knowledge base plus the pairs revealed in rounds 1..t; checkpoint 0 is the frozen predictor (dashed).</figcaption></figure>
+
 <h2>Why the LLM-only agent differs between public and private data</h2>
-<p class="cap"><b>Table 3.</b> The two LLM-only runs (same model, tools and prompt design; full PRING test and 22T test). Annotation third: pairs split by the shorter UniProt function text of the two proteins. Cited evidence: share of the source IDs the agent lists with its predictions.</p>
+<p class="cap"><b>Table 4.</b> The two LLM-only runs (same model, tools and prompt design; full PRING test and 22T test). Annotation third: pairs split by the shorter UniProt function text of the two proteins. Cited evidence: share of the source IDs the agent lists with its predictions.</p>
 <div class="tw"><table><thead><tr><th>Check</th><th>PRING (public, human)</th><th>22T (private, mouse)</th></tr></thead><tbody>
 <tr><td>AUROC / AUPRC</td><td class="n">0.770 / 0.799</td><td class="n">0.570 / 0.587</td></tr><tr><td>Precision of confident calls (p ≥ 0.8; share of pairs)</td><td class="n"><strong>0.997</strong> (3.2%)</td><td class="n">0.830 (2.0%)</td></tr><tr><td>AUROC by annotation third (least → most)</td><td class="n">0.681 → 0.810 → 0.818</td><td class="n">0.531 → 0.584 → 0.592</td></tr><tr><td>Cited evidence: protein annotation / knowledge-base pairs</td><td class="n">86% / 2%</td><td class="n">59% / 37%</td></tr>
 </tbody></table></div>
 
 <h2>Reading</h2>
 <ul class="read">
-<li><strong>On public PRING, the agent probably recalls interactions that it already knows.</strong> When it is confident (p ≥ 0.8), it is almost always correct: precision 0.997, against 0.830 on 22T. It cites knowledge-base pairs for only 2% of its evidence. Thus the labelled data does not explain its score (Table 3).</li>
-<li><strong>On PRING, the agent does better on well-known proteins.</strong> Its AUROC increases from 0.68 to 0.82 as the annotation increases. On 22T, its AUROC stays between 0.53 and 0.59. Thus the annotation text alone does not help the agent (Table 3).</li>
-<li><strong>On 22T, the agent uses the knowledge base more, but this does not help.</strong> The agent knows few 22T interactions, so it cites knowledge-base pairs for 37% of its evidence, against 2% on PRING. Its AUROC stays at 0.570 (Table 3).</li>
+<li><strong>On public PRING, the agent probably recalls interactions that it already knows.</strong> When it is confident (p ≥ 0.8), it is almost always correct: precision 0.997, against 0.830 on 22T. It cites knowledge-base pairs for only 2% of its evidence. Thus the labelled data does not explain its score (Table 4).</li>
+<li><strong>On PRING, the agent does better on well-known proteins.</strong> Its AUROC increases from 0.68 to 0.82 as the annotation increases. On 22T, its AUROC stays between 0.53 and 0.59. Thus the annotation text alone does not help the agent (Table 4).</li>
+<li><strong>On 22T, the agent uses the knowledge base more, but this does not help.</strong> The agent knows few 22T interactions, so it cites knowledge-base pairs for 37% of its evidence, against 2% on PRING. Its AUROC stays at 0.570 (Table 4).</li>
+<li><strong>On 22T, the revealed labels help no model.</strong> The retrained DL predictor moves between 0.712 and 0.734 AUPRC with no trend; 1,000 pairs are about 1% of its training data. The LLM-only agent with memory scores 0.573, below 0.587 without it (Tables 1 and 3, Figure 4).</li>
+<li><strong>On 22T, the agent + DL predictor stays below the predictor alone.</strong> Its memory of 1,000 labelled pairs does not make up for the 0.025 AUPRC it loses to the frozen predictor (Table 3).</li>
 </ul>
 </main>
 </body>
