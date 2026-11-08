@@ -26,7 +26,7 @@ fixed, expert-designed agent baseline before building any RSI.
   database, with 1:1 degree-preserving negatives. See `CLAUDE.md` for the build commands.
 - **22T mouse agent split and sandbox (built; run with `src.eval.pring_test --data mus22t`):** the private 22T mouse membrane positives split at
   random 8:1:1 (transductive: proteins appear in every split) with new PRING degree-preserving negatives at 1:1;
-  train = KB, val = DL predictor validation, test = final (RSI reveals part of test). Labels may be public; the agent's sandbox has no web tools. The agent
+  train = KB, val = selection only (DL validation; the reveal rounds' keep-or-drop gate), test = final (RSI reveals part of test). Labels may be public; the agent's sandbox has no web tools. The agent
   sees `data/MUS22T/sandbox/` (PRING-sandbox layout, mouse UniProt annotations, KB = train). See
   `build_mus22t_agent_split.py` and `build_mus22t_sandbox.py` in `src/data/builders/`. Test AUPRC: LLM-only
   agent 0.587, the V3 predictor 0.716, and the agent with V3's scores (`--predictor`, `predict_pairs`, `build_mus22t_scores.py`)
@@ -35,7 +35,9 @@ fixed, expert-designed agent baseline before building any RSI.
   set of 8,366 pairs (`build_mus22t_rsi.py`). Every arm gets the same rounds and final set: V3 retrained on each round's
   labels (`train_mus22t_al.sh`, H20), the LLM-only agent, and the LLM agent with the newest checkpoint
   (`src.eval.reveal_rounds`). Final-set AUPRC: V3 0.716, V3 retrained on all rounds 0.712, LLM-only 0.573, LLM +
-  checkpoint 0.691. Design notes in `docs/superpowers/` are local and not tracked.
+  checkpoint 0.691 (ungated runs). Since 2026-11-07 every arm keeps a round only if its val AUPRC beats every
+  earlier kept round (the DL checkpoint, or the agent's memory on 400 fixed val pairs); otherwise the round is dropped. Gated final-set AUPRC: DL 0.735 (rounds 1 and 3 kept), LLM-only 0.593 (round 1 kept);
+  the gated LLM + DL run is in progress. Design notes in `docs/superpowers/` are local and not tracked.
 - **SEAL-protocol splits (built):** the SEAL PPI baseline protocol (random edge 80/10/10, 1:1), so DL numbers compare
   with SEAL's: the private 22T mouse membrane data (22-tissue proteomics) and the human TMP data (all stages). Most
   positives are public or orthologs of public pairs, so these are not agent test pools. See

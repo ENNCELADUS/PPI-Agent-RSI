@@ -3,10 +3,11 @@
 Run: uv run python -m src.data.builders.build_mus22t_rsi_sandbox   (~2 s; after build_mus22t_rsi, build_mus22t_sandbox)
 
 Inputs: each DL checkpoint's logits for the 9,366 test pairs (a, b, logit): checkpoint 0 is V3
-(data/MUS22T/predictor/v3_test.tsv.gz), checkpoint t is V3 retrained on train plus rounds 1..t
-(data/MUS22T/predictor/al/round<t>.tsv.gz from train_mus22t_al.sh on H20). Copy them with:
+(data/MUS22T/predictor/v3_test.tsv.gz), checkpoint t is V3 retrained on train plus the kept rounds up to t
+(data/MUS22T/predictor/al/round<t>.tsv.gz from train_mus22t_al.sh on H20); and each checkpoint's logits for the val
+pairs (al/val/round<t>.tsv.gz, t = 0..10). Copy them with:
 
-    scp -P 30757 'root@10.15.171.204:/2023533015/PPI-Agent-RSI/data/MUS22T/predictor/al/*.tsv.gz' \
+    rsync -a root@10.15.171.204:/2023533015/PPI-Agent-RSI/data/MUS22T/predictor/al/ -e 'ssh -p 30757' \
       data/MUS22T/predictor/al/
 
 Output data/MUS22T/sandbox_rsi/:
@@ -14,6 +15,8 @@ Output data/MUS22T/sandbox_rsi/:
   scores.tsv.gz (a, b, p): round t's 100 pairs scored by checkpoint t - 1, trained on every pair revealed before
   round t. p = raw sigmoid of the logit, as for V3.
 - final/: the same symlinks and the final pairs scored by checkpoint 10.
+- val<t>/ (t = 0..10): the same symlinks and the val gate pairs (rsi/val_gate.csv) scored by checkpoint t: the view
+  in which the agent's memory after round t is checked.
 A view whose checkpoint is not there yet is skipped. The scores carry no labels.
 """
 
@@ -34,9 +37,13 @@ def checkpoint_path(t):
     return MUS22T / "predictor" / ("v3_test.tsv.gz" if t == 0 else f"al/round{t:02d}.tsv.gz")
 
 
-def checkpoint_p(t):
-    """{canonical pair: p} of checkpoint t over the test pairs."""
-    with gzip.open(checkpoint_path(t), "rt") as f:
+def val_path(t):
+    return MUS22T / "predictor" / "al" / "val" / f"round{t:02d}.tsv.gz"
+
+
+def checkpoint_p(t, path=None):
+    """{canonical pair: p} of checkpoint t over the test pairs (path: its val logits instead)."""
+    with gzip.open(path or checkpoint_path(t), "rt") as f:
         return {pair(r["a"], r["b"]): 1 / (1 + math.exp(-float(r["logit"]))) for r in csv.DictReader(f, delimiter="\t")}
 
 
@@ -72,6 +79,14 @@ def main():
         assert p.keys() == test, f"checkpoint {t}: scored pairs differ from test.csv"
         view(name, rows, p)
         print(f"{name}: {len(rows):,} pairs scored by checkpoint {t}")
+    gate = read(RSI / "val_gate.csv")
+    for t in range(ROUNDS + 1):
+        if not val_path(t).exists():
+            print(f"val{t:02d}: checkpoint {t} val scores missing, skipped")
+            continue
+        p = checkpoint_p(t, val_path(t))
+        assert all((a, b) in p for a, b, _ in gate), f"checkpoint {t}: val gate pairs without a val score"
+        view(f"val{t:02d}", gate, p)
 
 
 if __name__ == "__main__":

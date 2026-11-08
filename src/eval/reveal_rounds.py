@@ -12,7 +12,11 @@ rounds: for t = 1..10 one fresh pi session predicts round t's 100 pairs (the pri
 protein and KB tools, `cases`, and with --predictor `predict_pairs` from sandbox_rsi/round<t>/, i.e. checkpoint t - 1
 of the DL active-learning arm). Its p is scored before the labels are shown. The system then adds the 100 pairs as
 cases (label, the agent's p, the predictor's p it could see, its evidence ids) and a reviewer session updates the
-lessons (memory/round<t>/, as in src.eval.memory_agent). The LLM-only arm (no --predictor) uses data/MUS22T/sandbox/
+lessons, as in src.eval.memory_agent. Val gate (user decision 2026-11-07): the agent with this candidate memory then
+classifies the val gate pairs (rsi/val_gate.csv, 400, read-only like the final test; with --predictor in
+sandbox_rsi/val<t>/, checkpoint t). The memory is kept only if its val AUPRC beats every earlier kept memory (round 0 =
+the empty memory); else the round's cases and lesson changes are dropped. memory/round<t>/ holds the kept memory,
+gate.json the decisions, val/round<t>/ the val batches. The LLM-only arm (no --predictor) uses data/MUS22T/sandbox/
 with no predictor tool and no predictor p in the cases. A round with saved memory is replayed, so runs resume.
 curve.json: per round, the agent's metrics on its batch before the reveal and the DL checkpoints' on the same pairs.
 
@@ -35,14 +39,15 @@ from src.agent.session import DEFAULT_MODEL, PROMPTS, prompt
 from src.agent.session import pi_version as get_pi_version
 from src.agent.tools import CAP, K, RevealReviewTools, RevealTools, Sandbox, tsv
 from src.data.builders.build_mus22t_rsi import OUT as RSI
-from src.data.builders.build_mus22t_rsi import ROUNDS, read
+from src.data.builders.build_mus22t_rsi import ROUNDS, decide, read
 from src.data.builders.build_mus22t_rsi_sandbox import OUT as VIEWS
 from src.data.builders.build_mus22t_rsi_sandbox import checkpoint_path, checkpoint_p, reveal_rounds
 from src.data.paths import MUS22T
 from src.eval.memory_agent import load_memory, save_memory, session_twice
 from src.eval.pring_test import batches, classification, paired_bootstrap, run_batch, summarise
-from src.eval.rounds import commit
+from src.eval.rounds import commit, set_aside
 
+FINAL_STAGE = "This is the final test. Its labels are never revealed; the cases and lessons stay as they are."
 RUNS = MUS22T / "runs"
 PLAIN = MUS22T / "sandbox"  # the LLM-only arm: no predictor tool
 PREDICTOR_TOOL = (
@@ -173,6 +178,41 @@ def round_sandbox(t, predictor):
     return Sandbox(str(view))
 
 
+def val_check(t, args, records, lessons, run_dir):
+    """The agent's metrics on the val gate pairs with this memory, read-only, as in the final test (the agent sees the
+    final-test stage); with the predictor, checkpoint t."""
+    if args.predictor:
+        view = VIEWS / f"val{t:02d}"
+        assert (view / "scores.tsv.gz").exists(), f"no checkpoint {t} val view: run build_mus22t_rsi_sandbox"
+        sandbox = Sandbox(str(view))
+    else:
+        sandbox = Sandbox(str(PLAIN))
+    book = casebook(records, sandbox)
+    system = system_prompt(sandbox, args.predictor, records, lessons, FINAL_STAGE)
+    todo = batches(read(RSI / "val_gate.csv"), K)
+    d = run_dir / "val" / f"round{t:02d}"
+    with ThreadPoolExecutor(args.workers) as pool:
+        jobs = [
+            pool.submit(
+                run_batch,
+                i,
+                b,
+                len(todo),
+                sandbox,
+                system,
+                d,
+                args,
+                lambda x: RevealTools(sandbox, x, book, CAP, args.predictor),
+            )
+            for i, b in enumerate(todo, 1)
+        ]
+        results = [j.result() for j in jobs]
+    if None in results:
+        raise RuntimeError(f"val check of round {t}: a batch failed twice")
+    rows = [row for r in results for row in r["rows"]]
+    return classification([r["label"] for r in rows], [0.5 if r["p"] is None else r["p"] for r in rows])
+
+
 def run_rounds(run_dir, args):
     run_dir.mkdir(parents=True, exist_ok=True)
     if (run_dir / "run.json").exists():
@@ -183,6 +223,11 @@ def run_rounds(run_dir, args):
         (run_dir / "run.json").write_text(json.dumps(provenance(args), indent=1) + "\n")
     rounds = reveal_rounds()
     records, lessons = [], Lessons()
+    gate_path = run_dir / "gate.json"
+    gate = json.loads(gate_path.read_text()) if gate_path.exists() else []
+    if not gate:
+        gate = decide([], 0, val_check(0, args, records, lessons, run_dir)["ap"])
+        gate_path.write_text(json.dumps(gate, indent=1) + "\n")
     for t in range(1, min(ROUNDS, args.until or ROUNDS) + 1):
         mem_dir = run_dir / "memory" / f"round{t:02d}"
         if (mem_dir / "cases.jsonl").exists():
@@ -209,10 +254,22 @@ def run_rounds(run_dir, args):
             raise RuntimeError(f"round {t} failed twice")
         seen = {(a, b): p for (a, b, p) in sandbox.query("SELECT a, b, p FROM scores")} if args.predictor else None
         fresh = new_cases(t, result, seen)
+        kept_records, kept_lessons = records, Lessons(lessons.all)
         records = records + fresh
         log = review(t, args, sandbox, records, fresh, lessons, run_dir)
+        # a rerun reviewed again: earlier val batches checked another memory
+        set_aside(run_dir / "val", f"round{t:02d}_stale", f"round{t:02d}")
+        m = val_check(t, args, records, lessons, run_dir)
+        gate = decide(gate[:t], t, m["ap"])
+        gate_path.write_text(json.dumps(gate, indent=1) + "\n")
+        if not gate[t]["kept"]:
+            records, lessons = kept_records, kept_lessons
+        log["gate"] = gate[t] | {"val": m}
         save_memory(mem_dir, records, lessons, log)
-        print(f"{run_dir.name} round {t}: {len(lessons.active())} active lessons, {len(records)} cases")
+        print(
+            f"{run_dir.name} round {t}: val AUPRC {m['ap']:.4f}, {'kept' if gate[t]['kept'] else 'dropped'}; "
+            f"{len(lessons.active())} active lessons, {len(records)} cases"
+        )
     write_curve(run_dir)
 
 
@@ -257,8 +314,7 @@ def run_test(run_dir, args):
     else:
         extra = {"batch": args.batch, "batches": len(todo), "cases": len(records)}
         (test_dir / "run.json").write_text(json.dumps(provenance(args, **extra), indent=1) + "\n")
-    stage = "This is the final test. Its labels are never revealed; the cases and lessons stay as they are."
-    system = system_prompt(sandbox, predictor, records, lessons, stage)
+    system = system_prompt(sandbox, predictor, records, lessons, FINAL_STAGE)
     n = len(todo)
     with ThreadPoolExecutor(args.workers) as pool:
         jobs = [
