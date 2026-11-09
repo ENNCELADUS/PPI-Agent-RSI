@@ -13,7 +13,7 @@ PDFs live in git-ignored `literature/<topic>/`; the index `literature/README.md`
 modes must come out of evaluation, never be assumed in advance. Name every pool, arm, baseline and run by what
 it is ("the inductive pool", "the permuted-label arm"), never by a bare label; give a code label once in parentheses.
 
-## Current state (2026-11-08, 22T reveal rounds: val gate; two-layer memory agent; SEAL-protocol splits)
+## Current state (2026-11-09, 22T reveal rounds: val gate; two-layer memory agent; SEAL-protocol splits)
 
 Replace this section on every update; history lives in git and the specs.
 
@@ -21,7 +21,7 @@ Replace this section on every update; history lives in git and the specs.
 - **22T mouse sandbox (`pring_test --data mus22t`):** `agent_split/` (hidden) = transductive 8:1:1 + PRING negatives; KB =
   train. [Test AUPRC](results/classification-test/summary.html): LLM-only 0.587, V3 0.716, [agent + V3](docs/superpowers/specs/2026-11-02-mus22t-llm-predictor-design.md) (`--predictor`) 0.708.
 - **22T reveal rounds:** 10 × 100 revealed test pairs + final 8,366; val gate keeps a round only if val AUPRC beats all kept.
-  Final AUPRC gated (ungated): V3 0.716; DL 0.735 (0.712, kept 1, 3); LLM-only 0.593 (0.573, kept 1); LLM + DL running.
+  Final AUPRC gated (ungated): V3 0.716; DL 0.735 (0.712, kept 1, 3); LLM-only 0.593 (0.573, kept 1); LLM + DL 0.715 (0.691, kept 1, 2, 6).
 - **SEAL-protocol splits (DL-comparable only):** random edge 80/10/10; propensity AUPRC 22T 0.944, TMP (≈ SEAL) 0.888.
 - **PRING sandbox (built, closed-world; agent sees `sandbox*/` only):** [design](docs/superpowers/specs/2026-10-23-pring-sandbox-design.md); roles ([spec](docs/superpowers/specs/2026-11-01-pring-classification-test-design.md)): train = KB; val = RSI data; test = final.
   [Results](results/classification-test/summary.html) (V4 Pro): LLM-only full test AUPRC 0.799 vs B0 0.736; [two-layer memory agent](docs/superpowers/specs/2026-11-02-two-layer-memory-agent-design.md) final test 0.775 / cases 0.804 / + lessons 0.803 / cases, no predictor 0.811; B0 retrained on the round labels 0.717 (frozen 0.695; `al_predictor`).
