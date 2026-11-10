@@ -31,7 +31,7 @@ fixed, expert-designed agent baseline before building any RSI.
   `build_mus22t_agent_split.py` and `build_mus22t_sandbox.py` in `src/data/builders/`. Test AUPRC: LLM-only
   agent 0.587, the V3 predictor 0.716, and the agent with V3's scores (`--predictor`, `predict_pairs`, `build_mus22t_scores.py`)
   0.708; the PRING-trained DL predictor without 22T training 0.597 (`results/classification-test/summary.html`, with the
-  PRING test and the API cost of every run: $779 at DeepSeek list prices, about $1,658 for GPT-6.1 Sol; one 22T reveal round $3.1–3.6).
+  PRING test and the DeepSeek-V4 Pro cost of the 22T reveal runs: $3.1–3.6 per round, $37–47 for the final set).
 - **22T reveal rounds (done):** the 22T test split is cut once into 10 fixed rounds of 100 revealed pairs and a final
   set of 8,366 pairs (`build_mus22t_rsi.py`). Every arm gets the same rounds and final set: V3 retrained on each round's
   labels (`train_mus22t_al.sh`, H20), the LLM-only agent, and the LLM agent with the newest checkpoint
