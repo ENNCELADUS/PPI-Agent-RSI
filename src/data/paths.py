@@ -1,4 +1,5 @@
 """Data locations, all under the git-ignored data/ directory."""
+
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -24,6 +25,7 @@ RAW_FILES = {
 PRING = ROOT / "data" / "PRING"
 PRING_RAW = PRING / "raw"
 SANDBOX = PRING / "sandbox"  # what the agent may read
+SANDBOX_VAL = PRING / "sandbox_val"  # the same for the validation gate: validation proteins as candidates
 HIDDEN = PRING / "hidden"  # labels; never given to the agent
 
 # Private 22T mouse membrane PPIs (custom_ppi.zip) and the splits and agent sandbox built from them.

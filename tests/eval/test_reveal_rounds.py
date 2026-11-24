@@ -1,7 +1,9 @@
 import argparse
+import csv
 import gzip
 import json
 
+import pytest
 from tests.eval.test_memory_agent import disc_view
 
 from src.agent.tools import RevealReviewTools, RevealTools
@@ -9,6 +11,8 @@ from src.agent.tools import RevealReviewTools, RevealTools
 ROUND = {1: [("A", "B", 1), ("A", "C", 0)], 2: [("C", "D", 1), ("B", "D", 0)]}
 FINAL = [("A", "D", 1), ("B", "C", 0)]
 VAL = [("A", "D", 1), ("B", "C", 0)]  # the val gate pairs; ckpt logits score them too
+TRAIN = [("A", "E", 1), ("B", "E", 0)]  # the RSI training set; the development set is the pairs of the two rounds
+HEAD = "uniprotID_A,uniprotID_B,isInteraction\n"
 
 
 def logits(path, value):
@@ -35,16 +39,20 @@ def setup(tmp_path, monkeypatch):
         "uniprotID_A,uniprotID_B,isInteraction\n" + "".join(f"{a},{b},{y}\n" for a, b, y in VAL)
     )
     (rsi / "rsi.json").write_text('{"outputs": {}}')
+    (rsi / "train.csv").write_text(HEAD + "".join(f"{a},{b},{y}\n" for a, b, y in TRAIN))
+    (rsi / "dev.csv").write_text(HEAD + "".join(f"{a},{b},{y}\n" for rows in ROUND.values() for a, b, y in rows))
     disc_view(tmp_path / "sandbox")
     ckpt = lambda t: tmp_path / f"ckpt{t}.tsv.gz"  # noqa: E731
     for t in range(3):
         logits(ckpt(t), t)  # checkpoint t gives every pair p = sigmoid(t)
-    for name, value in (("RSI", rsi), ("OUT", tmp_path / "views"), ("checkpoint_path", ckpt)):
+    for name, value in (("RSI", rsi), ("OUT", tmp_path / "views"), ("checkpoint_path", ckpt), ("ROUNDS", 2)):
         monkeypatch.setattr(views, name, value)
+    views.write_kb()
+    views.view("plain", [], None)
     for name, value in (
         ("RSI", rsi),
         ("VIEWS", tmp_path / "views"),
-        ("PLAIN", tmp_path / "sandbox"),
+        ("PLAIN", tmp_path / "views" / "plain"),
         ("RUNS", tmp_path / "runs"),
         ("ROUNDS", 2),
         ("checkpoint_path", ckpt),
@@ -115,4 +123,29 @@ def test_views_rounds_val_gate_and_final_test(tmp_path, monkeypatch):
     reveal_rounds.run_test(run_dir, args)
     summary = json.loads((run_dir / "final" / "summary.json").read_text())
     assert summary["pairs"] == 2 and summary["al_checkpoint10"]["auroc"] == 0.5  # ROUNDS = 2 here
+    assert summary["v3"]["auroc"] == 0.5 and "agent_minus_v3" in summary  # "v3" is checkpoint 0, not the old V3
     assert "Its labels are never revealed" in calls[-1][1] and "L1" in calls[-1][1] and "L2" not in calls[-1][1]
+
+
+def test_views_show_the_rsi_training_set_and_never_a_development_label(tmp_path, monkeypatch):
+    views, _ = setup(tmp_path, monkeypatch)
+    monkeypatch.setattr(views, "val_path", lambda t: tmp_path / f"val{t}.tsv.gz")  # no val scores: views skipped
+    views.main()  # the checkpoints score exactly development + final
+    dev = {(a, b) for rows in ROUND.values() for a, b, _ in rows}
+    for name in ("plain", "round01", "round02", "final"):
+        kb = {(r["uniprotID_A"], r["uniprotID_B"]) for r in csv.DictReader(open(tmp_path / "views" / name / "kb.csv"))}
+        assert kb == {(a, b) for a, b, _ in TRAIN} and not kb & dev
+    assert not (tmp_path / "views" / "plain" / "scores.tsv.gz").exists()
+
+    with gzip.open(tmp_path / "ckpt0.tsv.gz", "wt") as f:
+        f.write("a\tb\tlogit\nA\tB\t0\n")  # a checkpoint that did not score every development and final pair
+    with pytest.raises(AssertionError, match="dev.csv"):
+        views.main()
+
+
+def test_rounds_stop_without_the_development_set(tmp_path, monkeypatch):
+    _, reveal_rounds = setup(tmp_path, monkeypatch)
+    (tmp_path / "rsi" / "dev.csv").unlink()
+    args = argparse.Namespace(predictor=False, until=None, model="m", thinking="t", workers=1)
+    with pytest.raises(AssertionError, match="no development set"):
+        reveal_rounds.run_rounds(tmp_path / "runs" / "x", args)

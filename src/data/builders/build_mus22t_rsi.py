@@ -1,31 +1,39 @@
-"""Split the 22T test set into fixed reveal rounds and a final set, for RSI under sparse labels (no acquisition).
+"""Split the 22T data for RSI under sparse labels: training set, development set, random batches and final set.
 
 Run: uv run python -m src.data.builders.build_mus22t_rsi   (~1 s; after build_mus22t_agent_split)
-     python -m src.data.builders.build_mus22t_rsi al <t>          (train_mus22t_al.sh: round t's DL split)
+     python -m src.data.builders.build_mus22t_rsi al <t>          (train_mus22t_al.sh: checkpoint t's DL split)
      python -m src.data.builders.build_mus22t_rsi gate <t> <val_auprc>  (train_mus22t_al.sh: keep or drop round t)
 
-Design: docs/superpowers/specs/2026-11-06-mus22t-reveal-rounds-design.md. Roles (user decisions 2026-11-06): train = KB,
-val = DL predictor validation only, test = reveal rounds + final set. Every arm (DL active learning, the LLM-only
-agent, the LLM agent with the DL predictor) gets the same pairs in the same rounds and is scored on the same final set.
+Design: docs/superpowers/specs/2026-11-06-mus22t-reveal-rounds-design.md, changed by the user decisions of
+2026-11-24 (docs/superpowers/plans/2026-11-24-node-disjoint-validation-and-development-set.md): the label budget
+(10 rounds of 100 pairs) is 10% of the development set, so the choice of the pairs can matter. The validation set
+(agent_split/val.csv) is for selection only and is not touched.
 
-- Reveal: agent_split/test.csv positives and negatives, each sorted and shuffled with random.Random(0); the first
-  ROUNDS * BATCH / 2 of each are revealed. Round t gets positives and negatives [(t-1) * BATCH / 2, t * BATCH / 2),
-  shuffled together with random.Random(t). 10 rounds of 100 pairs, 50 + 50 each.
-- Final: the other test pairs (8,366: 4,183 + 4,183).
-- al/round<t>/: the DL active-learning split of round t: train.csv = agent_split/train.csv plus the pairs of the kept
-  rounds before t and of round t; val.csv and test.csv = agent_split's, unchanged (the scores of all 9,366 test pairs
-  per checkpoint). Built per round by train_mus22t_al.sh, because it depends on the gate.
-- al/gate.json: the val gate (user decision 2026-11-07). Round 0 is V3's val AUPRC. Round t is kept only if its
-  checkpoint's val AUPRC is higher than that of every earlier kept checkpoint; else its pairs leave the DL training
-  set and checkpoint t is a copy of checkpoint t - 1. Each checkpoint also scores all val pairs (the agent's val view).
-- val_gate.csv: the agents' val gate (user decision 2026-11-07), fixed VAL_GATE / 2 positives and VAL_GATE / 2
-  negatives of agent_split/val.csv whose two proteins are both test proteins (the agent sandbox has no other
-  proteins), each sorted and shuffled with random.Random(0). An agent round's memory is kept only if the agent's val
-  AUPRC on these pairs beats every earlier kept memory (src.eval.reveal_rounds). Val labels never reach the agent.
+- Final: as before, agent_split/test.csv positives and negatives, each sorted and shuffled with random.Random(0),
+  minus the first 500 of each (8,366 pairs: 4,183 + 4,183).
+- Development set (10,000 pairs: 5,000 + 5,000): those 1,000 test pairs and 4,500 positives + 4,500 negatives of
+  agent_split/train.csv, each label sorted and shuffled with random.Random(0). Every cut is a uniform random draw
+  by pair, so the development set, the final set and the training set hold the same kind of pair (transductive).
+- Training set (65,912 pairs: 32,956 + 32,956): the other train pairs. It replaces agent_split/train.csv for the DL
+  predictor and for the agent's look-up file in every RSI run; the development labels are in neither.
+- reveal.csv: the batches of the random acquisition rule, the control: the development set sorted by pair and shuffled
+  with random.Random(0), round t = pairs [(t - 1) * 100, t * 100). The labels play no part in the draw. Every arm gets
+  the same pairs in the same rounds. Rules that read scores, and the agent's own picks, are not built yet.
+- al/round<t>/ (t = 0..10): the DL split of checkpoint t: train.csv = the training set plus the pairs of the kept
+  rounds before t and of round t (checkpoint 0: the training set alone); val.csv = agent_split's, unchanged;
+  test.csv = development + final (each checkpoint scores these 18,366 pairs). Built per round by train_mus22t_al.sh,
+  because it depends on the gate.
+- al/gate.json: the validation gate (user decision 2026-11-07). Round 0 is checkpoint 0. Round t is kept only if its
+  checkpoint's validation AUPRC is higher than that of every earlier kept checkpoint; else its pairs leave the DL
+  training set and checkpoint t is a copy of checkpoint t - 1. Each checkpoint also scores all validation pairs.
+- val_gate.csv: the agents' validation gate (user decision 2026-11-07), fixed VAL_GATE / 2 positives and
+  VAL_GATE / 2 negatives of agent_split/val.csv whose two proteins are both test proteins, each sorted and shuffled
+  with random.Random(0). An agent round's memory is kept only if the agent's validation AUPRC on these pairs beats
+  every earlier kept memory (src.eval.reveal_rounds). Validation labels never reach the agent.
 
-Output data/MUS22T/rsi/ (hidden labels; the agent never reads it): reveal.csv (uniprotID_A, uniprotID_B,
-isInteraction, round), final.csv (uniprotID_A, uniprotID_B, isInteraction), val_gate.csv (the same columns), al/,
-rsi.json (counts and sha256 prefixes). Deterministic.
+Output data/MUS22T/rsi/ (hidden labels; the agent never reads it): train.csv, dev.csv, final.csv, val_gate.csv
+(uniprotID_A, uniprotID_B, isInteraction), reveal.csv (the same and round), al/, rsi.json (counts and sha256
+prefixes). Deterministic.
 
 The DL checkpoints (H20, grasppi-mus22t branch mus22t, same config and seed as V3) and the agent's per-round
 sandboxes come from build_mus22t_rsi_sandbox.
@@ -42,6 +50,7 @@ from src.data.paths import MUS22T
 
 SPLIT, OUT = MUS22T / "agent_split", MUS22T / "rsi"  # stdlib only: H20's checkout venv has no numpy
 SEED, ROUNDS, BATCH, VAL_GATE = 0, 10, 100, 400
+DEV_FROM_TRAIN = 9000  # train pairs that join the 1,000 test pairs in the development set
 HEADER = ["uniprotID_A", "uniprotID_B", "isInteraction"]
 
 
@@ -50,7 +59,8 @@ def read(path):
 
 
 def split(test, rounds=ROUNDS, batch=BATCH, seed=SEED):
-    """test: (a, b, label) rows. Returns ({round: rows}, final rows), every round half positive."""
+    """test: (a, b, label) rows. Returns ({block: rows}, final rows): the first rounds * batch test pairs, half
+    positive, in blocks of batch (they join the development set), and the final set."""
     half = batch // 2
     by_label = {}
     for y in (1, 0):
@@ -65,6 +75,26 @@ def split(test, rounds=ROUNDS, batch=BATCH, seed=SEED):
         reveal[t] = rows
     final = sorted(r for y in (1, 0) for r in by_label[y][rounds * half :])
     return reveal, final
+
+
+def move(train, n=DEV_FROM_TRAIN, seed=SEED):
+    """(kept rows, moved rows): n / 2 pairs of each label leave train for the development set."""
+    kept_rows, moved = [], []
+    for y in (1, 0):
+        rows = sorted(r for r in train if r[2] == y)
+        random.Random(seed).shuffle(rows)
+        assert len(rows) >= n // 2, "too few train pairs for the development set"
+        moved += rows[: n // 2]
+        kept_rows += rows[n // 2 :]
+    return sorted(kept_rows), sorted(moved)
+
+
+def draw(dev, rounds=ROUNDS, batch=BATCH, seed=SEED):
+    """{round: rows}: the random acquisition rule, uniform over the development set. The labels play no part."""
+    rows = sorted(dev, key=lambda r: r[:2])
+    random.Random(seed).shuffle(rows)
+    assert len(rows) >= rounds * batch, "development set smaller than the label budget"
+    return {t: rows[(t - 1) * batch : t * batch] for t in range(1, rounds + 1)}
 
 
 def val_gate(val, test, n=VAL_GATE, seed=SEED):
@@ -91,25 +121,37 @@ def sha(path):
 
 
 def main():
-    train, test = read(SPLIT / "train.csv"), read(SPLIT / "test.csv")
-    reveal, final = split(test)
+    train, val, test = (read(SPLIT / f"{s}.csv") for s in ("train", "val", "test"))
+    from_test, final = split(test)
+    training, moved = move(train)
+    dev = sorted(moved + [r for t in sorted(from_test) for r in from_test[t]])
+    reveal = draw(dev)
     shown = [r for t in sorted(reveal) for r in reveal[t]]
-    assert len(set(shown) | set(final)) == len(test) and not set(shown) & set(final)
-    assert not {r[:2] for r in train} & {r[:2] for r in test}
+    parts = [{r[:2] for r in rows} for rows in (training, dev, final, val)]
+    assert sum(map(len, parts)) == len(set().union(*parts)), (
+        "a pair is in two of training, development, final, validation"
+    )
+    assert len(training) + len(dev) + len(final) == len(train) + len(test) and set(shown) <= set(dev)
     if OUT.exists():
         shutil.rmtree(OUT)
     OUT.mkdir(parents=True)
+    write(OUT / "train.csv", HEADER, training)
+    write(OUT / "dev.csv", HEADER, dev)
     write(OUT / "reveal.csv", [*HEADER, "round"], [(*r, t) for t in sorted(reveal) for r in reveal[t]])
     write(OUT / "final.csv", HEADER, final)
-    write(OUT / "val_gate.csv", HEADER, val_gate(read(SPLIT / "val.csv"), test))
+    write(OUT / "val_gate.csv", HEADER, val_gate(val, test))
+    count = lambda rows: {"pairs": len(rows), "pos": sum(r[2] for r in rows)}  # noqa: E731
+    files = ("train.csv", "dev.csv", "reveal.csv", "final.csv", "val_gate.csv")
     stats = {
         "seed": SEED,
         "rounds": ROUNDS,
         "batch": BATCH,
-        "reveal": {"pairs": len(shown), "pos": sum(r[2] for r in shown)},
-        "final": {"pairs": len(final), "pos": sum(r[2] for r in final)},
+        "train": count(training),
+        "dev": count(dev),
+        "reveal": count(shown),
+        "final": count(final),
         "inputs": {f"agent_split/{s}.csv": sha(SPLIT / f"{s}.csv") for s in ("train", "val", "test")},
-        "outputs": {p: sha(OUT / p) for p in ("reveal.csv", "final.csv", "val_gate.csv")},
+        "outputs": {p: sha(OUT / p) for p in files},
     }
     (OUT / "rsi.json").write_text(json.dumps(stats, indent=1) + "\n")
     print(json.dumps(stats, indent=1))
@@ -125,14 +167,15 @@ def kept(gate):
 
 
 def decide(gate, t, val_auprc):
-    """gate plus round t's decision: kept only if val AUPRC beats every earlier kept checkpoint (round 0 = V3)."""
+    """gate plus round t's decision: kept only if val AUPRC beats every earlier kept state (round 0: always)."""
     assert [g["round"] for g in gate] == list(range(t)), f"gate.json must hold rounds 0..{t - 1}"
     best = max((g["val_auprc"] for g in gate if g["kept"]), default=None)
     return [*gate, {"round": t, "val_auprc": val_auprc, "kept": best is None or val_auprc > best}]
 
 
 def write_al(t):
-    """al/round<t>/: train + the kept rounds before t + round t; val and test unchanged."""
+    """al/round<t>/: the training set + the kept rounds before t + round t (t = 0: the training set alone);
+    val.csv = agent_split's; test.csv = development + final, the pairs every checkpoint scores."""
     gate = read_gate()[:t]  # a rerun of round t (stopped after its gate) ignores its old decision
     assert [g["round"] for g in gate] == list(range(t)), f"gate.json must hold rounds 0..{t - 1}"
     reveal = {}
@@ -140,9 +183,10 @@ def write_al(t):
         reveal.setdefault(int(r["round"]), []).append((r["uniprotID_A"], r["uniprotID_B"], int(r["isInteraction"])))
     d = OUT / "al" / f"round{t:02d}"
     d.mkdir(parents=True, exist_ok=True)
-    write(d / "train.csv", HEADER, read(SPLIT / "train.csv") + [r for s in [*kept(gate), t] for r in reveal[s]])
-    for s in ("val", "test"):
-        shutil.copy(SPLIT / f"{s}.csv", d / f"{s}.csv")
+    rounds = [*kept(gate), *([t] if t else [])]
+    write(d / "train.csv", HEADER, read(OUT / "train.csv") + [r for s in rounds for r in reveal[s]])
+    shutil.copy(SPLIT / "val.csv", d / "val.csv")
+    write(d / "test.csv", HEADER, read(OUT / "dev.csv") + read(OUT / "final.csv"))
 
 
 if __name__ == "__main__":

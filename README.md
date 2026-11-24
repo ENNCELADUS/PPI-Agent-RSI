@@ -37,6 +37,7 @@ that is retrained on the same labels.
 - **🔒 Private test data** – The private test positives have no evidence in any public PPI database, so the LLM cannot know them from memory.
 - **🧠 Two-layer memory** – Tested cases (system-written) and lessons (reviewer-written) carry what the agent learns to new pairs.
 - **📊 DL comparison** – Each LLM arm runs next to a DL predictor that is retrained on the same revealed labels.
+- **🚧 Hidden validation, small budget** – A validation set that the agent never sees gates every round, and each round reveals only a small part of a development set (22T: 1,000 of 10,000 pairs).
 - **🚪 Closed-world sandbox** – The agent sees only its sandbox files and has no web tools.
 
 ## Quick Start
@@ -105,7 +106,7 @@ The module map is in [`src/README.md`](src/README.md).
 | Path | Contents |
 | --- | --- |
 | `docs/introduction.md` | Motivation and the three research directions |
-| `docs/task-setting.html` | Problem formulation: train / validation / acquisition / final test splits |
+| `docs/task-setting.html` | Research status: task formulation, splits, current design and results |
 | `docs/literature.md` | Related work, with links to local PDFs |
 | `docs/rsi-architecture.svg` | The figure above |
 | `results/` | Readable summaries, one folder per run (raw artifacts in `data/PRING/runs/`) |

@@ -1,4 +1,10 @@
-from src.data.builders.build_pring_memory import final_pairs, split
+from src.data.builders.build_pring_memory import final_pairs, gate_pairs, split
+
+
+def test_val_gate_pairs_are_balanced_and_seeded():
+    val = [(f"P{i}", f"Q{i}", i % 2) for i in range(20)]
+    got = gate_pairs(val, n=4)
+    assert len(got) == 4 and sum(r[2] for r in got) == 2 and got == gate_pairs(val, n=4)
 
 
 def test_split_is_disjoint_seeded_and_forty_percent():

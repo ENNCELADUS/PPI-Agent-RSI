@@ -6,28 +6,25 @@ LLM scientific agents for membrane protein–protein interaction (PPI) discovery
 (RSI) of the agent workflow and, later, the PPI predictor under sparse experimental feedback. Docs:
 `docs/introduction.md` (motivation), `docs/rsi-architecture.svg` (README figure), `docs/literature.md`,
 `docs/research-reports/<date>-<slug>.md` (git-ignored deep research), `docs/superpowers/specs/` (local designs).
-Task formulation and splits: `docs/task-setting.html`; run summaries: `results/<run>/` (raw: `data/PRING/runs/`).
+Task, current design and status: `docs/task-setting.html`; run summaries: `results/<run>/` (raw: `data/PRING/runs/`).
 PDFs live in git-ignored `literature/<topic>/`; the index `literature/README.md` is tracked.
 
 **Core thesis — do not let it drift:** measure a *fixed*, expert-designed agent before building any RSI. Failure
-modes must come out of evaluation, never be assumed in advance. Name every pool, arm, baseline and run by what
-it is ("the inductive pool", "the permuted-label arm"), never by a bare label; give a code label once in parentheses.
+modes must come out of evaluation, never be assumed in advance. Name every split, arm, baseline and run by what
+it is ("the development set", "the permuted-label arm"), never by a bare label; give a code label once in parentheses.
 
-## Current state (2026-11-10, 22T reveal rounds: val gate; PRING→22T transfer; API cost; SEAL-protocol splits)
+## Current state (2026-11-24, new RSI splits in code: PRING node-disjoint validation + gate; 22T development set of 10,000)
 
 Replace this section on every update; history lives in git and the specs.
 
-- **Private split (built):** `data/TMP/agent_split/`: `train.csv` = agent KB; `test.csv` = 1:1 non-public positives.
-- **22T mouse sandbox (`pring_test --data mus22t`):** `agent_split/` (hidden) = transductive 8:1:1 + PRING negatives; KB =
-  train. [Test AUPRC](results/classification-test/summary.html): LLM-only 0.587, V3 0.716, [agent + V3](docs/superpowers/specs/2026-11-02-mus22t-llm-predictor-design.md) (`--predictor`) 0.708, PRING-trained B0 (no 22T training) 0.597. API cost (list prices): all runs $779 DeepSeek, ≈ $1,658 GPT-6.1 Sol; one 22T reveal round $3.1–3.6.
-- **22T reveal rounds:** 10 × 100 revealed test pairs + final 8,366; val gate keeps a round only if val AUPRC beats all kept.
-  Final AUPRC gated (ungated): V3 0.716; DL 0.735 (0.712, kept 1, 3); LLM-only 0.593 (0.573, kept 1); LLM + DL 0.715 (0.691, kept 1, 2, 6).
+- **Split change of 2026-11-24 ([plan](docs/superpowers/plans/2026-11-24-node-disjoint-validation-and-development-set.md)):** code, tests and docs done; `data/` not rebuilt (plan Task 8: B0 logits of the new validation pairs, 11 V3 trainings on H20); no run on the new splits. **Every RSI number below is from the splits before it.**
+- **Private split (built):** `data/TMP/agent_split/`: `train.csv` = agent look-up; `test.csv` = 1:1 non-public positives.
+- **22T mouse sandbox (`pring_test --data mus22t`):** `agent_split/` (hidden) = transductive 8:1:1 + PRING negatives. [Test AUPRC](results/classification-test/summary.html): LLM-only 0.587, V3 0.716, [agent + V3](docs/superpowers/specs/2026-11-02-mus22t-llm-predictor-design.md) (`--predictor`) 0.708, PRING-trained B0 (no 22T training) 0.597. API cost (list prices): all runs $779 DeepSeek, ≈ $1,658 GPT-6.1 Sol; one 22T round $3.1–3.6.
+- **22T rounds (new split):** training 65,912; development set 10,000 (1,000 from test + 9,000 from train); 10 × 100 drawn at random (the control; score rules and agent picks not built); final 8,366 and validation unchanged. Old split (preset 50 + 50 batches), final AUPRC gated (ungated): V3 0.716; DL 0.735 (0.712); LLM-only 0.593 (0.573); LLM + DL 0.715 (0.691).
 - **SEAL-protocol splits (DL-comparable only):** random edge 80/10/10; propensity AUPRC 22T 0.944, TMP (≈ SEAL) 0.888.
-- **PRING sandbox (built, closed-world; agent sees `sandbox*/` only):** [design](docs/superpowers/specs/2026-10-23-pring-sandbox-design.md); roles ([spec](docs/superpowers/specs/2026-11-01-pring-classification-test-design.md)): train = KB; val = RSI data; test = final.
+- **PRING sandbox (built, closed-world; agent sees `sandbox*/` only):** [design](docs/superpowers/specs/2026-10-23-pring-sandbox-design.md), [classification spec](docs/superpowers/specs/2026-11-01-pring-classification-test-design.md).
   [Results](results/classification-test/summary.html) (V4 Pro): LLM-only full test AUPRC 0.799 vs B0 0.736; [two-layer memory agent](docs/superpowers/specs/2026-11-02-two-layer-memory-agent-design.md) final test 0.775 / cases 0.804 / + lessons 0.803 / cases, no predictor 0.811; B0 retrained on the round labels 0.717 (frozen 0.695; `al_predictor`).
-- **Closed-loop discovery ([spec](docs/superpowers/specs/2026-10-23-pring-wave-discovery-design.md)):** 10 × 200 picks of 2.04M pairs; ribosome
-  dominates unless ablated. Agent = pi; B0 in `src/predictor/`; LLM `deepseek-flash` (V4.1-Flash-1017, thinking high). Never vendor/retrain DIPPI.
-  [Public tracks](docs/research-reports/2026-10-19-public-ppi-benchmarks.md), [RSI positioning](docs/research-reports/2026-10-27-rsi-active-learning-positioning.md), [five paper features](docs/research-reports/2026-11-23-five-paper-features.md).
+- **Closed-loop discovery ([spec](docs/superpowers/specs/2026-10-23-pring-wave-discovery-design.md)):** 10 × 200 picks of 2.04M pairs; ribosome dominates unless ablated. Agent = pi; B0 in `src/predictor/`; LLM `deepseek-flash` (V4.1-Flash-1017, thinking high). Never vendor/retrain DIPPI. [Public tracks](docs/research-reports/2026-10-19-public-ppi-benchmarks.md), [RSI positioning](docs/research-reports/2026-10-27-rsi-active-learning-positioning.md), [five paper features](docs/research-reports/2026-11-23-five-paper-features.md).
 
 ## Commands
 
@@ -47,10 +44,10 @@ uv run python -m src.data.builders.build_pring_noribo  # ~5 s; ribosome-ablation
 (cd src/agent/pi && npm ci)                           # pinned pi for the agent harness
 uv run python -m src.eval.rounds <name> <R>           # one true-feedback replicate; --until T stops after round T
 uv run python -m src.data.builders.build_pring_cls && uv run python -m src.eval.pring_test <name>  # --limit N; --data mus22t
-uv run python -m src.data.builders.build_pring_memory && uv run python -m src.eval.memory_agent rounds|test <name>  # test --arm memory|cases|empty [--no-predictor]
-uv run python -m src.eval.score <labels.csv> <ranking.csv>  # private test.csv (sandbox pools: not built)
-uv run python -m src.data.builders.build_mus22t_rsi && uv run python -m src.data.builders.build_mus22t_rsi_sandbox  # reveal rounds; DL: train_mus22t_al.sh (H20)
-uv run python -m src.eval.reveal_rounds rounds|test <name> [--predictor]  # al: the DL active-learning summary
+uv run python -m src.data.builders.build_pring_memory && uv run python -m src.eval.memory_agent rounds|test <name>  # rounds: val gate in sandbox_val/; test --arm memory|cases|empty [--no-predictor]
+uv run python -m src.eval.score <labels.csv> <ranking.csv>  # private test.csv
+uv run python -m src.data.builders.build_mus22t_rsi && uv run python -m src.data.builders.build_mus22t_rsi_sandbox  # training and development sets, random batches; DL: train_mus22t_al.sh (H20)
+uv run python -m src.eval.reveal_rounds rounds|test <name> [--predictor]  # al: the DL summary; batches = random draws from the development set
 uv run --extra predictor python -m src.data.builders.build_seal_split mus22t|tmp  # SEAL-protocol split; tmp ~20 s
 uv run python -m src.data.builders.build_mus22t_agent_split && uv run python -m src.data.builders.build_mus22t_sandbox && uv run python -m src.data.builders.build_mus22t_scores  # ~75 s
 ```
@@ -70,9 +67,9 @@ uv run python -m src.data.builders.build_mus22t_agent_split && uv run python -m 
   provenance and proceed. The builders' asserts against silent wrong artifacts fail closed and stay.
 - **Private data stays private:** never commit, push, upload or send TMP data anywhere except the LLM the agent
   is configured to call. `/data/` is git-ignored and no data is tracked.
-- Sync code through Git only, never rsync/scp/tar working trees. H20 (GPU; `ssh -p 30757 root@10.15.171.204`) and WSL
-  have no GitHub: `git push ssh://<host>/<repo> <branch>`. Detach H20 jobs with `setsid nohup` (plain `nohup` dies with
-  the session); cap `OMP_NUM_THREADS` (uncapped jobs stall on the shared CPUs).
+- Sync code through Git only, never rsync/scp/tar working trees or bundles. WSL: push here, `git pull` there (`origin`
+  over SSH). H20 (GPU; `ssh -p 30757 root@10.15.171.204`) has no GitHub: `git push ssh://<host>/<repo> <branch>`. Detach
+  H20 jobs with `setsid nohup` (plain `nohup` dies with the session); cap `OMP_NUM_THREADS` (uncapped jobs stall).
 - Merge finished branch or worktree work into `main` once suite and lint pass, review is adjudicated and any
   data-dependent path has run on real data; push `main`, delete the branch. Conventional Commits.
 - Codex review after each big implementation wave: fresh `CODEX_HOME` per review (`auth.json`, `config.toml`:
@@ -100,21 +97,23 @@ drives it; `tests/` mirrors `src`. Each builder's docstring is the versioned pro
 - **PRING sampling (`negatives.pring_negatives`):** both ends drawn from the positive-endpoint multiset
   (degree-preserving), redrawn until not self/same-gene, not known, not drawn. Test is sampled first and rejects
   any public evidence; train rejects TMP positives, curated DBs, STRING > 700 and all test pairs.
-- **PRING sandbox:** PRING BFS splits minus self pairs; KB-side tested negatives (114) join train; train/val 1:1 with
-  PRING negatives (38,200 / 9,562 positives, 7,856 proteins). Candidates: 2,035,153 pairs of the 2,018 test proteins
-  (30,128 hits). `annotations.tsv`: UniProt + GO minus sentences naming another gene, GO binding/complex terms.
+- **PRING sandbox:** PRING BFS splits minus self pairs; training and validation share no protein (motif-graph region, B0's own split; 11,436 cross-boundary positives dropped); `sandbox_val/` = the gate's view. `annotations.tsv`: UniProt + GO minus sentences naming another gene, GO binding/complex terms.
 
 ## Pitfalls and claim boundaries
 
 Mistakes here produce a complete-looking **wrong artifact**, not an exception.
 
-- Sandbox numbers are never reported (public, likely memorised labels). Only the private `test.csv` and a future
-  post-cutoff slice can support a claim.
+Terms: use these names in every doc and reply (code names in parentheses); four disjoint sets of pairs.
+- **Training set:** labelled pairs that train the DL predictor and that the agent may look up (`kb.csv`). 22T 65,912 pairs; PRING 63,246.
+- **Validation set:** selection only: DL hyperparameters and epoch, and the gate that keeps or drops each round. No round reveals it; the agent never sees its labels or, on PRING, its 869 proteins. 22T 9,364 pairs (agents gate on 400); PRING 9,406.
+- **Development set:** pairs with hidden labels; each round reveals one batch, and these revealed labels are the only feedback. 22T `rsi/dev.csv`, 10,000 pairs, 10 × 100 revealed; PRING all 732,655 pairs of the 1,211 discovery proteins (`sandbox_disc/`), 10 × 200 picks.
+- **Final test:** fixed before any run, never revealed, scored once after the last round. 22T `rsi/final.csv`, 8,366 pairs; PRING `hidden/final_test.csv`, 10,280 pairs of the other 807 test proteins.
+
+- PRING numbers are internal only (public labels the LLM can know). Only private labels support a claim: the 22T final test, the TMP `test.csv` and a future post-cutoff slice.
+- 22T is transductive on purpose: 99% of development and final-test positives have both proteins among the training positives, so its claims are for known proteins.
+- `data/MUS22T/sandbox/kb.csv` (all of `agent_split/train.csv`) holds the labels of 9,000 development pairs: RSI runs read `sandbox_rsi/kb.csv`.
 - Raw negatives (18.4M, computational) are unused: 97% of GT-test negatives recur in training negatives.
-- `public_db/*.tsv.gz` keep only pairs among current TMP proteins; adding proteins or changing `IdMap` means
-  re-running every extract. 1,320 TMP proteins have no Entrez gene or STRING ID and match by accession only.
-- 65,047 PRING train negatives have a weak STRING link (≤ 700) by design; filter with `pair_annotations.parquet`
-  for a stricter KB. IntAct pairs with both positive and negative evidence count as public.
-- PRING keeps self pairs as positives (dropped here); motif `node_*` ids follow accession order.
-- `data/TMP/processed/` is DIPPI-era and unused. HuRI (broken TLS) comes via IntAct/BioGRID/HIPPIE.
+- `public_db/*.tsv.gz` keep only pairs among current TMP proteins; adding proteins or changing `IdMap` means re-running every extract. 1,320 TMP proteins have no Entrez gene or STRING ID and match by accession only.
+- 65,047 PRING-sampled TMP train negatives have a weak STRING link (≤ 700) by design; filter with `pair_annotations.parquet` for a stricter training set. IntAct pairs with both positive and negative evidence count as public.
+- PRING keeps self pairs as positives (dropped here); motif `node_*` ids follow accession order. HuRI (broken TLS) comes via IntAct/BioGRID/HIPPIE.
 - `predictor/pring_candidates.tsv.gz` carries labels: the agent sees scores only via `sandbox/scores.tsv.gz`.

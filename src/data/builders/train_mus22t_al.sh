@@ -1,11 +1,12 @@
 #!/bin/bash
-# DL active learning for the 22T reveal rounds (runs on H20): for round t, V3 (B0 v3_1, configs/mus22t/b0_v31.yaml,
-# seed 0, epoch selected on the unchanged val split) retrained from scratch on agent_split/train.csv plus the pairs
-# of the kept rounds before t and of round t (data/MUS22T/rsi/al/round<t>/, build_mus22t_rsi al). Val gate
-# (build_mus22t_rsi gate): round t is kept only if the selected epoch's val AUPRC beats every earlier kept checkpoint
-# (round 0 = V3); else its pairs leave the training set and checkpoint t is a copy of checkpoint t - 1. Each
-# checkpoint scores all 9,366 test pairs and all val pairs; the logits go to data/MUS22T/predictor/al/round<t>.tsv.gz
-# and al/val/round<t>.tsv.gz (a, b, logit; val round00 = V3).
+# DL active learning for the 22T rounds (runs on H20): for checkpoint t = 0..10, V3 (B0 v3_1,
+# configs/mus22t/b0_v31.yaml, seed 0, epoch selected on the unchanged val split) trained from scratch on the RSI
+# training set (rsi/train.csv; checkpoint 0) plus the pairs of the kept rounds before t and of round t
+# (data/MUS22T/rsi/al/round<t>/, build_mus22t_rsi al). Val gate (build_mus22t_rsi gate): round t is kept only if the
+# selected epoch's val AUPRC beats every earlier kept checkpoint (checkpoint 0 is always kept); else its pairs leave
+# the training set and checkpoint t is a copy of checkpoint t - 1. Each checkpoint scores the 18,366 development and final
+# pairs and all val pairs; the logits go to data/MUS22T/predictor/al/round<t>.tsv.gz and al/val/round<t>.tsv.gz
+# (a, b, logit).
 #
 #   cd /2023533015/PPI-Agent-RSI && .venv/bin/python -m src.data.builders.build_mus22t_rsi
 #   setsid nohup bash src/data/builders/train_mus22t_al.sh > data/MUS22T/predictor/al.log 2>&1 < /dev/null &
@@ -16,7 +17,7 @@ set -euo pipefail
 R=/2023533015/PPI-Agent-RSI/data/MUS22T
 W=/2023533015/grasppi-mus22t
 OUT=$R/predictor/al
-G=mus22t_al_gated  # grasppi package and output names; mus22t_al holds the ungated runs
+G=mus22t_dev  # grasppi package and output names; mus22t_al_gated and mus22t_al hold the runs with preset batches
 export OMP_NUM_THREADS=4
 cd $W
 P=.venv/bin/python
@@ -47,10 +48,7 @@ score_val() {  # checkpoint, package root, pack dir, output .tsv.gz
   rm "$OUT"/val.npz "$OUT"/val.shard-*.npz
 }
 mkdir -p $OUT/val
-[ -f $R/rsi/al/gate.json ] || $RSI gate 0 "$(val_auprc outputs/mus22t/b0_v31)"
-[ -f $OUT/val/round00.tsv.gz ] ||
-  score_val outputs/mus22t/b0_v31/best.pt data/mus22t outputs/feature_packs/mus22t_bf16 $OUT/val/round00.tsv.gz
-for t in $(seq -f %02g 1 10); do
+for t in $(seq -f %02g 0 10); do
   [ -f "$OUT/round$t.tsv.gz" ] && continue
   $RSI al $((10#$t))
   D=data/$G/round$t
@@ -80,7 +78,7 @@ for t in $(seq -f %02g 1 10); do
     mv $OUT/candidate.tsv.gz $OUT/round$t.tsv.gz  # last: marks the round done
   else
     cp $OUT/val/round$prev.tsv.gz $OUT/val/round$t.tsv.gz
-    cp "$([ $prev = 00 ] && echo $R/predictor/v3_test.tsv.gz || echo $OUT/round$prev.tsv.gz)" $OUT/round$t.tsv.gz
+    cp $OUT/round$prev.tsv.gz $OUT/round$t.tsv.gz
     rm $OUT/candidate.tsv.gz
   fi
   echo "round $t: val AUPRC $v, $d"

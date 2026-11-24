@@ -14,6 +14,12 @@ lessons.json are the state after round t; the selector of round t + 1 reads them
 replayed. A reviewer that fails twice on infrastructure stops the run; one that settles without a call keeps the
 lessons unchanged (logged in memory/round<t>/review.json).
 
+Validation gate (user decision 2026-11-24), as in src.eval.reveal_rounds: after the review the agent with this
+candidate memory classifies the validation gate pairs (hidden/val_gate.csv, 400) in sandbox_val/, read-only, with
+the final-test protocol. The memory is kept only if its validation AUPRC beats every earlier kept memory (round 0 =
+the empty memory); else the round's cases and lesson changes are dropped. The round's pairs stay tested: the budget
+is spent. gate.json holds the decisions, val/round<t>/ the validation batches.
+
 test: the final-test pairs (seed 0, batches of 200) in data/PRING/runs/<name>/test_<arm>/ with the pring_test
 protocol and metrics. memory: lessons (system prompt) + cases from memory/round<--rounds>/; cases: cases only;
 empty: nothing from the rounds. The memory is read-only. summary.json adds B0 on the same pairs and every metric
@@ -31,14 +37,16 @@ from src.agent.memory import MAX_ACTIVE, Cases, Lessons, case_id, read_homologs
 from src.agent.session import DEFAULT_MODEL, PROMPTS, prompt, run_session
 from src.agent.session import pi_version as get_pi_version
 from src.agent.tools import CAP, K, CaseRoundTools, ReviewTools, Sandbox, TestTools, tsv
+from src.data.builders.build_mus22t_rsi import decide
 from src.data.builders.build_pring_noribo import is_ribosomal
 from src.data.paths import HIDDEN, PRING
 from src.eval.oracle import Oracle
-from src.eval.pring_test import batches, run_batch, summarise, test_pairs
+from src.eval.pring_test import batches, classification, run_batch, summarise, test_pairs
 from src.eval.rounds import RUNS, commit, evaluate, proteins, set_aside
 
 DISC, FINAL = PRING / "sandbox_disc", PRING / "sandbox_final"
 FINAL_TEST = HIDDEN / "final_test.csv"
+VAL, VAL_GATE = PRING / "sandbox_val", HIDDEN / "val_gate.csv"
 MEMORY_PROMPTS = PROMPTS / "memory"
 
 
@@ -150,7 +158,29 @@ def review(t, args, sandbox, records, fresh, lessons, tested, round_dir):
     return {"round": t, "operations": ops, "report": report, **{k: out.get(k) for k in keep}}
 
 
+def val_check(t, args, records, lessons, run_dir):
+    """The agent's metrics on the validation gate pairs with this memory, read-only, as in the final test."""
+    sandbox = Sandbox(str(VAL))
+    book = casebook(records, VAL) if records else None
+    system = test_system(sandbox, "memory" if records else "empty", records, lessons, True)
+    todo = batches(test_pairs(VAL_GATE), K)
+    d = run_dir / "val" / f"round{t:02d}"
+    with ThreadPoolExecutor(args.workers) as pool:
+        jobs = [
+            pool.submit(run_batch, i, b, len(todo), sandbox, system, d, args, lambda x: TestTools(sandbox, x, book))
+            for i, b in enumerate(todo, 1)
+        ]
+        results = [j.result() for j in jobs]
+    if None in results:
+        raise RuntimeError(f"validation check of round {t}: a batch failed twice")
+    rows = [row for r in results for row in r["rows"]]
+    return classification([r["label"] for r in rows], [0.5 if r["p"] is None else r["p"] for r in rows])
+
+
 def run_rounds(run_dir, args):
+    assert (VAL / "scores.tsv.gz").exists() and VAL_GATE.exists(), (
+        "no validation gate: run build_pring_sandbox, build_pring_tools and build_pring_memory"
+    )
     run_dir.mkdir(parents=True, exist_ok=True)
     if not (run_dir / "rounds.json").exists():
         (run_dir / "rounds.json").write_text(json.dumps(provenance(args, sandbox="sandbox_disc"), indent=1) + "\n")
@@ -161,6 +191,11 @@ def run_rounds(run_dir, args):
     n = len(sandbox.candidates)
     system = prompt("memory/system", proteins=n, pairs=n * (n - 1) // 2, rounds=args.rounds, k=K, cap=CAP, window=5 * K)
     tested, records, lessons = set(), [], Lessons()
+    gate_path = run_dir / "gate.json"
+    gate = json.loads(gate_path.read_text()) if gate_path.exists() else []
+    if not gate:
+        gate = decide([], 0, val_check(0, args, records, lessons, run_dir)["ap"])
+        gate_path.write_text(json.dumps(gate, indent=1) + "\n")
     for t in range(1, min(args.rounds, args.until or args.rounds) + 1):
         round_dir, mem_dir = run_dir / f"round{t:02d}", run_dir / "memory" / f"round{t:02d}"
         result_path = round_dir / "result.json"
@@ -183,16 +218,26 @@ def run_rounds(run_dir, args):
         result = json.loads(result_path.read_text())
         submission = json.loads((round_dir / "agent" / "submission.json").read_text()) if result["submitted"] else []
         fresh = new_cases(result, submission, b0)
-        tested |= {(c["a"], c["b"]) for c in fresh}
-        records = records + fresh
+        tested |= {(c["a"], c["b"]) for c in fresh}  # a dropped round's pairs stay tested: the budget is spent
         if (mem_dir / "cases.jsonl").exists():
             records, lessons = load_memory(mem_dir)
         else:
+            kept_records, kept_lessons = records, Lessons(lessons.all)
+            records = records + fresh
             log = review(t, args, sandbox, records, fresh, lessons, tested, round_dir)
+            # a rerun reviewed again: earlier validation batches checked another memory
+            set_aside(run_dir / "val", f"round{t:02d}_stale", f"round{t:02d}")
+            m = val_check(t, args, records, lessons, run_dir)
+            gate = decide(gate[:t], t, m["ap"])
+            gate_path.write_text(json.dumps(gate, indent=1) + "\n")
+            if not gate[t]["kept"]:
+                records, lessons = kept_records, kept_lessons
+            log["gate"] = gate[t] | {"val": m}
             save_memory(mem_dir, records, lessons, log)
         print(
             f"{run_dir.name} round {t}: {result['hits']} hits / {result['valid']} valid / {result['submitted']} "
-            f"submitted; {len(lessons.active())} active lessons"
+            f"submitted; val AUPRC {gate[t]['val_auprc']:.4f}, {'kept' if gate[t]['kept'] else 'dropped'}; "
+            f"{len(lessons.active())} active lessons, {len(records)} cases"
         )
 
 
@@ -216,6 +261,28 @@ def memory_section(arm, records, lessons):
         cases_tool,
         ", and cases of similar proteins",
         "`case:A-B`, " + ("`lesson:L3`, " if arm == "memory" else ""),
+    )
+
+
+def test_system(sandbox, arm, records, lessons, predictor):
+    memory, cases_tool, cases_step, examples = memory_section(arm, records, lessons)
+    return prompt(
+        "memory/test_system",
+        k=K,
+        proteins=len(sandbox.candidates),
+        cap=CAP,
+        memory=memory,
+        cases_tool=cases_tool,
+        cases_step=cases_step,
+        evidence_examples=examples,
+        predictor_tool=(
+            "- A fixed PPI predictor trained on the knowledge base: `predict_pairs` gives its calibrated probability p "
+            f"for up\n  to {K} pairs of test proteins in one call.\n"
+        )
+        if predictor
+        else "",
+        predictor_step="the predictor's p, " if predictor else "",
+        pred_example="`pred:A-B`, " if predictor else "",
     )
 
 
@@ -244,25 +311,7 @@ def run_test(run_dir, args):
         }
         extra["test_csv"] = hashlib.sha256(FINAL_TEST.read_bytes()).hexdigest()[:16]
         (test_dir / "run.json").write_text(json.dumps(provenance(args, **extra), indent=1) + "\n")
-    memory, cases_tool, cases_step, examples = memory_section(args.arm, records, lessons)
-    system = prompt(
-        "memory/test_system",
-        k=K,
-        proteins=len(sandbox.candidates),
-        cap=CAP,
-        memory=memory,
-        cases_tool=cases_tool,
-        cases_step=cases_step,
-        evidence_examples=examples,
-        predictor_tool=(
-            "- A fixed PPI predictor trained on the knowledge base: `predict_pairs` gives its calibrated probability p "
-            f"for up\n  to {K} pairs of test proteins in one call.\n"
-        )
-        if args.predictor
-        else "",
-        predictor_step="the predictor's p, " if args.predictor else "",
-        pred_example="`pred:A-B`, " if args.predictor else "",
-    )
+    system = test_system(sandbox, args.arm, records, lessons, args.predictor)
     n = len(todo)
     with ThreadPoolExecutor(args.workers) as pool:
         jobs = [

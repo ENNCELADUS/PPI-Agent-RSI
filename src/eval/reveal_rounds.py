@@ -1,12 +1,14 @@
-"""22T reveal rounds: the agent classifies fixed batches, their labels become cases, a reviewer updates the lessons.
+"""22T reveal rounds: the agent classifies each round's batch, its labels become cases, a reviewer updates the lessons.
 
     uv run python -m src.eval.reveal_rounds rounds <name> [--predictor] [--model ...] [--thinking high] [--until T]
     uv run python -m src.eval.reveal_rounds test <name> [--batch 200] [--workers 8] [--limit N]
     uv run python -m src.eval.reveal_rounds al                    # the DL active-learning arm (no LLM)
 
-Design: docs/superpowers/specs/2026-11-06-mus22t-reveal-rounds-design.md. Data: build_mus22t_rsi (rsi/reveal.csv: 10
-rounds of 100 pairs, 50 + 50; rsi/final.csv: 8,366 pairs), build_mus22t_rsi_sandbox (the checkpoint views). No
-acquisition: every arm gets the same pairs in the same rounds and is scored on the same final set.
+Design: docs/superpowers/specs/2026-11-06-mus22t-reveal-rounds-design.md. Data: build_mus22t_rsi (rsi/dev.csv: the
+development set of 10,000 pairs; rsi/reveal.csv: 10 rounds of 100 pairs drawn from it at random; rsi/final.csv: 8,366
+pairs), build_mus22t_rsi_sandbox (the views: the RSI training set as kb.csv, the checkpoint scores). The acquisition
+rule is the random draw, the control: every arm gets the same pairs in the same rounds and is scored on the same final
+set. The agent's own picks are not built yet.
 
 rounds: for t = 1..10 one fresh pi session predicts round t's 100 pairs (the pring_test batch protocol, RevealTools:
 protein and KB tools, `cases`, and with --predictor `predict_pairs` from sandbox_rsi/round<t>/, i.e. checkpoint t - 1
@@ -16,13 +18,14 @@ lessons, as in src.eval.memory_agent. Val gate (user decision 2026-11-07): the a
 classifies the val gate pairs (rsi/val_gate.csv, 400, read-only like the final test; with --predictor in
 sandbox_rsi/val<t>/, checkpoint t). The memory is kept only if its val AUPRC beats every earlier kept memory (round 0 =
 the empty memory); else the round's cases and lesson changes are dropped. memory/round<t>/ holds the kept memory,
-gate.json the decisions, val/round<t>/ the val batches. The LLM-only arm (no --predictor) uses data/MUS22T/sandbox/
+gate.json the decisions, val/round<t>/ the val batches. The LLM-only arm (no --predictor) uses sandbox_rsi/plain/
 with no predictor tool and no predictor p in the cases. A round with saved memory is replayed, so runs resume.
 curve.json: per round, the agent's metrics on its batch before the reveal and the DL checkpoints' on the same pairs.
 
 test: the final pairs (seed 0, batches of --batch) with the memory after round 10 (lessons in the prompt, cases
 through the tool), read-only; with --predictor the run's agent sees checkpoint 10 (sandbox_rsi/final/). summary.json:
-the pring_test metrics of the agent, frozen V3 and the round-10 checkpoint on the same pairs, with paired bootstraps.
+the pring_test metrics of the agent, checkpoint 0 ("v3": V3 trained on the RSI training set, before any reveal) and
+the round-10 checkpoint on the same pairs, with paired bootstraps.
 
 al: data/MUS22T/runs/al_v3/summary.json: every available checkpoint's metrics on the final set, and checkpoint t - 1
 on round t's batch (the curve of the DL arm), from data/MUS22T/predictor/ (train_mus22t_al.sh on H20).
@@ -49,7 +52,8 @@ from src.eval.rounds import commit, set_aside
 
 FINAL_STAGE = "This is the final test. Its labels are never revealed; the cases and lessons stay as they are."
 RUNS = MUS22T / "runs"
-PLAIN = MUS22T / "sandbox"  # the LLM-only arm: no predictor tool
+PLAIN = VIEWS / "plain"  # the LLM-only arm: no predictor tool
+# checkpoint 0's own validation numbers replace the ones below after its training (these are V3's on all of train)
 PREDICTOR_TOOL = (
     "- A PPI predictor trained on the knowledge base and on every pair revealed before this batch (it is retrained "
     "after\n  each round): `predict_pairs` gives its probability p for up to 200 of the listed pairs in one call. "
@@ -214,6 +218,9 @@ def val_check(t, args, records, lessons, run_dir):
 
 
 def run_rounds(run_dir, args):
+    assert (RSI / "dev.csv").exists() and (PLAIN / "kb.csv").exists(), (
+        "no development set: run build_mus22t_rsi and build_mus22t_rsi_sandbox"
+    )
     run_dir.mkdir(parents=True, exist_ok=True)
     if (run_dir / "run.json").exists():
         old = json.loads((run_dir / "run.json").read_text())
@@ -336,14 +343,15 @@ def run_test(run_dir, args):
     if not results:
         return
     rows = [row for r in results for row in r["rows"]]
-    summary = summarise(rows, results, "v3")
-    if checkpoint_path(ROUNDS).exists():
-        al = checkpoint_p(ROUNDS)
-        y = [r["label"] for r in rows]
-        p = [0.5 if r["p"] is None else r["p"] for r in rows]
-        q = [al[(r["a"], r["b"])] for r in rows]
-        summary["al_checkpoint10"] = classification(y, q)
-        summary["agent_minus_al_checkpoint10"] = paired_bootstrap(y, p, q)
+    summary = summarise(rows, results, None)
+    y = [r["label"] for r in rows]
+    p = [0.5 if r["p"] is None else r["p"] for r in rows]
+    for name, c in (("v3", 0), ("al_checkpoint10", ROUNDS)):  # the DL predictor before and after the rounds
+        if checkpoint_path(c).exists():
+            scores = checkpoint_p(c)
+            q = [scores[(r["a"], r["b"])] for r in rows]
+            summary[name] = classification(y, q)
+            summary[f"agent_minus_{name}"] = paired_bootstrap(y, p, q)
     (test_dir / "summary.json").write_text(json.dumps(summary, indent=1) + "\n")
     print(json.dumps(summary, indent=1))
 

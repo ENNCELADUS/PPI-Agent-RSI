@@ -4,7 +4,8 @@ Run: uv run python -m src.data.builders.build_pring_cls   (after build_pring_san
 Then: uv run python -m src.eval.pring_test <name>
 
 Why: PRING val leaves the agent's KB for the RSI part (user decision 2026-11-01), so the fixed agent that
-predicts PRING's test pairs knows only train. The first arm is the LLM alone (no DL predictor).
+predicts PRING's test pairs knows only train. The first arm is the LLM alone (no DL predictor). Since 2026-11-24
+the sandbox KB is the training set alone (build_pring_sandbox), so this view is the sandbox without scores.
 
 - data/PRING/sandbox_cls/: kb.csv = the sandbox KB rows that are in hidden/train.csv; proteins.tsv and
   annotations.tsv keep train-KB and test proteins (val-only proteins go); homologs.tsv keeps rows whose

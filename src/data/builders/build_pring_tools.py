@@ -17,6 +17,9 @@ Design: docs/superpowers/specs/2026-10-23-pring-wave-discovery-design.md.
 - sandbox/homologs.tsv: mmseqs2 easy-search of every protein against the KB proteins, best 20 non-self
   hits per query (query, target, pident, evalue, bits). Test proteins are <= 40% identical to train, so
   their hits are remote homologs.
+- sandbox_val/scores.tsv.gz and homologs.tsv: the same for the validation gate (build_pring_sandbox): p of every
+  validation pair with the same calibration, and the hits of the training and validation proteins against the
+  training proteins.
 - data/PRING/tools.json records calibration and checksums.
 """
 
@@ -30,7 +33,8 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-from src.data.paths import HIDDEN, PRING, SANDBOX
+from src.data.ids import pair
+from src.data.paths import HIDDEN, PRING, SANDBOX, SANDBOX_VAL
 from src.data.paths import PRING_RAW as RAW
 
 PREDICTOR = PRING / "predictor"
@@ -92,13 +96,33 @@ def homologs(proteins, kb):
     return [(q, *h[1:]) for q in sorted(best) for h in sorted(best[q])[:HOMOLOGS]]
 
 
+def write_tools(out, scores, hits):
+    with gzip.GzipFile(out / "scores.tsv.gz", "wb", mtime=0) as f:  # mtime=0: byte-identical rebuilds
+        f.write("a\tb\tp\n".encode())
+        f.write("".join(f"{u}\t{v}\t{p}\n" for u, v, p in sorted(scores)).encode())
+    with open(out / "homologs.tsv", "w", newline="") as f:
+        w = csv.writer(f, delimiter="\t")
+        w.writerow(["query", "target", "pident", "evalue", "bits"])
+        w.writerows(hits)
+
+
+def kb_homologs(sandbox):
+    proteins = {r["accession"]: r for r in csv.DictReader(open(sandbox / "proteins.tsv"), delimiter="\t")}
+    kb = {x for x, r in proteins.items() if r["candidate"] == "0"}
+    return homologs({x: r["sequence"] for x, r in proteins.items()}, kb)
+
+
 def main():
     assert shutil.which("mmseqs"), "mmseqs not on PATH"
     node2acc = {r["node_id"]: r["uniprot_id"] for r in csv.DictReader(open(RAW / "node_sequences.tsv"), delimiter="\t")}
 
     val = list(csv.DictReader(gzip.open(PREDICTOR / "pring_val.tsv.gz", "rt"), delimiter="\t"))
     xs, ys = [float(r["logit"]) for r in val], [int(r["label"]) for r in val]
-    assert len(val) == sum(1 for _ in open(HIDDEN / "val.csv")) - 1, "val scores do not cover hidden/val.csv"
+    val_scores = [(*pair(node2acc[r["node_a"]], node2acc[r["node_b"]]), float(r["logit"])) for r in val]
+    hidden_val = {pair(r["uniprotID_A"], r["uniprotID_B"]) for r in csv.DictReader(open(HIDDEN / "val.csv"))}
+    assert len(val) == len(hidden_val) and {r[:2] for r in val_scores} == hidden_val, (
+        "val scores do not cover hidden/val.csv: score the new validation pairs with B0 first"
+    )
     a, b = platt(xs, ys)
     n_hits = sum(1 for _ in open(HIDDEN / "test_positives.csv")) - 1
     prevalence = n_hits / CANDIDATE_PAIRS
@@ -117,19 +141,12 @@ def main():
         scores.append((*sorted((u, v)), p))
     assert len(set(scores)) == len(scores) == CANDIDATE_PAIRS, "candidate scores incomplete or repeated"
 
-    seqs = {x: r["sequence"] for x, r in proteins.items()}
-    kb = {x for x, r in proteins.items() if r["candidate"] == "0"}
-    hits = homologs(seqs, kb)
-
-    with gzip.GzipFile(SANDBOX / "scores.tsv.gz", "wb", mtime=0) as f:  # mtime=0: byte-identical rebuilds
-        f.write("a\tb\tp\n".encode())
-        f.write("".join(f"{u}\t{v}\t{p}\n" for u, v, p in sorted(scores)).encode())
-    with open(SANDBOX / "homologs.tsv", "w", newline="") as f:
-        w = csv.writer(f, delimiter="\t")
-        w.writerow(["query", "target", "pident", "evalue", "bits"])
-        w.writerows(hits)
+    hits = kb_homologs(SANDBOX)
+    write_tools(SANDBOX, scores, hits)
+    write_tools(SANDBOX_VAL, [(a, b, f"{p_of(x):.6g}") for a, b, x in val_scores], kb_homologs(SANDBOX_VAL))
     checksums = {
-        f"sandbox/{name}": hashlib.sha256((SANDBOX / name).read_bytes()).hexdigest()[:16]
+        f"{d.name}/{name}": hashlib.sha256((d / name).read_bytes()).hexdigest()[:16]
+        for d in (SANDBOX, SANDBOX_VAL)
         for name in ("scores.tsv.gz", "homologs.tsv")
     }
     stats = {

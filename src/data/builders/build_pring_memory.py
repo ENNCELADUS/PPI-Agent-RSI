@@ -13,6 +13,10 @@ Design: docs/superpowers/specs/2026-11-02-two-layer-memory-agent-design.md.
   (the only proteins that can be in a case), best 20 non-self per query. The `cases` tool's similar_to reads it.
 - hidden/final_test.csv: PRING's labelled test pairs (hidden/test.csv) with both ends among final-test proteins,
   no self pairs, balanced 1:1 by sampling the larger class down with random.Random(0) (sorted first).
+- Validation gate (user decision 2026-11-24): hidden/val_gate.csv = 200 positives and 200 negatives of
+  hidden/val.csv, each sorted and shuffled with random.Random(0); after every round the agent classifies them in
+  sandbox_val/ (build_pring_sandbox, build_pring_tools) with its candidate memory. sandbox_val/case_homologs.tsv
+  holds the hits of the validation proteins against the discovery proteins. No validation protein is in a view.
 - data/PRING/memory_split.json: counts and checksums. The ribosome stays in both views (user decision).
 """
 
@@ -23,14 +27,34 @@ import json
 import random
 import shutil
 
+from src.data.builders.build_mus22t_rsi import val_gate
 from src.data.builders.build_pring_noribo import drop_rows
 from src.data.builders.build_pring_tools import homologs
 from src.data.paths import HIDDEN, PRING, SANDBOX
+from src.data.paths import SANDBOX_VAL as VAL
 
 SEED = 0
 FINAL_SHARE = 0.4
 DISC, FINAL = PRING / "sandbox_disc", PRING / "sandbox_final"
 FINAL_TEST = HIDDEN / "final_test.csv"
+VAL_GATE = HIDDEN / "val_gate.csv"
+HEADER = ["uniprotID_A", "uniprotID_B", "isInteraction"]
+
+
+def labelled(path):
+    return [(r["uniprotID_A"], r["uniprotID_B"], int(r["isInteraction"])) for r in csv.DictReader(open(path))]
+
+
+def gate_pairs(val, n=400, seed=SEED):
+    """n / 2 positives and n / 2 negatives of the validation set, fixed for every round and every run."""
+    return val_gate(val, val, n, seed)
+
+
+def write_pairs(path, rows):
+    with open(path, "w", newline="") as f:
+        w = csv.writer(f)
+        w.writerow(HEADER)
+        w.writerows(rows)
 
 
 def split(candidates, seed=SEED):
@@ -84,18 +108,18 @@ def main():
         n, counts = view(out, drop)
         stats[f"{name}_view"] = {"candidates": n, "pairs": n * (n - 1) // 2, "rows_dropped": counts}
 
-    hits = homologs({x: proteins[x]["sequence"] for x in candidates}, disc)
+    val_rows = csv.DictReader(open(VAL / "proteins.tsv"), delimiter="\t")
+    val_seqs = {r["accession"]: r["sequence"] for r in val_rows if r["candidate"] == "1"}
+    assert not val_seqs.keys() & proteins.keys(), "validation protein in the sandbox of the rounds"
+    hits = homologs({x: proteins[x]["sequence"] for x in candidates} | val_seqs, disc)
     write_homologs(DISC / "case_homologs.tsv", hits, disc)
     write_homologs(FINAL / "case_homologs.tsv", hits, final)
+    write_homologs(VAL / "case_homologs.tsv", hits, val_seqs.keys())
 
-    labelled = [
-        (r["uniprotID_A"], r["uniprotID_B"], int(r["isInteraction"])) for r in csv.DictReader(open(HIDDEN / "test.csv"))
-    ]
-    test = final_pairs(labelled, final)
-    with open(FINAL_TEST, "w", newline="") as f:
-        w = csv.writer(f)
-        w.writerow(["uniprotID_A", "uniprotID_B", "isInteraction"])
-        w.writerows(test)
+    test = final_pairs(labelled(HIDDEN / "test.csv"), final)
+    write_pairs(FINAL_TEST, test)
+    gate = gate_pairs(labelled(HIDDEN / "val.csv"))
+    write_pairs(VAL_GATE, gate)
     hits_disc = sum(
         1
         for r in csv.DictReader(open(HIDDEN / "test_positives.csv"))
@@ -105,13 +129,14 @@ def main():
         "discovery_hits": hits_disc,
         "final_test_pairs": len(test),
         "final_test_positives": sum(r[2] for r in test),
+        "val_gate_pairs": len(gate),
         "case_homolog_queries": {
             "discovery": len({h[0] for h in hits if h[0] in disc}),
             "final": len({h[0] for h in hits if h[0] in final}),
         },
         "outputs": {
             p.relative_to(PRING).as_posix(): hashlib.sha256(p.read_bytes()).hexdigest()[:16]
-            for p in (FINAL_TEST, DISC / "case_homologs.tsv", FINAL / "case_homologs.tsv")
+            for p in (FINAL_TEST, VAL_GATE, *(d / "case_homologs.tsv" for d in (DISC, FINAL, VAL)))
         },
     }
     (PRING / "memory_split.json").write_text(json.dumps(stats, indent=1) + "\n")

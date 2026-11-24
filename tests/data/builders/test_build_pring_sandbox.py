@@ -1,6 +1,28 @@
 import random
 
-from src.data.builders.build_pring_sandbox import balance, go_descendants, scrub
+import pytest
+
+from src.data.builders.build_pring_sandbox import balance, go_descendants, node_split, scrub
+
+
+def test_node_split_keeps_inside_pairs_and_drops_cross_boundary():
+    region = {
+        "train_nodes": ["a", "b", "c"],
+        "v_val": ["x", "y"],
+        "val_positives": [["x", "y"], ["x", "x"]],
+        "val_negatives": [],
+    }
+    labelled = {("a", "b"): 1, ("a", "c"): 0, ("a", "x"): 1, ("x", "y"): 1}
+    known = {("a", "b"), ("a", "x"), ("x", "y")}
+    got = node_split(labelled, {("b", "c"): "negatome", ("b", "x"): "negatome"}, known, region)
+    assert got["train"] == {("a", "b"): 1, ("a", "c"): 0, ("b", "c"): 0}
+    assert got["val"] == {("x", "y"): 1}
+
+
+def test_node_split_rejects_a_region_that_misses_a_validation_positive():
+    region = {"train_nodes": ["a"], "v_val": ["x", "y"], "val_positives": [], "val_negatives": []}
+    with pytest.raises(AssertionError):
+        node_split({("x", "y"): 1}, {}, {("x", "y")}, region)
 
 
 def test_balance_keeps_tested_negatives_and_fills_to_one_to_one():
