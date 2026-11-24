@@ -1,86 +1,83 @@
-# PPI-Agent-RSI
+<div align="center">
 
-LLM scientific agents for membrane protein–protein interaction (PPI) discovery, and recursive
-self-improvement of the agent workflow under sparse experimental feedback. Current phase: measure a
-fixed, expert-designed agent baseline before building any RSI.
+  <h1 style="margin-top: 10px;">PPI-Agent-RSI</h1>
 
-## Layout
+  <h3>LLM scientific agents for membrane protein–protein interaction discovery, with recursive self-improvement under sparse experimental feedback</h3>
 
-| Path | Contents |
-| --- | --- |
-| `docs/introduction.md` | Motivation and the three research directions |
-| `docs/initial_baseline.md` | Baseline agent design and evaluation protocol |
-| `docs/task-setting.html` | Problem formulation: train / validation / acquisition / final test splits |
-| `docs/literature.md` | Related work, with links to local PDFs |
-| `docs/research-reports/` | Dated deep-research reports; `research_notes/` holds the notes behind each |
-| `literature/` | PDFs by topic (`ppi`, `science-agents`, `self-improvement`, `feedback-benchmarks`); index in `literature/README.md` |
-| `docs/superpowers/specs/` | Dated design documents |
-| `results/` | Tracked readable summaries, one folder per run (raw artifacts in `data/PRING/runs/`) |
-| `src/` | The code, one package; module map in [`src/README.md`](src/README.md) |
-| `tests/` | pytest suite mirroring `src/` |
-| `data/` | Private TMP data, git-ignored; never shared outside the configured LLM |
+  <div align="center">
+    <a href="https://github.com/ENNCELADUS/PPI-Agent-RSI/graphs/commit-activity"><img alt="GitHub commit activity" src="https://img.shields.io/github/commit-activity/m/ENNCELADUS/PPI-Agent-RSI"/></a>
+    <a href="https://www.python.org/downloads/"><img alt="Python" src="https://img.shields.io/badge/python-3.11+-blue.svg"/></a>
+    <a href="https://docs.astral.sh/uv/"><img alt="uv" src="https://img.shields.io/badge/env-uv-purple.svg"/></a>
+  </div>
 
-## Benchmarks
+  <p>
+    <a href="#why-ppi-agent-rsi">Why?</a>
+    ◆ <a href="#quick-start">Quick Start</a>
+    ◆ <a href="#installation">Installation</a>
+    ◆ <a href="#architecture">Architecture</a>
+  </p>
 
-- **Private (built):** human transmembrane PPIs; test positives have no evidence in any public PPI
-  database, with 1:1 degree-preserving negatives. See `CLAUDE.md` for the build commands.
-- **22T mouse agent split and sandbox (built; run with `src.eval.pring_test --data mus22t`):** the private 22T mouse membrane positives split at
-  random 8:1:1 (transductive: proteins appear in every split) with new PRING degree-preserving negatives at 1:1;
-  train = KB, val = selection only (DL validation; the reveal rounds' keep-or-drop gate), test = final (RSI reveals part of test). Labels may be public; the agent's sandbox has no web tools. The agent
-  sees `data/MUS22T/sandbox/` (PRING-sandbox layout, mouse UniProt annotations, KB = train). See
-  `build_mus22t_agent_split.py` and `build_mus22t_sandbox.py` in `src/data/builders/`. Test AUPRC: LLM-only
-  agent 0.587, the V3 predictor 0.716, and the agent with V3's scores (`--predictor`, `predict_pairs`, `build_mus22t_scores.py`)
-  0.708; the PRING-trained DL predictor without 22T training 0.597 (`results/classification-test/summary.html`, with the
-  PRING test and the DeepSeek-V4 Pro cost of the 22T reveal runs: $3.1–3.6 per round, $37–47 for the final set).
-- **22T reveal rounds (done):** the 22T test split is cut once into 10 fixed rounds of 100 revealed pairs and a final
-  set of 8,366 pairs (`build_mus22t_rsi.py`). Every arm gets the same rounds and final set: V3 retrained on each round's
-  labels (`train_mus22t_al.sh`, H20), the LLM-only agent, and the LLM agent with the newest checkpoint
-  (`src.eval.reveal_rounds`). Final-set AUPRC: V3 0.716, V3 retrained on all rounds 0.712, LLM-only 0.573, LLM +
-  checkpoint 0.691 (ungated runs). Since 2026-11-07 every arm keeps a round only if its val AUPRC beats every
-  earlier kept round (the DL checkpoint, or the agent's memory on 400 fixed val pairs); otherwise the round is dropped. Gated final-set AUPRC: DL 0.735 (rounds 1 and 3 kept), LLM-only 0.593 (round 1 kept),
-  LLM + DL 0.715 (rounds 1, 2 and 6 kept; 0.735 for its predictor). Design notes in `docs/superpowers/` are local and not tracked.
-- **SEAL-protocol splits (built):** the SEAL PPI baseline protocol (random edge 80/10/10, 1:1), so DL numbers compare
-  with SEAL's: the private 22T mouse membrane data (22-tissue proteomics) and the human TMP data (all stages). Most
-  positives are public or orthologs of public pairs, so these are not agent test pools. See
-  `src/data/builders/build_seal_split.py`.
-- **PRING dev sandbox (built):** an internal, closed-world benchmark built from PRING human data, for
-  debugging the agent before it sees the private test set. Its 1:1 train and val splits form the agent's
-  reference KB; the test proteins are the closed-loop discovery candidates. Its numbers are never reported. See the [design](docs/superpowers/specs/2026-10-23-pring-sandbox-design.md).
-- **Closed-loop discovery benchmark (true-feedback baseline run on DeepSeek, internal):** the agent searches all
-  pairs among the sandbox's test proteins in rounds of 200 picks and sees the measured result of each of its
-  own picks before the next round. See the [design](docs/superpowers/specs/2026-10-23-pring-wave-discovery-design.md).
-  Ribosome ablation (done): the same agent with the 71 cytosolic ribosomal proteins removed from the candidates. The
-  agent's prompt no longer states the hit rate among candidate pairs (unknown in a real screen).
-- **PRING classification test (implemented):** PRING train is the agent's KB, val is kept for the RSI
-  part, and an LLM-only agent (no DL predictor, no web) predicts each pair of PRING's test split as released
-  (self pairs included). Full test, DeepSeek-V4 Pro: AUPRC 0.799 vs B0 0.736
-  ([results](results/classification-test/summary.html)). See the [design](docs/superpowers/specs/2026-11-01-pring-classification-test-design.md).
-- **Two-layer memory agent (run, DeepSeek-V4 Pro):** the PRING test proteins are split 60/40. Ten discovery rounds
-  on the 60% build a case memory and reviewer-updated lessons. A fixed 1:1 test (~10.3k pairs) on the 40% compares
-  memory (AUPRC 0.803), cases-only (0.804), cases without the predictor (0.811), empty-memory (0.775), B0 (0.695)
-  and B0 retrained on the 1,895 revealed pairs (0.717, `src.eval.al_predictor`). See the [design](docs/superpowers/specs/2026-11-02-two-layer-memory-agent-design.md).
-- **Other public tracks (surveyed):** [2026-10-19 survey](docs/research-reports/2026-10-19-public-ppi-benchmarks.md):
-  BioDiscoveryAgent screens, SKEMPI 2.0 via `ppi-mutation-ddg`, and a post-cutoff IntAct/BioGRID slice.
-  All are run closed-world, because their labels are retrievable online.
+  <img src="./docs/rsi-architecture.svg" alt="Recursive self-improvement rounds and frozen inference" width="900">
 
-## Setup
+</div>
+
+**Figure.** **a**, In each round, the agent (a frozen LLM in a tool-call harness, with memory and a DL
+predictor) predicts a batch of unlabeled pairs. Then the labels are revealed and kept as cases. A reviewer
+LLM updates the lessons, and the DL predictor is retrained. A validation gate keeps the round only if the
+validation AUPRC improves. **b**, After the last round, the memory and the predictor are frozen, and the
+same harness predicts the held-out pairs.
+
+## Why PPI-Agent-RSI?
+
+Most membrane PPIs are not in public databases, and wet-lab labels arrive slowly and in small batches. This
+project asks if an LLM agent can learn from such sparse feedback and if it gains more than a DL predictor
+that is retrained on the same labels.
+
+- **🧪 Measure first** – We measure a *fixed*, expert-designed agent before we build any RSI. Failure modes come from evaluation, not from assumptions.
+- **🔒 Private test data** – The private test positives have no evidence in any public PPI database, so the LLM cannot know them from memory.
+- **🧠 Two-layer memory** – Tested cases (system-written) and lessons (reviewer-written) carry what the agent learns to new pairs.
+- **📊 DL comparison** – Each LLM arm runs next to a DL predictor that is retrained on the same revealed labels.
+- **🚪 Closed-world sandbox** – The agent sees only its sandbox files and has no web tools.
+
+## Quick Start
 
 ```bash
+# 1. Clone and install (Python ≥ 3.11 via uv; Node for the pi agent runtime)
+git clone https://github.com/ENNCELADUS/PPI-Agent-RSI.git
+cd PPI-Agent-RSI
 uv sync
-(cd src/agent/pi && npm ci)   # the pi agent runtime (Node), for closed-loop discovery runs
+(cd src/agent/pi && npm ci)
+
+# 2. Configure the LLM endpoint (the shell only; never written to files)
+export GATEWAY_API_KEY=...  GATEWAY_API_BASE=...
+
+# 3. Build the PRING classification sandbox and run one batch
+uv run python -m src.data.builders.build_pring_sandbox
+uv run python -m src.data.builders.build_pring_cls
+uv run python -m src.eval.pring_test smoke-run --model gateway/deepseek-pro --limit 1
 ```
 
-For a DeepSeek V4 Pro endpoint, set `LLM_API_KEY` and `LLM_API_BASE` in the shell, then use
+> **Prerequisites**: the PRING data and the private TMP / 22T data in the git-ignored `data/`. The data is not in
+> this repository. Run all modules from the repository root as `python -m src.<module>`.
+
+## Installation
+
+```bash
+uv sync                          # core dependencies + dev group (pytest, ruff)
+uv sync --extra predictor        # src/predictor: torch, numpy
+uv sync --extra dgcnn            # src/baselines/dgcnn (SEAL baseline)
+(cd src/agent/pi && npm ci)      # the pinned pi agent runtime
+```
+
+### LLM endpoint
+
+**Option 1: Model API gateway (default).** Set `GATEWAY_API_KEY` and `GATEWAY_API_BASE`. Both are required;
+the adapter has no default endpoint. GPT uses the streaming `/api/v1/response` endpoint;
+`gateway/deepseek-pro` and `gateway/kimi` use `/api/v1/start`. pi still manages the tool loop and the Python tools.
+
+**Option 2: DeepSeek V4 Pro endpoint.** Set `LLM_API_KEY` and `LLM_API_BASE`, then use
 `--model custom/<model-id> --thinking high`. The provider reuses pi's built-in model settings.
-Use `--workers 8` for eight concurrent classification batches. Remote runs follow the local, untracked `remote-api-agent` skill.
 
-## Model API gateway
-
-The default model is `gateway/deepseek-pro`. GPT uses the streaming `/api/v1/response`
-endpoint (the gateway restricts reasoning with tools on `/start`); `gateway/deepseek-pro`
-and `gateway/kimi` use `/api/v1/start`. pi still manages the tool loop and Python tools.
-Set `GATEWAY_API_KEY` and `GATEWAY_API_BASE` in the environment. Both are required;
-the adapter has no default endpoint. Credentials are never written to run artifacts.
 On Windows, `run-agent.ps1` also reads the key from the current user's environment:
 
 ```powershell
@@ -88,7 +85,30 @@ On Windows, `run-agent.ps1` also reads the key from the current user's environme
 .\run-agent.ps1 -m src.eval.pring_test gateway-test --model gateway/deepseek-pro --limit 1
 ```
 
-Build the corresponding sandbox data before running experiments. Gateway model limits use conservative
-local budgets (128k context, 16k output), not advertised server limits. Reported gateway costs are zero
-placeholders because actual pricing is unknown. Kimi's thinking level is not mapped to an effort parameter.
-The original `custom/` provider remains available with `LLM_API_KEY` and `LLM_API_BASE`.
+> **Notes**: Credentials are never written to run artifacts. Gateway model limits use local budgets (128k context,
+> 16k output). Reported gateway costs are zero placeholders. Use `--workers 8` for eight concurrent batches.
+> Remote runs follow the local, untracked `remote-api-agent` skill. The full list of build and run commands is in `CLAUDE.md`.
+
+## Architecture
+
+| Package | Role |
+| --- | --- |
+| `src/data` | Paths, protein identity, public-database parsers, negative sampling; `builders/` makes every split and sandbox |
+| `src/agent` | The agent: tools served over localhost HTTP, one pi session per round, the two memory layers, prompts |
+| `src/predictor` | The B0 / V3 motif-graph PPI predictor (inference only) and its ESM-3 feature store |
+| `src/baselines` | The DGCNN (SEAL) baseline |
+| `src/eval` | Drives the agent: the oracle (sealed labels), discovery rounds, classification tests, reveal rounds, scoring |
+
+Rules: `src/data` never imports `eval` or `baselines`. `src/agent` never imports `eval` and never reads `hidden/`.
+The module map is in [`src/README.md`](src/README.md).
+
+| Path | Contents |
+| --- | --- |
+| `docs/introduction.md` | Motivation and the three research directions |
+| `docs/task-setting.html` | Problem formulation: train / validation / acquisition / final test splits |
+| `docs/literature.md` | Related work, with links to local PDFs |
+| `docs/rsi-architecture.svg` | The figure above |
+| `results/` | Readable summaries, one folder per run (raw artifacts in `data/PRING/runs/`) |
+| `tests/` | pytest suite, mirrors `src/` |
+| `literature/README.md` | Index of the PDFs by topic (the PDFs are git-ignored) |
+| `data/`, `docs/research-reports/`, `docs/superpowers/` | Git-ignored: private data, research reports, design notes |

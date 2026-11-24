@@ -1,0 +1,309 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1860 846" width="1860" height="846" font-family="Helvetica, Arial, sans-serif">
+<defs>
+<marker id="ah" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="4.2" markerHeight="4.2" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#2b2b2b"/></marker>
+<marker id="ahg" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="4.2" markerHeight="4.2" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#2E8B2E"/></marker>
+<marker id="ahr" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#E0221C"/></marker>
+<marker id="sm" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#2b2b2b"/></marker>
+<symbol id="brain" viewBox="0 0 64 52"><g fill="#EAF3FD" stroke="#0D6CDF" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M31,6 C27,1 18,1 16,7 C9,6 4,12 6,18 C1,21 1,29 5,32 C2,38 7,45 14,44 C16,50 26,51 31,46 Z"/><path d="M33,6 C37,1 46,1 48,7 C55,6 60,12 58,18 C63,21 63,29 59,32 C62,38 57,45 50,44 C48,50 38,51 33,46 Z"/><path d="M16,7 C17,12 22,13 24,12 M6,18 C10,20 14,18 15,16 M5,32 C9,30 13,31 15,34 M14,44 C15,40 19,38 23,39 M22,24 C25,22 28,24 29,27 M17,26 C14,26 12,28 12,30" fill="none"/><path d="M48,7 C47,12 42,13 40,12 M58,18 C54,20 50,18 49,16 M59,32 C55,30 51,31 49,34 M50,44 C49,40 45,38 41,39 M42,24 C39,22 36,24 35,27 M47,26 C50,26 52,28 52,30" fill="none"/></g></symbol>
+<symbol id="snow" viewBox="-10 -10 20 20"><g stroke="#2B8BE0" stroke-width="1.9" stroke-linecap="round"><path d="M0,-9 V9 M-7.8,-4.5 L7.8,4.5 M-7.8,4.5 L7.8,-4.5"/><path d="M-2.5,-7 L0,-4.5 L2.5,-7 M-2.5,7 L0,4.5 L2.5,7 M-7.3,-1 L-3.9,-2.3 L-4.8,-5.5 M7.3,1 L3.9,2.3 L4.8,5.5 M-7.3,1 L-3.9,2.3 L-4.8,5.5 M7.3,-1 L3.9,-2.3 L4.8,-5.5" fill="none"/></g></symbol>
+<symbol id="kbnet" viewBox="0 0 80 60"><g stroke="#1E4F8E" stroke-width="2.6"><path d="M40,9 L10,30 L40,51 L70,30 Z" fill="none"/><g fill="#9CC3EC"><circle cx="40" cy="9" r="8"/><circle cx="10" cy="30" r="8"/><circle cx="70" cy="30" r="8"/><circle cx="40" cy="51" r="8"/></g></g></symbol>
+<symbol id="dlnet" viewBox="0 0 80 50"><g stroke="#E2571C" stroke-width="2.6"><path d="M10,32 L30,12 L52,14 L70,32 L50,40 L30,40 Z M30,12 L30,40 M52,14 L50,40" fill="none"/><g fill="#FCD9BE"><circle cx="10" cy="32" r="7"/><circle cx="30" cy="12" r="7"/><circle cx="52" cy="14" r="7"/><circle cx="70" cy="32" r="7"/><circle cx="30" cy="40" r="7"/><circle cx="50" cy="40" r="7"/></g></g></symbol>
+<symbol id="flask" viewBox="0 0 50 56"><g stroke="#7B3FA0" stroke-width="3" stroke-linejoin="round"><path d="M17,4 H33 M20,4 V20 L5,47 C3,51 6,53 9,53 H41 C44,53 47,51 45,47 L30,20 V4" fill="#F7F0FB"/><path d="M11,36 H39 L44,47 C46,51 44,52 41,52 H9 C6,52 4,51 6,47 Z" fill="#B67AD8" stroke="none"/><circle cx="21" cy="44" r="2.5" fill="#F7F0FB" stroke="none"/><circle cx="30" cy="40" r="1.8" fill="#F7F0FB" stroke="none"/></g></symbol>
+<symbol id="cabinet" viewBox="0 0 60 76"><g stroke="#7B3FA0" stroke-width="3" fill="#C9A6E4"><rect x="3" y="3" width="54" height="34" rx="3"/><rect x="3" y="39" width="54" height="34" rx="3"/><rect x="21" y="14" width="18" height="7" rx="2" fill="#F7F0FB"/><rect x="21" y="50" width="18" height="7" rx="2" fill="#F7F0FB"/></g></symbol>
+<symbol id="lock" viewBox="0 0 24 28"><path d="M6,12 V8 C6,1 18,1 18,8 V12" fill="none" stroke="#1f1f1f" stroke-width="3"/><rect x="2" y="12" width="20" height="15" rx="3" fill="#1f1f1f"/><circle cx="12" cy="19" r="2.4" fill="#E6F4DE"/></symbol>
+</defs>
+<rect width="1860" height="846" fill="#ffffff"/>
+<text x="20" y="38" font-size="34" font-weight="bold" text-anchor="start" fill="#1f1f1f" ><tspan>a</tspan><tspan dx="14">Recursive self-improvement rounds</tspan></text>
+<text x="1340" y="38" font-size="34" font-weight="bold" text-anchor="start" fill="#1f1f1f" ><tspan>b</tspan><tspan dx="14">Inference on held-out pairs</tspan></text>
+<line x1="1326" y1="6" x2="1326" y2="772" stroke="#333" stroke-width="2"/>
+<rect x="8" y="90" width="230" height="656" rx="16" fill="#F7F7F7"/>
+<rect x="8" y="90" width="230" height="656" rx="16" fill="none" stroke="#9A9A9A" stroke-width="2.0"/>
+<text x="123" y="122" font-size="27" font-weight="bold" text-anchor="middle" fill="#1f1f1f" >Input</text>
+<rect x="18" y="142" width="212" height="178" rx="12" fill="#F1F7FD"/>
+<clipPath id="c1"><rect x="18" y="142" width="212" height="178" rx="12"/></clipPath>
+<rect x="18" y="142" width="212" height="36" fill="#CFE2F7" clip-path="url(#c1)"/>
+<rect x="18" y="142" width="212" height="178" rx="12" fill="none" stroke="#8DB0D6" stroke-width="2.0"/>
+<text x="124" y="168" font-size="21" font-weight="bold" text-anchor="middle" fill="#1f1f1f" >Knowledge base</text>
+<use href="#kbnet" x="88" y="192" width="74" height="58"/>
+<text x="124" y="287" font-size="17" font-weight="normal" text-anchor="middle" fill="#1f1f1f" >known PPIs +</text>
+<text x="124" y="309" font-size="17" font-weight="normal" text-anchor="middle" fill="#1f1f1f" >protein annotations</text>
+<rect x="18" y="340" width="212" height="192" rx="12" fill="#F1F7FD"/>
+<clipPath id="c2"><rect x="18" y="340" width="212" height="192" rx="12"/></clipPath>
+<rect x="18" y="340" width="212" height="36" fill="#CFE2F7" clip-path="url(#c2)"/>
+<rect x="18" y="340" width="212" height="192" rx="12" fill="none" stroke="#8DB0D6" stroke-width="2.0"/>
+<text x="124" y="367" font-size="21" font-weight="bold" text-anchor="middle" fill="#1f1f1f" >Unlabeled batch <tspan font-family="'Times New Roman', Times, serif" font-style="italic">B</tspan><tspan font-family="'Times New Roman', Times, serif" font-style="italic" font-size="0.75em" dy="0.25em">t</tspan><tspan dy="-0.25em"> </tspan></text>
+<line x1="90" y1="398" x2="140" y2="398" stroke="#1E4F8E" stroke-width="2.6"/>
+<circle cx="90" cy="398" r="8" fill="#BFD7F1" stroke="#1E4F8E" stroke-width="2.4"/>
+<circle cx="140" cy="398" r="8" fill="#BFD7F1" stroke="#1E4F8E" stroke-width="2.4"/>
+<text x="171" y="405" font-size="19" font-weight="bold" text-anchor="middle" fill="#1f1f1f" >?</text>
+<line x1="90" y1="428" x2="140" y2="428" stroke="#1E4F8E" stroke-width="2.6"/>
+<circle cx="90" cy="428" r="8" fill="#BFD7F1" stroke="#1E4F8E" stroke-width="2.4"/>
+<circle cx="140" cy="428" r="8" fill="#BFD7F1" stroke="#1E4F8E" stroke-width="2.4"/>
+<text x="171" y="435" font-size="19" font-weight="bold" text-anchor="middle" fill="#1f1f1f" >?</text>
+<circle cx="117" cy="448" r="2.2" fill="#1f1f1f"/>
+<circle cx="117" cy="455" r="2.2" fill="#1f1f1f"/>
+<circle cx="117" cy="462" r="2.2" fill="#1f1f1f"/>
+<text x="124" y="496" font-size="17" font-weight="normal" text-anchor="middle" fill="#1f1f1f" >100 candidate pairs</text>
+<text x="124" y="518" font-size="17" font-weight="normal" text-anchor="middle" fill="#1f1f1f" >per round</text>
+<rect x="18" y="556" width="212" height="166" rx="12" fill="#F1F7FD"/>
+<clipPath id="c3"><rect x="18" y="556" width="212" height="166" rx="12"/></clipPath>
+<rect x="18" y="556" width="212" height="36" fill="#CFE2F7" clip-path="url(#c3)"/>
+<rect x="18" y="556" width="212" height="166" rx="12" fill="none" stroke="#8DB0D6" stroke-width="2.0"/>
+<text x="124" y="585" font-size="22" font-weight="bold" text-anchor="middle" fill="#1f1f1f" >Initial state</text>
+<rect x="31" y="612" width="190" height="42" rx="9" fill="#E6F4DE"/>
+<rect x="31" y="612" width="190" height="42" rx="9" fill="none" stroke="#3F9A3F" stroke-width="2.0"/>
+<text x="126" y="640" font-size="18" font-weight="normal" text-anchor="middle" fill="#1f1f1f" >empty memory <tspan font-family="'Times New Roman', Times, serif" font-style="italic" font-size="20">M</tspan><tspan font-family="'Times New Roman', Times, serif" font-style="italic" font-size="0.75em" dy="0.25em">0</tspan><tspan dy="-0.25em"> </tspan></text>
+<rect x="31" y="668" width="190" height="42" rx="9" fill="#FDE6CF"/>
+<rect x="31" y="668" width="190" height="42" rx="9" fill="none" stroke="#EE8A3A" stroke-width="2.0"/>
+<text x="126" y="696" font-size="18" font-weight="normal" text-anchor="middle" fill="#1f1f1f" >predictor <tspan font-family="'Times New Roman', Times, serif" font-style="italic" font-size="20">C</tspan><tspan font-family="'Times New Roman', Times, serif" font-style="italic" font-size="0.75em" dy="0.25em">0</tspan><tspan dy="-0.25em"> </tspan></text>
+<path d="M240,405 H268" fill="none" stroke="#2b2b2b" stroke-width="3.2" marker-end="url(#ah)"/>
+<path d="M350,290 L436,375 L350,460 L264,375 Z" fill="#FCEFB4" stroke="#E1BF3C" stroke-width="2.5" stroke-linejoin="round"/>
+<text x="350" y="358" font-size="21" font-weight="bold" text-anchor="middle" fill="#1f1f1f" >Validation</text>
+<text x="350" y="382" font-size="21" font-weight="bold" text-anchor="middle" fill="#1f1f1f" >gate</text>
+<text x="350" y="404" font-size="14" font-weight="normal" text-anchor="middle" fill="#1f1f1f" >val AUPRC &gt;</text>
+<text x="350" y="421" font-size="14" font-weight="normal" text-anchor="middle" fill="#1f1f1f" >best kept?</text>
+<path d="M350,288 C352,225 395,196 440,190" fill="none" stroke="#2b2b2b" stroke-width="3.2" marker-end="url(#ah)"/>
+<text x="333" y="252" font-size="18" font-weight="normal" text-anchor="middle" fill="#1f1f1f" >yes</text>
+<text x="378" y="148" font-size="20" font-weight="normal" text-anchor="middle" fill="#1f1f1f" >commit</text>
+<text x="378" y="174" font-size="20" font-weight="normal" text-anchor="middle" fill="#1f1f1f" ><tspan font-family="'Times New Roman', Times, serif" font-style="italic" font-size="21">M</tspan><tspan font-family="'Times New Roman', Times, serif" font-style="italic" font-size="0.75em" dy="0.25em">t</tspan><tspan dy="-0.25em"> </tspan>, <tspan font-family="'Times New Roman', Times, serif" font-style="italic" font-size="21">C</tspan><tspan font-family="'Times New Roman', Times, serif" font-style="italic" font-size="0.75em" dy="0.25em">t</tspan><tspan dy="-0.25em"> </tspan></text>
+<path d="M410,632 C350,615 330,540 340,466" fill="none" stroke="#2b2b2b" stroke-width="3.2" marker-end="url(#ah)"/>
+<path d="M372,470 C380,510 395,530 413,547" fill="none" stroke="#E0221C" stroke-width="2.6" marker-end="url(#ahr)" marker-start="url(#ahr)" stroke-dasharray="7 5"/>
+<text x="386" y="482" font-size="18" font-weight="normal" text-anchor="start" fill="#1f1f1f" >no</text>
+<text x="467" y="503" font-size="18" font-weight="normal" text-anchor="middle" fill="#E0221C" >roll back to</text>
+<text x="465" y="524" font-size="18" font-weight="normal" text-anchor="middle" fill="#E0221C" >last kept state</text>
+<rect x="445" y="75" width="470" height="282" rx="18" fill="#E6F0FB"/>
+<clipPath id="c4"><rect x="445" y="75" width="470" height="282" rx="18"/></clipPath>
+<rect x="445" y="75" width="470" height="36" fill="#CFE2F7" clip-path="url(#c4)"/>
+<rect x="445" y="75" width="470" height="282" rx="18" fill="none" stroke="#3F7DC8" stroke-width="2.5"/>
+<text x="690" y="104" font-size="29" font-weight="bold" text-anchor="middle" fill="#1f1f1f" >Predict</text>
+<rect x="458" y="114" width="447" height="232" rx="14" fill="#EEF5FD"/>
+<rect x="458" y="114" width="447" height="232" rx="14" fill="none" stroke="#2457A6" stroke-width="2.0" stroke-dasharray="9 6"/>
+<text x="632" y="141" font-size="20" font-weight="bold" text-anchor="middle" fill="#1f1f1f" >Agent harness</text>
+<rect x="470" y="155" width="78" height="50" rx="8" fill="#DCEBFA"/>
+<rect x="470" y="155" width="78" height="50" rx="8" fill="none" stroke="#3F7DC8" stroke-width="1.6"/>
+<text x="509.0" y="176" font-size="15.5" font-weight="bold" text-anchor="middle" fill="#1f1f1f" >protein</text>
+<text x="509.0" y="195" font-size="15.5" font-weight="bold" text-anchor="middle" fill="#1f1f1f" >lookup</text>
+<rect x="470" y="219" width="78" height="50" rx="8" fill="#DCEBFA"/>
+<rect x="470" y="219" width="78" height="50" rx="8" fill="none" stroke="#3F7DC8" stroke-width="1.6"/>
+<text x="509.0" y="240" font-size="15.5" font-weight="bold" text-anchor="middle" fill="#1f1f1f" >KB</text>
+<text x="509.0" y="259" font-size="15.5" font-weight="bold" text-anchor="middle" fill="#1f1f1f" >partners</text>
+<rect x="701" y="159" width="80" height="48" rx="8" fill="#DCEBFA"/>
+<rect x="701" y="159" width="80" height="48" rx="8" fill="none" stroke="#3F7DC8" stroke-width="1.6"/>
+<text x="741.0" y="180" font-size="15.5" font-weight="bold" text-anchor="middle" fill="#1f1f1f" >homolog</text>
+<text x="741.0" y="199" font-size="15.5" font-weight="bold" text-anchor="middle" fill="#1f1f1f" >search</text>
+<rect x="701" y="229" width="80" height="48" rx="8" fill="#DCEBFA"/>
+<rect x="701" y="229" width="80" height="48" rx="8" fill="none" stroke="#3F7DC8" stroke-width="1.6"/>
+<text x="741.0" y="250" font-size="15.5" font-weight="bold" text-anchor="middle" fill="#1f1f1f" >case</text>
+<text x="741.0" y="269" font-size="15.5" font-weight="bold" text-anchor="middle" fill="#1f1f1f" >retrieval</text>
+<rect x="470" y="281" width="80" height="62" rx="8" fill="#FDE6CF"/>
+<rect x="470" y="281" width="80" height="62" rx="8" fill="none" stroke="#EE8A3A" stroke-width="1.8"/>
+<text x="510" y="300" font-size="15.5" font-weight="bold" text-anchor="middle" fill="#1f1f1f" >DL</text>
+<text x="510" y="318" font-size="15.5" font-weight="bold" text-anchor="middle" fill="#1f1f1f" >predictor</text>
+<text x="510" y="338" font-size="16" font-weight="normal" text-anchor="middle" fill="#1f1f1f" ><tspan font-family="'Times New Roman', Times, serif" font-style="italic" font-size="17">C</tspan><tspan font-family="'Times New Roman', Times, serif" font-style="italic" font-size="0.75em" dy="0.25em">t−1</tspan><tspan dy="-0.25em"> </tspan></text>
+<use href="#brain" x="598" y="196" width="56" height="46"/>
+<use href="#snow" x="650" y="242" width="22" height="22"/>
+<text x="628" y="172" font-size="16.5" font-weight="normal" text-anchor="middle" fill="#1f1f1f" >tool-call loop</text>
+<path d="M592,198 C606,180 650,180 664,196" fill="none" stroke="#2b2b2b" stroke-width="2" marker-end="url(#sm)"/>
+<text x="628" y="272" font-size="16" font-weight="bold" text-anchor="middle" fill="#1f1f1f" >LLM</text>
+<text x="628" y="290" font-size="15" font-weight="normal" text-anchor="middle" fill="#1f1f1f" >(frozen</text>
+<text x="628" y="307" font-size="15" font-weight="normal" text-anchor="middle" fill="#1f1f1f" >weights)</text>
+<path d="M664,312 C650,330 606,330 592,314" fill="none" stroke="#2b2b2b" stroke-width="2" marker-end="url(#sm)"/>
+<line x1="566" y1="176" x2="566" y2="306" stroke="#2b2b2b" stroke-width="1.4" stroke-dasharray="4 4"/>
+<line x1="684" y1="183" x2="684" y2="252" stroke="#2b2b2b" stroke-width="1.4" stroke-dasharray="4 4"/>
+<line x1="556" y1="183" x2="582" y2="196" stroke="#2b2b2b" stroke-width="1.8" marker-start="url(#sm)" marker-end="url(#sm)"/>
+<line x1="556" y1="241" x2="582" y2="241" stroke="#2b2b2b" stroke-width="1.8" marker-start="url(#sm)" marker-end="url(#sm)"/>
+<line x1="556" y1="300" x2="582" y2="282" stroke="#2b2b2b" stroke-width="1.8" marker-start="url(#sm)" marker-end="url(#sm)"/>
+<line x1="697" y1="183" x2="674" y2="196" stroke="#2b2b2b" stroke-width="1.8" marker-start="url(#sm)" marker-end="url(#sm)"/>
+<line x1="697" y1="250" x2="674" y2="236" stroke="#2b2b2b" stroke-width="1.8" marker-start="url(#sm)" marker-end="url(#sm)"/>
+<rect x="790" y="154" width="108" height="170" rx="10" fill="#E6F4DE"/>
+<rect x="790" y="154" width="108" height="170" rx="10" fill="none" stroke="#3F9A3F" stroke-width="2.0"/>
+<text x="844" y="180" font-size="18" font-weight="bold" text-anchor="middle" fill="#1f1f1f" >Memory</text>
+<rect x="797" y="196" width="94" height="54" rx="8" fill="#EEF8E8"/>
+<rect x="797" y="196" width="94" height="54" rx="8" fill="none" stroke="#3F9A3F" stroke-width="1.6"/>
+<text x="844" y="217" font-size="15.5" font-weight="bold" text-anchor="middle" fill="#1f1f1f" >Lessons</text>
+<text x="844" y="238" font-size="14.5" font-weight="normal" text-anchor="middle" fill="#1f1f1f" >(in prompt)</text>
+<rect x="797" y="259" width="94" height="58" rx="8" fill="#EEF8E8"/>
+<rect x="797" y="259" width="94" height="58" rx="8" fill="none" stroke="#3F9A3F" stroke-width="1.6"/>
+<text x="844" y="281" font-size="13.5" font-weight="bold" text-anchor="middle" fill="#1f1f1f" >Case memory</text>
+<text x="844" y="302" font-size="13.5" font-weight="normal" text-anchor="middle" fill="#1f1f1f" >(via retrieval)</text>
+<path d="M915,195 C985,200 1015,240 1015,302" fill="none" stroke="#2b2b2b" stroke-width="3.2" marker-end="url(#ah)"/>
+<text x="952" y="155" font-size="20" font-weight="normal" text-anchor="start" fill="#1f1f1f" ><tspan font-family="'Times New Roman', Times, serif" font-style="italic" font-size="21">p</tspan>(interaction) +</text>
+<text x="952" y="182" font-size="20" font-weight="normal" text-anchor="start" fill="#1f1f1f" >evidence per pair</text>
+<path d="M558,556 V362" fill="none" stroke="#2E8B2E" stroke-width="3" marker-end="url(#ahg)"/>
+<path d="M558,354 H795 C805,354 806,345 806,330" fill="none" stroke="#2E8B2E" stroke-width="2.4" marker-end="url(#ahg)"/>
+<path d="M558,354 H478 C470,354 470,350 470,346" fill="none" stroke="#2E8B2E" stroke-width="2.4" marker-end="url(#ahg)"/>
+<path d="M862,556 V328" fill="none" stroke="#2E8B2E" stroke-width="3" marker-end="url(#ahg)"/>
+<rect x="587" y="414" width="245" height="48" rx="24" fill="#E9ECF2"/>
+<text x="709" y="448" font-size="26" font-weight="bold" text-anchor="middle" fill="#1f1f1f" >round <tspan font-family="'Times New Roman', Times, serif" font-style="italic" font-size="28">t</tspan> = 1 … <tspan font-family="'Times New Roman', Times, serif" font-style="italic" font-size="28">T</tspan></text>
+<rect x="940" y="310" width="146" height="185" rx="12" fill="#F3E9FA"/>
+<clipPath id="c5"><rect x="940" y="310" width="146" height="185" rx="12"/></clipPath>
+<rect x="940" y="310" width="146" height="40" fill="#E6D3F2" clip-path="url(#c5)"/>
+<rect x="940" y="310" width="146" height="185" rx="12" fill="none" stroke="#9C5FB8" stroke-width="2.5"/>
+<text x="1016" y="341" font-size="27" font-weight="bold" text-anchor="middle" fill="#1f1f1f" >Reveal</text>
+<use href="#flask" x="974" y="362" width="46" height="52"/>
+<circle cx="1046" cy="372" r="11" fill="#1F9A3A"/><path d="M1040,372 L1045,377 L1052,367" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="1046" cy="404" r="11" fill="#E0221C"/><path d="M1041.5,399.5 L1050.5,408.5 M1050.5,399.5 L1041.5,408.5" stroke="#fff" stroke-width="2.6" stroke-linecap="round"/>
+<text x="1016" y="442" font-size="17" font-weight="normal" text-anchor="middle" fill="#1f1f1f" >sparse</text>
+<text x="1016" y="464" font-size="17" font-weight="normal" text-anchor="middle" fill="#1f1f1f" >experimental</text>
+<text x="1016" y="486" font-size="17" font-weight="normal" text-anchor="middle" fill="#1f1f1f" >labels</text>
+<path d="M1040,497 C1040,545 1028,578 1003,603" fill="none" stroke="#2b2b2b" stroke-width="3.2" marker-end="url(#ah)"/>
+<path d="M1088,405 H1121" fill="none" stroke="#2b2b2b" stroke-width="3.2" marker-end="url(#ah)"/>
+<rect x="1127" y="224" width="186" height="287" rx="14" fill="#F7F7F7"/>
+<rect x="1127" y="224" width="186" height="287" rx="14" fill="none" stroke="#9A9A9A" stroke-width="2.0"/>
+<text x="1220" y="256" font-size="27" font-weight="bold" text-anchor="middle" fill="#1f1f1f" >Output</text>
+<rect x="1136" y="275" width="170" height="222" rx="12" fill="#EEF5FC"/>
+<clipPath id="c6"><rect x="1136" y="275" width="170" height="222" rx="12"/></clipPath>
+<rect x="1136" y="275" width="170" height="66" fill="#CFE2F7" clip-path="url(#c6)"/>
+<rect x="1136" y="275" width="170" height="222" rx="12" fill="none" stroke="#8DB0D6" stroke-width="2.0"/>
+<text x="1221" y="302" font-size="21" font-weight="bold" text-anchor="middle" fill="#1f1f1f" >Frozen state</text>
+<text x="1221" y="330" font-size="21" font-weight="bold" text-anchor="middle" fill="#1f1f1f" >after <tspan font-family="'Times New Roman', Times, serif" font-style="italic" font-size="23">T</tspan> rounds</text>
+<rect x="1143" y="357" width="156" height="62" rx="9" fill="#E6F4DE"/>
+<rect x="1143" y="357" width="156" height="62" rx="9" fill="none" stroke="#3F9A3F" stroke-width="2.0"/>
+<text x="1221" y="382" font-size="18" font-weight="normal" text-anchor="middle" fill="#1f1f1f" >Memory <tspan font-family="'Times New Roman', Times, serif" font-style="italic" font-size="20">M</tspan><tspan font-family="Helvetica, Arial, sans-serif" font-style="normal" font-size="0.85em" dy="-0.3em">*</tspan><tspan dy="0.3em"> </tspan></text>
+<text x="1221" y="405" font-size="17" font-weight="normal" text-anchor="middle" fill="#1f1f1f" >(cases + lessons)</text>
+<rect x="1143" y="436" width="156" height="48" rx="9" fill="#FDE6CF"/>
+<rect x="1143" y="436" width="156" height="48" rx="9" fill="none" stroke="#EE8A3A" stroke-width="2.0"/>
+<text x="1221" y="467" font-size="19" font-weight="bold" text-anchor="middle" fill="#1f1f1f" >Predictor <tspan font-family="'Times New Roman', Times, serif" font-style="italic" font-size="21">C</tspan><tspan font-family="Helvetica, Arial, sans-serif" font-style="normal" font-size="0.85em" dy="-0.3em">*</tspan><tspan dy="0.3em"> </tspan></text>
+<path d="M1316,405 H1354" fill="none" stroke="#2b2b2b" stroke-width="3.2" marker-end="url(#ah)"/>
+<rect x="780" y="558" width="213" height="200" rx="12" fill="#F3E9FA"/>
+<clipPath id="c7"><rect x="780" y="558" width="213" height="200" rx="12"/></clipPath>
+<rect x="780" y="558" width="213" height="40" fill="#E6D3F2" clip-path="url(#c7)"/>
+<rect x="780" y="558" width="213" height="200" rx="12" fill="none" stroke="#9C5FB8" stroke-width="2.5"/>
+<text x="886" y="587" font-size="26" font-weight="bold" text-anchor="middle" fill="#1f1f1f" >Write cases</text>
+<use href="#cabinet" x="855" y="604" width="62" height="78"/>
+<rect x="790" y="690" width="194" height="56" rx="9" fill="#ffffff"/>
+<rect x="790" y="690" width="194" height="56" rx="9" fill="none" stroke="#8A8A8A" stroke-width="1.4"/>
+<text x="887" y="713" font-size="17" font-weight="normal" text-anchor="middle" fill="#1f1f1f" >pair · label · agent <tspan font-family="'Times New Roman', Times, serif" font-style="italic" font-size="19">p</tspan> ·</text>
+<text x="887" y="736" font-size="17" font-weight="normal" text-anchor="middle" fill="#1f1f1f" >predictor <tspan font-family="'Times New Roman', Times, serif" font-style="italic" font-size="19">p</tspan> · evidence</text>
+<path d="M778,662 H743" fill="none" stroke="#2b2b2b" stroke-width="3.2" marker-end="url(#ah)"/>
+<rect x="580" y="558" width="157" height="202" rx="12" fill="#FDF0E3"/>
+<clipPath id="c8"><rect x="580" y="558" width="157" height="202" rx="12"/></clipPath>
+<rect x="580" y="558" width="157" height="40" fill="#FAD5B0" clip-path="url(#c8)"/>
+<rect x="580" y="558" width="157" height="202" rx="12" fill="none" stroke="#EE8A3A" stroke-width="2.5"/>
+<text x="658" y="587" font-size="26" font-weight="bold" text-anchor="middle" fill="#1f1f1f" >Retrain</text>
+<use href="#dlnet" x="622" y="603" width="76" height="48"/>
+<text x="658" y="670" font-size="17" font-weight="bold" text-anchor="middle" fill="#1f1f1f" >DL</text>
+<text x="658" y="690" font-size="17" font-weight="bold" text-anchor="middle" fill="#1f1f1f" >predictor</text>
+<rect x="590" y="698" width="138" height="55" rx="9" fill="#ffffff"/>
+<rect x="590" y="698" width="138" height="55" rx="9" fill="none" stroke="#8A8A8A" stroke-width="1.4"/>
+<text x="659" y="719" font-size="17" font-weight="normal" text-anchor="middle" fill="#1f1f1f" >KB + revealed</text>
+<text x="659" y="742" font-size="17" font-weight="normal" text-anchor="middle" fill="#1f1f1f" >labels → <tspan font-family="'Times New Roman', Times, serif" font-style="italic" font-size="19">C</tspan><tspan font-family="'Times New Roman', Times, serif" font-style="italic" font-size="0.75em" dy="0.25em">t</tspan><tspan dy="-0.25em"> </tspan></text>
+<rect x="412" y="558" width="160" height="202" rx="12" fill="#EEF7E8"/>
+<clipPath id="c9"><rect x="412" y="558" width="160" height="202" rx="12"/></clipPath>
+<rect x="412" y="558" width="160" height="40" fill="#D3EDC4" clip-path="url(#c9)"/>
+<rect x="412" y="558" width="160" height="202" rx="12" fill="none" stroke="#3F9A3F" stroke-width="2.5"/>
+<text x="492" y="587" font-size="26" font-weight="bold" text-anchor="middle" fill="#1f1f1f" >Reflect</text>
+<use href="#brain" x="464" y="602" width="56" height="46"/>
+<text x="492" y="668" font-size="17" font-weight="bold" text-anchor="middle" fill="#1f1f1f" >Reviewer</text>
+<text x="492" y="688" font-size="17" font-weight="bold" text-anchor="middle" fill="#1f1f1f" >LLM</text>
+<rect x="422" y="698" width="140" height="55" rx="9" fill="#ffffff"/>
+<rect x="422" y="698" width="140" height="55" rx="9" fill="none" stroke="#8A8A8A" stroke-width="1.4"/>
+<text x="492" y="719" font-size="17" font-weight="normal" text-anchor="middle" fill="#1f1f1f" >add / revise /</text>
+<text x="492" y="742" font-size="17" font-weight="normal" text-anchor="middle" fill="#1f1f1f" >retire lessons</text>
+<rect x="1425" y="67" width="272" height="162" rx="14" fill="#ffffff"/>
+<clipPath id="c10"><rect x="1425" y="67" width="272" height="162" rx="14"/></clipPath>
+<rect x="1425" y="67" width="272" height="40" fill="#CFE2F7" clip-path="url(#c10)"/>
+<rect x="1425" y="67" width="272" height="162" rx="14" fill="none" stroke="#555" stroke-width="2.0"/>
+<text x="1561" y="95" font-size="22" font-weight="bold" text-anchor="middle" fill="#1f1f1f" >Held-out test pairs</text>
+<line x1="1520" y1="127" x2="1570" y2="127" stroke="#1E4F8E" stroke-width="2.6"/>
+<circle cx="1520" cy="127" r="8" fill="#BFD7F1" stroke="#1E4F8E" stroke-width="2.4"/>
+<circle cx="1570" cy="127" r="8" fill="#BFD7F1" stroke="#1E4F8E" stroke-width="2.4"/>
+<text x="1610" y="134" font-size="19" font-weight="bold" text-anchor="middle" fill="#1f1f1f" >?</text>
+<line x1="1520" y1="156" x2="1570" y2="156" stroke="#1E4F8E" stroke-width="2.6"/>
+<circle cx="1520" cy="156" r="8" fill="#BFD7F1" stroke="#1E4F8E" stroke-width="2.4"/>
+<circle cx="1570" cy="156" r="8" fill="#BFD7F1" stroke="#1E4F8E" stroke-width="2.4"/>
+<text x="1610" y="163" font-size="19" font-weight="bold" text-anchor="middle" fill="#1f1f1f" >?</text>
+<circle cx="1557" cy="174" r="2.2" fill="#1f1f1f"/>
+<circle cx="1557" cy="181" r="2.2" fill="#1f1f1f"/>
+<circle cx="1557" cy="188" r="2.2" fill="#1f1f1f"/>
+<text x="1561" y="215" font-size="17" font-weight="normal" text-anchor="middle" fill="#1f1f1f" >never revealed</text>
+<rect x="1726" y="110" width="124" height="104" rx="12" fill="#F0F0F0"/>
+<rect x="1726" y="110" width="124" height="104" rx="12" fill="none" stroke="#CFCFCF" stroke-width="1.4"/>
+<text x="1788" y="134" font-size="17" font-weight="normal" text-anchor="middle" fill="#1f1f1f" >no feedback ·</text>
+<text x="1788" y="157" font-size="17" font-weight="normal" text-anchor="middle" fill="#1f1f1f" >memory and</text>
+<text x="1788" y="180" font-size="17" font-weight="normal" text-anchor="middle" fill="#1f1f1f" >predictor</text>
+<text x="1788" y="203" font-size="17" font-weight="normal" text-anchor="middle" fill="#1f1f1f" >frozen</text>
+<path d="M1572,232 V264" fill="none" stroke="#2b2b2b" stroke-width="3.2" marker-end="url(#ah)"/>
+<rect x="1360" y="272" width="482" height="214" rx="18" fill="#EAF3FC"/>
+<rect x="1360" y="272" width="482" height="214" rx="18" fill="none" stroke="#2457A6" stroke-width="2.0" stroke-dasharray="9 6"/>
+<text x="1593" y="299" font-size="20" font-weight="bold" text-anchor="middle" fill="#1f1f1f" >Agent harness</text>
+<rect x="1386" y="309" width="94" height="45" rx="8" fill="#DCEBFA"/>
+<rect x="1386" y="309" width="94" height="45" rx="8" fill="none" stroke="#3F7DC8" stroke-width="1.6"/>
+<text x="1433.0" y="329" font-size="15.5" font-weight="bold" text-anchor="middle" fill="#1f1f1f" >protein</text>
+<text x="1433.0" y="347" font-size="15.5" font-weight="bold" text-anchor="middle" fill="#1f1f1f" >lookup</text>
+<rect x="1386" y="367" width="94" height="45" rx="8" fill="#DCEBFA"/>
+<rect x="1386" y="367" width="94" height="45" rx="8" fill="none" stroke="#3F7DC8" stroke-width="1.6"/>
+<text x="1433.0" y="387" font-size="15.5" font-weight="bold" text-anchor="middle" fill="#1f1f1f" >KB</text>
+<text x="1433.0" y="405" font-size="15.5" font-weight="bold" text-anchor="middle" fill="#1f1f1f" >partners</text>
+<rect x="1630" y="313" width="86" height="45" rx="8" fill="#DCEBFA"/>
+<rect x="1630" y="313" width="86" height="45" rx="8" fill="none" stroke="#3F7DC8" stroke-width="1.6"/>
+<text x="1673.0" y="333" font-size="15.5" font-weight="bold" text-anchor="middle" fill="#1f1f1f" >homolog</text>
+<text x="1673.0" y="351" font-size="15.5" font-weight="bold" text-anchor="middle" fill="#1f1f1f" >search</text>
+<rect x="1630" y="378" width="86" height="45" rx="8" fill="#DCEBFA"/>
+<rect x="1630" y="378" width="86" height="45" rx="8" fill="none" stroke="#3F7DC8" stroke-width="1.6"/>
+<text x="1673.0" y="398" font-size="15.5" font-weight="bold" text-anchor="middle" fill="#1f1f1f" >case</text>
+<text x="1673.0" y="416" font-size="15.5" font-weight="bold" text-anchor="middle" fill="#1f1f1f" >retrieval</text>
+<rect x="1382" y="424" width="102" height="46" rx="8" fill="#FDE6CF"/>
+<rect x="1382" y="424" width="102" height="46" rx="8" fill="none" stroke="#EE8A3A" stroke-width="1.8"/>
+<text x="1433" y="443" font-size="15.5" font-weight="bold" text-anchor="middle" fill="#1f1f1f" >DL</text>
+<text x="1433" y="463" font-size="15.5" font-weight="bold" text-anchor="middle" fill="#1f1f1f" >predictor <tspan font-family="'Times New Roman', Times, serif" font-style="italic" font-size="17">C</tspan><tspan font-family="Helvetica, Arial, sans-serif" font-style="normal" font-size="0.85em" dy="-0.3em">*</tspan><tspan dy="0.3em"> </tspan></text>
+<use href="#brain" x="1529" y="341" width="56" height="46"/>
+<text x="1557" y="418" font-size="19" font-weight="bold" text-anchor="middle" fill="#1f1f1f" >LLM</text>
+<text x="1557" y="440" font-size="16" font-weight="normal" text-anchor="middle" fill="#1f1f1f" >(frozen)</text>
+<line x1="1503" y1="330" x2="1503" y2="448" stroke="#2b2b2b" stroke-width="1.4" stroke-dasharray="4 4"/>
+<line x1="1490" y1="333" x2="1515" y2="350" stroke="#2b2b2b" stroke-width="1.8" marker-start="url(#sm)" marker-end="url(#sm)"/>
+<line x1="1488" y1="386" x2="1513" y2="386" stroke="#2b2b2b" stroke-width="1.8" marker-start="url(#sm)" marker-end="url(#sm)"/>
+<line x1="1490" y1="440" x2="1515" y2="422" stroke="#2b2b2b" stroke-width="1.8" marker-start="url(#sm)" marker-end="url(#sm)"/>
+<line x1="1622" y1="336" x2="1598" y2="352" stroke="#2b2b2b" stroke-width="1.8" marker-start="url(#sm)" marker-end="url(#sm)"/>
+<line x1="1622" y1="402" x2="1598" y2="386" stroke="#2b2b2b" stroke-width="1.8" marker-start="url(#sm)" marker-end="url(#sm)"/>
+<rect x="1727" y="333" width="104" height="104" rx="10" fill="#E6F4DE"/>
+<rect x="1727" y="333" width="104" height="104" rx="10" fill="none" stroke="#3F9A3F" stroke-width="2.0"/>
+<use href="#lock" x="1768" y="344" width="22" height="26"/>
+<text x="1779" y="393" font-size="19" font-weight="bold" text-anchor="middle" fill="#1f1f1f" ><tspan font-family="'Times New Roman', Times, serif" font-style="italic" font-size="21">M</tspan><tspan font-family="Helvetica, Arial, sans-serif" font-style="normal" font-size="0.85em" dy="-0.3em">*</tspan><tspan dy="0.3em"> </tspan></text>
+<text x="1779" y="419" font-size="16" font-weight="normal" text-anchor="middle" fill="#1f1f1f" >(read-only)</text>
+<path d="M1593,488 V518" fill="none" stroke="#2b2b2b" stroke-width="3.2" marker-end="url(#ah)"/>
+<rect x="1400" y="527" width="390" height="42" rx="10" fill="#DCEBFA"/>
+<rect x="1400" y="527" width="390" height="42" rx="10" fill="none" stroke="#3F7DC8" stroke-width="2.0"/>
+<text x="1595" y="555" font-size="21" font-weight="bold" text-anchor="middle" fill="#1f1f1f" >Interaction probability per pair</text>
+<path d="M1593,571 V600" fill="none" stroke="#2b2b2b" stroke-width="3.2" marker-end="url(#ah)"/>
+<rect x="1390" y="608" width="410" height="157" rx="14" fill="#ffffff"/>
+<rect x="1390" y="608" width="410" height="157" rx="14" fill="none" stroke="#555" stroke-width="2.0"/>
+<clipPath id="rb"><rect x="1390" y="608" width="410" height="157" rx="14"/></clipPath>
+<rect x="1390" y="727" width="410" height="38" fill="#CFE2F7" clip-path="url(#rb)"/>
+<rect x="1390" y="608" width="410" height="157" rx="14" fill="none" stroke="#555" stroke-width="2"/>
+<text x="1595" y="753" font-size="21" font-weight="bold" text-anchor="middle" fill="#1f1f1f" >Ranked candidates · AUPRC</text>
+<text x="1450" y="637" font-size="16" font-weight="normal" text-anchor="middle" fill="#1f1f1f" >1.</text>
+<line x1="1478" y1="631" x2="1528" y2="631" stroke="#1E4F8E" stroke-width="2.6"/>
+<circle cx="1478" cy="631" r="8" fill="#BFD7F1" stroke="#1E4F8E" stroke-width="2.4"/>
+<circle cx="1528" cy="631" r="8" fill="#BFD7F1" stroke="#1E4F8E" stroke-width="2.4"/>
+<text x="1450" y="664" font-size="16" font-weight="normal" text-anchor="middle" fill="#1f1f1f" >2.</text>
+<line x1="1478" y1="658" x2="1528" y2="658" stroke="#1E4F8E" stroke-width="2.6"/>
+<circle cx="1478" cy="658" r="8" fill="#BFD7F1" stroke="#1E4F8E" stroke-width="2.4"/>
+<circle cx="1528" cy="658" r="8" fill="#BFD7F1" stroke="#1E4F8E" stroke-width="2.4"/>
+<text x="1450" y="691" font-size="16" font-weight="normal" text-anchor="middle" fill="#1f1f1f" >3.</text>
+<line x1="1478" y1="685" x2="1528" y2="685" stroke="#1E4F8E" stroke-width="2.6"/>
+<circle cx="1478" cy="685" r="8" fill="#BFD7F1" stroke="#1E4F8E" stroke-width="2.4"/>
+<circle cx="1528" cy="685" r="8" fill="#BFD7F1" stroke="#1E4F8E" stroke-width="2.4"/>
+<circle cx="1500" cy="701" r="2.2" fill="#1f1f1f"/>
+<circle cx="1500" cy="708" r="2.2" fill="#1f1f1f"/>
+<circle cx="1500" cy="715" r="2.2" fill="#1f1f1f"/>
+<line x1="1580" y1="625" x2="1580" y2="720" stroke="#9a9a9a" stroke-width="1.6"/>
+<path d="M1633,697 V626" fill="none" stroke="#2b2b2b" stroke-width="2" marker-end="url(#sm)"/>
+<path d="M1633,697 H1758" fill="none" stroke="#2b2b2b" stroke-width="2" marker-end="url(#sm)"/>
+<text x="1617" y="642" font-size="16" font-weight="bold" text-anchor="middle" fill="#1f1f1f" >P</text>
+<text x="1700" y="720" font-size="16" font-weight="bold" text-anchor="middle" fill="#1f1f1f" >R</text>
+<path d="M1644,644 L1650,646 C1662,680 1700,688 1748,690" fill="none" stroke="#8A2BE2" stroke-width="2.6"/>
+<rect x="8" y="792" width="1844" height="46" rx="12" fill="#F5F6F5" stroke="#8A8A8A" stroke-width="1.5"/>
+<rect x="131.5" y="807.5" width="15" height="15" fill="#3F7DC8"/>
+<text x="155.5" y="822" font-size="21" font-weight="normal" text-anchor="start" fill="#1f1f1f" ><tspan fill="#3F7DC8">blue</tspan>: LLM agent</text>
+<rect x="354.5" y="807.5" width="15" height="15" fill="#4E9E4E"/>
+<text x="378.5" y="822" font-size="21" font-weight="normal" text-anchor="start" fill="#1f1f1f" ><tspan fill="#4E9E4E">green</tspan>: memory</text>
+<rect x="567.5" y="807.5" width="15" height="15" fill="#E8A060"/>
+<text x="591.5" y="822" font-size="21" font-weight="normal" text-anchor="start" fill="#1f1f1f" ><tspan fill="#E8A060">orange</tspan>: DL predictor</text>
+<rect x="831.5" y="807.5" width="15" height="15" fill="#A98BD0"/>
+<text x="855.5" y="822" font-size="21" font-weight="normal" text-anchor="start" fill="#1f1f1f" ><tspan fill="#A98BD0">purple</tspan>: experimental feedback</text>
+<path d="M1189.5,815 H1225.5" fill="none" stroke="#2b2b2b" stroke-width="2.6" marker-end="url(#ah)"/>
+<text x="1238.5" y="822" font-size="21" font-weight="normal" text-anchor="start" fill="#1f1f1f" ><tspan fill="#1f1f1f">solid arrow</tspan>: data flow</text>
+<path d="M1486.5,815 H1518.5" fill="none" stroke="#E0221C" stroke-width="2.6" marker-end="url(#ahr)" stroke-dasharray="6 4"/>
+<text x="1533.5" y="822" font-size="21" font-weight="normal" text-anchor="start" fill="#1f1f1f" ><tspan fill="#E0221C">dashed red</tspan>: rollback</text>
+</svg>

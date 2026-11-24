@@ -4,7 +4,7 @@
 
 LLM scientific agents for membrane protein–protein interaction (PPI) discovery, then recursive self-improvement
 (RSI) of the agent workflow and, later, the PPI predictor under sparse experimental feedback. Docs:
-`docs/introduction.md` (motivation), `docs/initial_baseline.md` (baseline design), `docs/literature.md`,
+`docs/introduction.md` (motivation), `docs/rsi-architecture.svg` (README figure), `docs/literature.md`,
 `docs/research-reports/<date>-<slug>.md` (git-ignored deep research), `docs/superpowers/specs/` (local designs).
 Task formulation and splits: `docs/task-setting.html`; run summaries: `results/<run>/` (raw: `data/PRING/runs/`).
 PDFs live in git-ignored `literature/<topic>/`; the index `literature/README.md` is tracked.
@@ -27,7 +27,7 @@ Replace this section on every update; history lives in git and the specs.
   [Results](results/classification-test/summary.html) (V4 Pro): LLM-only full test AUPRC 0.799 vs B0 0.736; [two-layer memory agent](docs/superpowers/specs/2026-11-02-two-layer-memory-agent-design.md) final test 0.775 / cases 0.804 / + lessons 0.803 / cases, no predictor 0.811; B0 retrained on the round labels 0.717 (frozen 0.695; `al_predictor`).
 - **Closed-loop discovery ([spec](docs/superpowers/specs/2026-10-23-pring-wave-discovery-design.md)):** 10 × 200 picks of 2.04M pairs; ribosome
   dominates unless ablated. Agent = pi; B0 in `src/predictor/`; LLM `deepseek-flash` (V4.1-Flash-1017, thinking high). Never vendor/retrain DIPPI.
-  [Public tracks](docs/research-reports/2026-10-19-public-ppi-benchmarks.md), [RSI positioning](docs/research-reports/2026-10-27-rsi-active-learning-positioning.md).
+  [Public tracks](docs/research-reports/2026-10-19-public-ppi-benchmarks.md), [RSI positioning](docs/research-reports/2026-10-27-rsi-active-learning-positioning.md), [five paper features](docs/research-reports/2026-11-23-five-paper-features.md).
 
 ## Commands
 
