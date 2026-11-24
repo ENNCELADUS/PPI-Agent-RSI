@@ -13,11 +13,11 @@ PDFs live in git-ignored `literature/<topic>/`; the index `literature/README.md`
 modes must come out of evaluation, never be assumed in advance. Name every split, arm, baseline and run by what
 it is ("the development set", "the permuted-label arm"), never by a bare label; give a code label once in parentheses.
 
-## Current state (2026-11-24, new RSI splits in code: PRING node-disjoint validation + gate; 22T development set of 10,000)
+## Current state (2026-11-24, new RSI splits built; DL predictor arms (random, greedy) running on H20)
 
 Replace this section on every update; history lives in git and the specs.
 
-- **Split change of 2026-11-24 ([plan](docs/superpowers/plans/2026-11-24-node-disjoint-validation-and-development-set.md)):** code, tests and docs done; `data/` not rebuilt (plan Task 8: B0 logits of the new validation pairs, 11 V3 trainings on H20); no run on the new splits. **Every RSI number below is from the splits before it.**
+- **Split change of 2026-11-24 ([plan](docs/superpowers/plans/2026-11-24-node-disjoint-validation-and-development-set.md)):** `data/` rebuilt (old files in `data/PRING/preset_20261123/`, `MUS22T/rsi_preset/`, `predictor/al_preset/`; counts and final-test hashes checked). DL predictor arms (`dl_rounds`; rules random and greedy = top-K by the predictor's score) run on H20 one after another on 4 GPUs: 22T then PRING (`train_*_al.sh <rule>`, logs `data/<benchmark>/predictor/al_<rule>.log`); summary `reveal_rounds al --data <d> --rule <r>`. **Every RSI number below is from the splits before it.**
 - **Private split (built):** `data/TMP/agent_split/`: `train.csv` = agent look-up; `test.csv` = 1:1 non-public positives.
 - **22T mouse sandbox (`pring_test --data mus22t`):** `agent_split/` (hidden) = transductive 8:1:1 + PRING negatives. [Test AUPRC](results/classification-test/summary.html): LLM-only 0.587, V3 0.716, [agent + V3](docs/superpowers/specs/2026-11-02-mus22t-llm-predictor-design.md) (`--predictor`) 0.708, PRING-trained B0 (no 22T training) 0.597. API cost (list prices): all runs $779 DeepSeek, ≈ $1,658 GPT-6.1 Sol; one 22T round $3.1–3.6.
 - **22T rounds (new split):** training 65,912; development set 10,000 (1,000 from test + 9,000 from train); 10 × 100 drawn at random; final 8,366 and validation unchanged. **Baseline rule on both benchmarks = random draw** (as Zeng & Luo 2026; baseline arm = DL predictor + random); PRING random batches `hidden/dev_random.csv` (1,012 positives in 2,000) run in `reveal_rounds --data pring` (B0 frozen); score rules and agent picks on 22T not built. Old split (preset 50 + 50 batches), final AUPRC gated (ungated): V3 0.716; DL 0.735 (0.712); LLM-only 0.593 (0.573); LLM + DL 0.715 (0.691).
@@ -46,8 +46,10 @@ uv run python -m src.eval.rounds <name> <R>           # one true-feedback replic
 uv run python -m src.data.builders.build_pring_cls && uv run python -m src.eval.pring_test <name>  # --limit N; --data mus22t
 uv run python -m src.data.builders.build_pring_memory && uv run python -m src.eval.memory_agent rounds|test <name>  # rounds: val gate in sandbox_val/; test --arm memory|cases|empty [--no-predictor]
 uv run python -m src.eval.score <labels.csv> <ranking.csv>  # private test.csv
-uv run python -m src.data.builders.build_mus22t_rsi && uv run python -m src.data.builders.build_mus22t_rsi_sandbox  # training and development sets, random batches; DL: train_mus22t_al.sh (H20)
-uv run python -m src.eval.reveal_rounds rounds|test <name> [--predictor] [--data pring]  # al: the DL summary; batches = random draws from the development set
+uv run python -m src.data.builders.build_mus22t_rsi && uv run python -m src.data.builders.build_mus22t_rsi_sandbox  # training and development sets, random batches
+bash src/data/builders/train_mus22t_al.sh|train_pring_al.sh random|greedy  # H20: DL predictor rounds (dl_rounds); 22T greedy after random
+uv run python -m src.eval.reveal_rounds rounds|test <name> [--predictor] [--data pring]  # agent rounds on the random batches
+uv run python -m src.eval.reveal_rounds al --data mus22t|pring --rule random|greedy  # DL predictor arm summary
 uv run --extra predictor python -m src.data.builders.build_seal_split mus22t|tmp  # SEAL-protocol split; tmp ~20 s
 uv run python -m src.data.builders.build_mus22t_agent_split && uv run python -m src.data.builders.build_mus22t_sandbox && uv run python -m src.data.builders.build_mus22t_scores  # ~75 s
 ```

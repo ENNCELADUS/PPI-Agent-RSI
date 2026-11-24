@@ -44,7 +44,7 @@ HOMOLOGS = 20
 
 def platt(xs, ys, steps=50):
     """Fit p = sigmoid(a x + b) by Newton's method on the log-loss."""
-    a, b = 1.0, 0.0
+    a, b = 0.0, 0.0  # p = 0.5 everywhere: from (1, 0) Newton diverges on the node-disjoint val logits
     for _ in range(steps):
         ga = gb = haa = hab = hbb = 0.0
         for x, y in zip(xs, ys):

@@ -2,7 +2,7 @@
 
     uv run python -m src.eval.reveal_rounds rounds <name> [--predictor] [--model ...] [--thinking high] [--until T]
     uv run python -m src.eval.reveal_rounds test <name> [--batch 200] [--workers 8] [--limit N]
-    uv run python -m src.eval.reveal_rounds al                    # the DL active-learning arm (no LLM)
+    uv run python -m src.eval.reveal_rounds al --data mus22t|pring --rule random|greedy  # DL predictor arm, no LLM
     uv run python -m src.eval.reveal_rounds rounds|test <name> --data pring [--predictor]   # the same on PRING
 
 Design: docs/superpowers/specs/2026-11-06-mus22t-reveal-rounds-design.md. Data: build_mus22t_rsi (rsi/dev.csv: the
@@ -35,8 +35,10 @@ the gate, sandbox_final/ at the final test; the cases come from the development 
 test only the cases of homologs apply (case_homologs.tsv). B0 stays frozen: every round reads the same scores, and
 summary.json compares the agent with B0 ("b0"). Prompts: reveal_pring/. Runs go to data/PRING/runs/<name>/.
 
-al: data/MUS22T/runs/al_v3/summary.json: every available checkpoint's metrics on the final set, and checkpoint t - 1
-on round t's batch (the curve of the DL arm), from data/MUS22T/predictor/ (train_mus22t_al.sh on H20).
+al: data/<benchmark>/runs/dl_<rule>/summary.json, the DL predictor arm (src.data.builders.dl_rounds; trained by
+train_mus22t_al.sh or train_pring_al.sh on H20): every available checkpoint's metrics on the final test, the gate, and
+per round the pairs and positives revealed and checkpoint t - 1's metrics on that batch, with the paired bootstrap of
+checkpoint 10 - checkpoint 0.
 """
 
 import argparse
@@ -53,8 +55,9 @@ from src.agent.session import pi_version as get_pi_version
 from src.agent.tools import CAP, K, RevealReviewTools, RevealTools, Sandbox, tsv
 from src.data.builders.build_mus22t_rsi import OUT as RSI
 from src.data.builders.build_mus22t_rsi import ROUNDS, decide, read
+from src.data.builders import dl_rounds
 from src.data.builders.build_mus22t_rsi_sandbox import OUT as VIEWS
-from src.data.builders.build_mus22t_rsi_sandbox import checkpoint_path, checkpoint_p, reveal_rounds
+from src.data.builders.build_mus22t_rsi_sandbox import checkpoint_p, checkpoint_path
 from src.data.ids import pair
 from src.data.paths import MUS22T, PRING
 from src.eval.memory_agent import load_memory, save_memory, session_twice
@@ -433,24 +436,27 @@ def run_test(run_dir, args):
     print(json.dumps(summary, indent=1))
 
 
-def run_al():
-    final = read(RSI / "final.csv")
+def run_al(data, rule):
+    bench = dl_rounds.BENCH[data]
+    final = read(bench["final"])
     y = [label for _, _, label in final]
-    rounds = reveal_rounds()
-    out = {"final_pairs": len(final), "checkpoints": {}, "curve": []}
-    for c in range(ROUNDS + 1):
-        if checkpoint_path(c).exists():
-            p = checkpoint_p(c)
-            out["checkpoints"][c] = classification(y, [p[(a, b)] for a, b, _ in final])
-    for t in range(1, ROUNDS + 1):
-        rows = [{"a": a, "b": b, "label": label} for a, b, label in rounds[t]]
-        out["curve"].append(curve_rows(rows, t))
-    if checkpoint_path(ROUNDS).exists():
-        last, first = checkpoint_p(ROUNDS), checkpoint_p(0)
-        out["checkpoint10_minus_v3"] = paired_bootstrap(
-            y, [last[(a, b)] for a, b, _ in final], [first[(a, b)] for a, b, _ in final]
-        )
-    d = RUNS / "al_v3"
+    p = {
+        c: checkpoint_p(c, path)
+        for c in range(ROUNDS + 1)
+        if (path := dl_rounds.checkpoint_path(data, rule, c)).exists()
+    }
+    on = lambda c, rows: [p[c][pair(a, b)] for a, b, _ in rows]  # noqa: E731
+    out = {"final_pairs": len(final), "gate": dl_rounds.read_gate(data, rule), "checkpoints": {}, "curve": []}
+    out["checkpoints"] = {c: classification(y, on(c, final)) for c in p}
+    path = dl_rounds.work(data, rule) / "batches.csv"
+    for t, rows in sorted(dl_rounds.rows_by_round(path).items() if path.exists() else []):
+        point = {"round": t, "pairs": len(rows), "positives": sum(r[2] for r in rows)}
+        if t - 1 in p:
+            point["checkpoint_before"] = classification([r[2] for r in rows], on(t - 1, rows))
+        out["curve"].append(point)
+    if ROUNDS in p and 0 in p:
+        out["checkpoint10_minus_checkpoint0"] = paired_bootstrap(y, on(ROUNDS, final), on(0, final))
+    d = (MUS22T if data == "mus22t" else PRING) / "runs" / f"dl_{rule}"
     d.mkdir(parents=True, exist_ok=True)
     (d / "summary.json").write_text(json.dumps(out, indent=1) + "\n")
     print(json.dumps({c: round(m["ap"], 4) for c, m in out["checkpoints"].items()}, indent=1))
@@ -468,9 +474,10 @@ def main():
     parser.add_argument("--limit", type=int, help="test: run only the first N batches")
     parser.add_argument("--model", default=DEFAULT_MODEL)
     parser.add_argument("--thinking", default="high")
+    parser.add_argument("--rule", choices=dl_rounds.RULES, default="random", help="al: the acquisition rule")
     args = parser.parse_args()
     if args.stage == "al":
-        run_al()
+        run_al(args.data, args.rule)
         return
     assert args.name, f"{args.stage} needs a run name"
     global DATA

@@ -1,8 +1,7 @@
 """Split the 22T data for RSI under sparse labels: training set, development set, random batches and final set.
 
 Run: uv run python -m src.data.builders.build_mus22t_rsi   (~1 s; after build_mus22t_agent_split)
-     python -m src.data.builders.build_mus22t_rsi al <t>          (train_mus22t_al.sh: checkpoint t's DL split)
-     python -m src.data.builders.build_mus22t_rsi gate <t> <val_auprc>  (train_mus22t_al.sh: keep or drop round t)
+The DL predictor rounds (each round's training data and gate) are in src.data.builders.dl_rounds.
 
 Design: docs/superpowers/specs/2026-11-06-mus22t-reveal-rounds-design.md, changed by the user decisions of
 2026-11-24 (docs/superpowers/plans/2026-11-24-node-disjoint-validation-and-development-set.md): the label budget
@@ -18,21 +17,16 @@ Design: docs/superpowers/specs/2026-11-06-mus22t-reveal-rounds-design.md, change
   predictor and for the agent's look-up file in every RSI run; the development labels are in neither.
 - reveal.csv: the batches of the random acquisition rule, the control: the development set sorted by pair and shuffled
   with random.Random(0), round t = pairs [(t - 1) * 100, t * 100). The labels play no part in the draw. Every arm gets
-  the same pairs in the same rounds. Rules that read scores, and the agent's own picks, are not built yet.
-- al/round<t>/ (t = 0..10): the DL split of checkpoint t: train.csv = the training set plus the pairs of the kept
-  rounds before t and of round t (checkpoint 0: the training set alone); val.csv = agent_split's, unchanged;
-  test.csv = development + final (each checkpoint scores these 18,366 pairs). Built per round by train_mus22t_al.sh,
-  because it depends on the gate.
-- al/gate.json: the validation gate (user decision 2026-11-07). Round 0 is checkpoint 0. Round t is kept only if its
-  checkpoint's validation AUPRC is higher than that of every earlier kept checkpoint; else its pairs leave the DL
-  training set and checkpoint t is a copy of checkpoint t - 1. Each checkpoint also scores all validation pairs.
+  the same pairs in the same rounds. The greedy rule on the DL scores is in dl_rounds; the agent's own picks are not
+  built yet.
+- The validation gate of the DL rounds and of the agents: build_mus22t_rsi.decide (user decision 2026-11-07).
 - val_gate.csv: the agents' validation gate (user decision 2026-11-07), fixed VAL_GATE / 2 positives and
   VAL_GATE / 2 negatives of agent_split/val.csv whose two proteins are both test proteins, each sorted and shuffled
   with random.Random(0). An agent round's memory is kept only if the agent's validation AUPRC on these pairs beats
   every earlier kept memory (src.eval.reveal_rounds). Validation labels never reach the agent.
 
 Output data/MUS22T/rsi/ (hidden labels; the agent never reads it): train.csv, dev.csv, final.csv, val_gate.csv
-(uniprotID_A, uniprotID_B, isInteraction), reveal.csv (the same and round), al/, rsi.json (counts and sha256
+(uniprotID_A, uniprotID_B, isInteraction), reveal.csv (the same and round), rsi.json (counts and sha256
 prefixes). Deterministic.
 
 The DL checkpoints (H20, grasppi-mus22t branch mus22t, same config and seed as V3) and the agent's per-round
@@ -44,7 +38,6 @@ import hashlib
 import json
 import random
 import shutil
-import sys
 
 from src.data.paths import MUS22T
 
@@ -157,15 +150,6 @@ def main():
     print(json.dumps(stats, indent=1))
 
 
-def read_gate():
-    path = OUT / "al" / "gate.json"
-    return json.loads(path.read_text()) if path.exists() else []
-
-
-def kept(gate):
-    return [g["round"] for g in gate if g["kept"] and g["round"] > 0]
-
-
 def decide(gate, t, val_auprc):
     """gate plus round t's decision: kept only if val AUPRC beats every earlier kept state (round 0: always)."""
     assert [g["round"] for g in gate] == list(range(t)), f"gate.json must hold rounds 0..{t - 1}"
@@ -173,30 +157,5 @@ def decide(gate, t, val_auprc):
     return [*gate, {"round": t, "val_auprc": val_auprc, "kept": best is None or val_auprc > best}]
 
 
-def write_al(t):
-    """al/round<t>/: the training set + the kept rounds before t + round t (t = 0: the training set alone);
-    val.csv = agent_split's; test.csv = development + final, the pairs every checkpoint scores."""
-    gate = read_gate()[:t]  # a rerun of round t (stopped after its gate) ignores its old decision
-    assert [g["round"] for g in gate] == list(range(t)), f"gate.json must hold rounds 0..{t - 1}"
-    reveal = {}
-    for r in csv.DictReader(open(OUT / "reveal.csv")):
-        reveal.setdefault(int(r["round"]), []).append((r["uniprotID_A"], r["uniprotID_B"], int(r["isInteraction"])))
-    d = OUT / "al" / f"round{t:02d}"
-    d.mkdir(parents=True, exist_ok=True)
-    rounds = [*kept(gate), *([t] if t else [])]
-    write(d / "train.csv", HEADER, read(OUT / "train.csv") + [r for s in rounds for r in reveal[s]])
-    shutil.copy(SPLIT / "val.csv", d / "val.csv")
-    write(d / "test.csv", HEADER, read(OUT / "dev.csv") + read(OUT / "final.csv"))
-
-
 if __name__ == "__main__":
-    if sys.argv[1:2] == ["al"]:
-        write_al(int(sys.argv[2]))
-    elif sys.argv[1:2] == ["gate"]:
-        t = int(sys.argv[2])
-        gate = decide(read_gate()[:t], t, float(sys.argv[3]))
-        (OUT / "al").mkdir(parents=True, exist_ok=True)
-        (OUT / "al" / "gate.json").write_text(json.dumps(gate, indent=1) + "\n")
-        print("keep" if gate[-1]["kept"] else "drop")
-    else:
-        main()
+    main()

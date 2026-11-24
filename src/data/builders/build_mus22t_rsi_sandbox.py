@@ -4,11 +4,11 @@ Run: uv run python -m src.data.builders.build_mus22t_rsi_sandbox   (~2 s; after 
 
 Inputs: each DL checkpoint's logits for the 18,366 development and final pairs (a, b, logit): checkpoint 0 is V3
 retrained on the RSI training set (rsi/train.csv), checkpoint t the same on the training set plus the kept rounds up
-to t (data/MUS22T/predictor/al/round<t>.tsv.gz, t = 0..10, from train_mus22t_al.sh on H20); and each checkpoint's
-logits for the validation pairs (al/val/round<t>.tsv.gz). Copy them with:
+to t under the random rule (data/MUS22T/predictor/al_random/round<t>.tsv.gz, t = 0..10, from train_mus22t_al.sh
+random on H20); and each checkpoint's logits for the validation pairs (al_random/val/round<t>.tsv.gz). Copy them with:
 
-    rsync -a root@10.15.171.204:/2023533015/PPI-Agent-RSI/data/MUS22T/predictor/al/ -e 'ssh -p 30757' \
-      data/MUS22T/predictor/al/
+    rsync -a root@10.15.171.204:/2023533015/PPI-Agent-RSI/data/MUS22T/predictor/al_random/ -e 'ssh -p 30757' \
+      data/MUS22T/predictor/al_random/
 
 Output data/MUS22T/sandbox_rsi/:
 - kb.csv: rsi/train.csv with its `evidence` column. data/MUS22T/sandbox/kb.csv is not used here: it is all of
@@ -38,11 +38,12 @@ SHARED = ("proteins.tsv", "annotations.tsv", "homologs.tsv")
 
 
 def checkpoint_path(t):
-    return MUS22T / "predictor" / "al" / f"round{t:02d}.tsv.gz"
+    """The agents read the DL predictor of the random rule (dl_rounds), whose batches they also get."""
+    return MUS22T / "predictor" / "al_random" / f"round{t:02d}.tsv.gz"
 
 
 def val_path(t):
-    return MUS22T / "predictor" / "al" / "val" / f"round{t:02d}.tsv.gz"
+    return MUS22T / "predictor" / "al_random" / "val" / f"round{t:02d}.tsv.gz"
 
 
 def checkpoint_p(t, path=None):

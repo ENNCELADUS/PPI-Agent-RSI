@@ -22,7 +22,9 @@ module from the repo root as `python -m src.<path>`. `data` never imports `eval`
 - `build_mus22t_sandbox`: Build the 22T agent sandbox: the agent-visible files for the 22T mouse membrane split, PRING-sandbox layout.
 - `build_mus22t_rsi`: Split the 22T data for RSI under sparse labels: training set, development set (10,000 pairs), random batches and final set.
 - `build_mus22t_rsi_sandbox`: Build the agent's sandboxes for the 22T rounds: the RSI training set as the look-up file, the newest DL checkpoint in each round.
-- `train_mus22t_al.sh`: DL active learning for the 22T rounds on H20: V3 trained on the RSI training set (checkpoint 0) plus the kept rounds (a round is kept only if val AUPRC improves).
+- `dl_rounds`: DL predictor rounds on both benchmarks: each round's batch under the random or greedy (top-K score) rule, the training data of each checkpoint, the validation gate.
+- `train_mus22t_al.sh <rule>`: the 22T DL rounds on H20: V3 retrained on the RSI training set (checkpoint 0) plus the kept rounds (a round is kept only if val AUPRC improves).
+- `train_pring_al.sh <rule>`: the same on PRING: checkpoint 0 = the frozen B0, then B0 retrained with the revealed pairs (motif-graph branch `al-revealed`).
 - `build_seal_split`: Split a PPI dataset (22T mouse, or human TMP) with the SEAL PPI baseline protocol, so its numbers compare with SEAL's.
 - `fetch_public.sh`: Fetch each public PPI source (resumable) and pipe it to `public_db`.
 
