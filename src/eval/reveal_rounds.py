@@ -3,6 +3,7 @@
     uv run python -m src.eval.reveal_rounds rounds <name> [--predictor] [--model ...] [--thinking high] [--until T]
     uv run python -m src.eval.reveal_rounds test <name> [--batch 200] [--workers 8] [--limit N]
     uv run python -m src.eval.reveal_rounds al                    # the DL active-learning arm (no LLM)
+    uv run python -m src.eval.reveal_rounds rounds|test <name> --data pring [--predictor]   # the same on PRING
 
 Design: docs/superpowers/specs/2026-11-06-mus22t-reveal-rounds-design.md. Data: build_mus22t_rsi (rsi/dev.csv: the
 development set of 10,000 pairs; rsi/reveal.csv: 10 rounds of 100 pairs drawn from it at random; rsi/final.csv: 8,366
@@ -27,15 +28,24 @@ through the tool), read-only; with --predictor the run's agent sees checkpoint 1
 the pring_test metrics of the agent, checkpoint 0 ("v3": V3 trained on the RSI training set, before any reveal) and
 the round-10 checkpoint on the same pairs, with paired bootstraps.
 
+--data pring (user decision 2026-11-24): the same rounds, gate and final test on PRING with the random acquisition
+rule. Data: build_pring_memory (hidden/dev_random.csv: 10 rounds of 200 pairs drawn at random from the development
+set hidden/dev.csv; hidden/val_gate.csv; hidden/final_test.csv). Views: sandbox_disc/ in the rounds, sandbox_val/ at
+the gate, sandbox_final/ at the final test; the cases come from the development proteins, so at the gate and the final
+test only the cases of homologs apply (case_homologs.tsv). B0 stays frozen: every round reads the same scores, and
+summary.json compares the agent with B0 ("b0"). Prompts: reveal_pring/. Runs go to data/PRING/runs/<name>/.
+
 al: data/MUS22T/runs/al_v3/summary.json: every available checkpoint's metrics on the final set, and checkpoint t - 1
 on round t's batch (the curve of the DL arm), from data/MUS22T/predictor/ (train_mus22t_al.sh on H20).
 """
 
 import argparse
+import csv
 import hashlib
 import json
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime
+from types import SimpleNamespace
 
 from src.agent.memory import MAX_ACTIVE, Cases, Lessons, case_id, read_homologs
 from src.agent.session import DEFAULT_MODEL, PROMPTS, prompt
@@ -45,9 +55,10 @@ from src.data.builders.build_mus22t_rsi import OUT as RSI
 from src.data.builders.build_mus22t_rsi import ROUNDS, decide, read
 from src.data.builders.build_mus22t_rsi_sandbox import OUT as VIEWS
 from src.data.builders.build_mus22t_rsi_sandbox import checkpoint_path, checkpoint_p, reveal_rounds
-from src.data.paths import MUS22T
+from src.data.ids import pair
+from src.data.paths import MUS22T, PRING
 from src.eval.memory_agent import load_memory, save_memory, session_twice
-from src.eval.pring_test import batches, classification, paired_bootstrap, run_batch, summarise
+from src.eval.pring_test import batches, classification, paired_bootstrap, run_batch, summarise, test_pairs
 from src.eval.rounds import commit, set_aside
 
 FINAL_STAGE = "This is the final test. Its labels are never revealed; the cases and lessons stay as they are."
@@ -62,22 +73,95 @@ PREDICTOR_TOOL = (
 )
 
 
+PRING_PREDICTOR_TOOL = (
+    "- A fixed PPI predictor trained on the knowledge base: `predict_pairs` gives its score p for up to 200 of the "
+    "listed\n  pairs in one call. It predicts from the two protein sequences. p ranks the pairs; it was calibrated for "
+    "a setting\n  where about 1% of all pairs interact, so read it as a rank, not as the probability of these pairs.\n"
+)
+DISC, VAL, FINAL = PRING / "sandbox_disc", PRING / "sandbox_val", PRING / "sandbox_final"
+
+
+def mus22t():
+    """The 22T files and views, read at call time (tests replace RSI, VIEWS, PLAIN and RUNS). One DL checkpoint per
+    round: with the predictor, each stage has its own view."""
+
+    def view(stage, t, predictor):
+        return VIEWS / {"round": f"round{t:02d}", "val": f"val{t:02d}", "final": "final"}[stage] if predictor else PLAIN
+
+    return SimpleNamespace(
+        name="mus22t",
+        runs=RUNS,
+        batches=RSI / "reveal.csv",
+        final=RSI / "final.csv",
+        gate=RSI / "val_gate.csv",
+        dev=RSI / "dev.csv",
+        split=RSI / "rsi.json",
+        prompts="reveal",
+        view=view,
+        cases=lambda records, sandbox, view: Cases(records, sandbox.proteins, read_homologs(PLAIN / "homologs.tsv")),
+        predictor_tool=PREDICTOR_TOOL,
+        final_stage=FINAL_STAGE,
+        checkpoints=True,  # DL checkpoints 0..10 score the batches and the final set
+        reference=None,
+        build="build_mus22t_rsi and build_mus22t_rsi_sandbox",
+    )
+
+
+def pring():
+    """The PRING files and views. B0 stays frozen, so every round reads the same scores; the cases are pairs of the
+    development proteins, and each view has its own homolog table into them."""
+    hidden = PRING / "hidden"
+    return SimpleNamespace(
+        name="pring",
+        runs=PRING / "runs",
+        batches=hidden / "dev_random.csv",
+        final=hidden / "final_test.csv",
+        gate=hidden / "val_gate.csv",
+        dev=hidden / "dev.csv",
+        split=PRING / "memory_split.json",
+        prompts="reveal_pring",
+        view=lambda stage, t, predictor: {"round": DISC, "val": VAL, "final": FINAL}[stage],
+        cases=lambda records, sandbox, view: Cases(
+            records, Sandbox(str(DISC)).proteins, read_homologs(view / "case_homologs.tsv")
+        ),
+        predictor_tool=PRING_PREDICTOR_TOOL,
+        final_stage=FINAL_STAGE + " None of these proteins is in a case: use the cases of their homologs.",
+        checkpoints=False,
+        reference="b0",  # the frozen predictor scored beside the agent
+        build="build_pring_sandbox, build_pring_tools and build_pring_memory",
+    )
+
+
+DATA = mus22t  # main() sets pring for --data pring
+
+
+def round_batches(path):
+    """{round: [(a, b, label)]} in file order, pairs canonical (the PRING files order a pair by node id)."""
+    out = {}
+    for r in csv.DictReader(open(path)):
+        out.setdefault(int(r["round"]), []).append((*pair(r["uniprotID_A"], r["uniprotID_B"]), int(r["isInteraction"])))
+    return out
+
+
+def stage_sandbox(stage, t, predictor):
+    """(sandbox, view directory) of a round, of the validation check after round t, or of the final test."""
+    view = DATA().view(stage, t, predictor)
+    assert not predictor or (view / "scores.tsv.gz").exists(), f"no predictor scores in {view}: run {DATA().build}"
+    return Sandbox(str(view)), view
+
+
 def system_prompt(sandbox, predictor, records, lessons, stage):
     return prompt(
-        "reveal/system",
+        f"{DATA().prompts}/system",
         proteins=len(sandbox.candidates),
         cap=CAP,
         stage=stage,
         cases=f"{len(records):,}",
         lessons=lessons.render(),
-        predictor_tool=PREDICTOR_TOOL if predictor else "",
+        predictor_tool=DATA().predictor_tool if predictor else "",
         predictor_step="the predictor's p, " if predictor else "",
         pred_example="`pred:A-B`, " if predictor else "",
     )
-
-
-def casebook(records, sandbox):
-    return Cases(records, sandbox.proteins, read_homologs(PLAIN / "homologs.tsv"))
 
 
 def new_cases(t, result, seen):
@@ -106,13 +190,13 @@ def fmt(x):
     return "" if x is None else f"{x:.3g}"
 
 
-def review(t, args, sandbox, records, fresh, lessons, run_dir):
+def review(t, args, sandbox, view, records, fresh, lessons, run_dir):
     predictor = args.predictor
     system = prompt(
-        "reveal/review_system",
+        f"{DATA().prompts}/review_system",
         k=len(fresh),
         rounds=ROUNDS,
-        final=len(read(RSI / "final.csv")),
+        final=len(test_pairs(DATA().final)),
         max_active=MAX_ACTIVE,
         cap=CAP,
         pred_clause=", after seeing a sequence-based predictor's p" if predictor else "",
@@ -140,7 +224,7 @@ def review(t, args, sandbox, records, fresh, lessons, run_dir):
         lessons=lessons.render(),
         new_cases=tsv(head, rows),
     )
-    book = casebook(records, sandbox)
+    book = DATA().cases(records, sandbox, view)
     agent_dir = run_dir / "rounds" / f"review{t:02d}"
     out = session_twice(
         lambda: RevealReviewTools(sandbox, agent_dir, book, CAP, predictor),
@@ -158,8 +242,10 @@ def review(t, args, sandbox, records, fresh, lessons, run_dir):
 
 
 def provenance(args, **extra):
-    files = sorted((PROMPTS / "reveal").glob("*.md")) + [PROMPTS / "pring_test" / f for f in ("batch.md", "nudge.md")]
+    own = {*(PROMPTS / "reveal").glob("*.md"), *(PROMPTS / DATA().prompts).glob("*.md")}
+    files = sorted(own) + [PROMPTS / "pring_test" / f for f in ("batch.md", "nudge.md")]
     return {
+        "data": DATA().name,
         "model": args.model,
         "thinking": args.thinking,
         "predictor": args.predictor,
@@ -168,32 +254,19 @@ def provenance(args, **extra):
         "git": commit(),
         "pi": get_pi_version(),
         "prompts": {p.relative_to(PROMPTS).as_posix(): hashlib.sha256(p.read_bytes()).hexdigest()[:16] for p in files},
-        "split": json.loads((RSI / "rsi.json").read_text())["outputs"],
+        "split": json.loads(DATA().split.read_text())["outputs"],
         "started": datetime.now(UTC).isoformat(timespec="seconds"),
         **extra,
     }
 
 
-def round_sandbox(t, predictor):
-    if not predictor:
-        return Sandbox(str(PLAIN))
-    view = VIEWS / f"round{t:02d}"
-    assert (view / "scores.tsv.gz").exists(), f"no checkpoint {t - 1} view: train it and run build_mus22t_rsi_sandbox"
-    return Sandbox(str(view))
-
-
 def val_check(t, args, records, lessons, run_dir):
     """The agent's metrics on the val gate pairs with this memory, read-only, as in the final test (the agent sees the
-    final-test stage); with the predictor, checkpoint t."""
-    if args.predictor:
-        view = VIEWS / f"val{t:02d}"
-        assert (view / "scores.tsv.gz").exists(), f"no checkpoint {t} val view: run build_mus22t_rsi_sandbox"
-        sandbox = Sandbox(str(view))
-    else:
-        sandbox = Sandbox(str(PLAIN))
-    book = casebook(records, sandbox)
-    system = system_prompt(sandbox, args.predictor, records, lessons, FINAL_STAGE)
-    todo = batches(read(RSI / "val_gate.csv"), K)
+    final-test stage); with the predictor on 22T, checkpoint t."""
+    sandbox, view = stage_sandbox("val", t, args.predictor)
+    book = DATA().cases(records, sandbox, view)
+    system = system_prompt(sandbox, args.predictor, records, lessons, DATA().final_stage)
+    todo = batches(test_pairs(DATA().gate), K)
     d = run_dir / "val" / f"round{t:02d}"
     with ThreadPoolExecutor(args.workers) as pool:
         jobs = [
@@ -218,17 +291,19 @@ def val_check(t, args, records, lessons, run_dir):
 
 
 def run_rounds(run_dir, args):
-    assert (RSI / "dev.csv").exists() and (PLAIN / "kb.csv").exists(), (
-        "no development set: run build_mus22t_rsi and build_mus22t_rsi_sandbox"
+    data = DATA()
+    assert data.dev.exists() and (data.view("val", 0, False) / "kb.csv").exists(), (
+        f"no development set: run {data.build}"
     )
     run_dir.mkdir(parents=True, exist_ok=True)
     if (run_dir / "run.json").exists():
         old = json.loads((run_dir / "run.json").read_text())
         assert old["predictor"] == args.predictor, "resume with the run's own --predictor"
+        assert old.get("data", "mus22t") == data.name, "resume with the run's own --data"
         args.model, args.thinking = old["model"], old["thinking"]
     else:
         (run_dir / "run.json").write_text(json.dumps(provenance(args), indent=1) + "\n")
-    rounds = reveal_rounds()
+    rounds = round_batches(data.batches)
     records, lessons = [], Lessons()
     gate_path = run_dir / "gate.json"
     gate = json.loads(gate_path.read_text()) if gate_path.exists() else []
@@ -240,13 +315,13 @@ def run_rounds(run_dir, args):
         if (mem_dir / "cases.jsonl").exists():
             records, lessons = load_memory(mem_dir)
             continue
-        sandbox = round_sandbox(t, args.predictor)
+        sandbox, view = stage_sandbox("round", t, args.predictor)
         stage = (
             f"This is round {t} of {ROUNDS}. After you submit, the labels of this batch are revealed and become "
             "cases; a reviewer then updates the lessons."
         )
         system = system_prompt(sandbox, args.predictor, records, lessons, stage)
-        book = casebook(records, sandbox)
+        book = data.cases(records, sandbox, view)
         result = run_batch(
             t,
             rounds[t],
@@ -259,11 +334,12 @@ def run_rounds(run_dir, args):
         )
         if result is None:
             raise RuntimeError(f"round {t} failed twice")
-        seen = {(a, b): p for (a, b, p) in sandbox.query("SELECT a, b, p FROM scores")} if args.predictor else None
+        score = lambda a, b: sandbox.query("SELECT p FROM scores WHERE a = ? AND b = ?", [a, b])[0][0]  # noqa: E731, B023
+        seen = {(a, b): score(a, b) for a, b, _ in rounds[t]} if args.predictor else None
         fresh = new_cases(t, result, seen)
         kept_records, kept_lessons = records, Lessons(lessons.all)
         records = records + fresh
-        log = review(t, args, sandbox, records, fresh, lessons, run_dir)
+        log = review(t, args, sandbox, view, records, fresh, lessons, run_dir)
         # a rerun reviewed again: earlier val batches checked another memory
         set_aside(run_dir / "val", f"round{t:02d}_stale", f"round{t:02d}")
         m = val_check(t, args, records, lessons, run_dir)
@@ -286,7 +362,7 @@ def curve_rows(rows, t):
     out = {"round": t, "pairs": len(rows)}
     if "p" in rows[0]:
         out["agent"] = classification(y, [0.5 if r["p"] is None else r["p"] for r in rows])
-    for name, c in (("v3_frozen", 0), ("al_checkpoint", t - 1)):
+    for name, c in (("v3_frozen", 0), ("al_checkpoint", t - 1)) if DATA().checkpoints else ():
         if checkpoint_path(c).exists():
             p = checkpoint_p(c)
             out[name] = classification(y, [p[(r["a"], r["b"])] for r in rows])
@@ -309,19 +385,19 @@ def run_test(run_dir, args):
     records, lessons = load_memory(mem_dir)
     args.model, args.thinking, args.predictor = cfg["model"], cfg["thinking"], cfg["predictor"]
     predictor = args.predictor
-    if predictor:
-        assert (VIEWS / "final" / "scores.tsv.gz").exists(), "no checkpoint 10 view: build_mus22t_rsi_sandbox"
-    sandbox = Sandbox(str(VIEWS / "final" if predictor else PLAIN))
-    book = casebook(records, sandbox)
+    data = DATA()
+    assert cfg.get("data", "mus22t") == data.name, "test with the run's own --data"
+    sandbox, view = stage_sandbox("final", ROUNDS, predictor)
+    book = data.cases(records, sandbox, view)
     test_dir = run_dir / "final"
     test_dir.mkdir(exist_ok=True)
-    todo = batches(read(RSI / "final.csv"), args.batch)
+    todo = batches(test_pairs(data.final), args.batch)
     if (test_dir / "run.json").exists():
         assert json.loads((test_dir / "run.json").read_text())["batch"] == args.batch, "resume with the same batch"
     else:
         extra = {"batch": args.batch, "batches": len(todo), "cases": len(records)}
         (test_dir / "run.json").write_text(json.dumps(provenance(args, **extra), indent=1) + "\n")
-    system = system_prompt(sandbox, predictor, records, lessons, FINAL_STAGE)
+    system = system_prompt(sandbox, predictor, records, lessons, data.final_stage)
     n = len(todo)
     with ThreadPoolExecutor(args.workers) as pool:
         jobs = [
@@ -343,10 +419,11 @@ def run_test(run_dir, args):
     if not results:
         return
     rows = [row for r in results for row in r["rows"]]
-    summary = summarise(rows, results, None)
+    summary = summarise(rows, results, data.reference)
     y = [r["label"] for r in rows]
     p = [0.5 if r["p"] is None else r["p"] for r in rows]
-    for name, c in (("v3", 0), ("al_checkpoint10", ROUNDS)):  # the DL predictor before and after the rounds
+    # 22T: the DL predictor before and after the rounds
+    for name, c in (("v3", 0), ("al_checkpoint10", ROUNDS)) if data.checkpoints else ():
         if checkpoint_path(c).exists():
             scores = checkpoint_p(c)
             q = [scores[(r["a"], r["b"])] for r in rows]
@@ -383,7 +460,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("stage", choices=("rounds", "test", "al"))
     parser.add_argument("name", nargs="?")
-    parser.add_argument("--predictor", action="store_true", help="rounds: the agent sees the DL checkpoints")
+    parser.add_argument("--data", choices=("mus22t", "pring"), default="mus22t")
+    parser.add_argument("--predictor", action="store_true", help="rounds: the agent sees the DL predictor's scores")
     parser.add_argument("--until", type=int, help="rounds: stop after this round")
     parser.add_argument("--batch", type=int, default=K, help="test: pairs per session")
     parser.add_argument("--workers", type=int, default=8)
@@ -395,7 +473,9 @@ def main():
         run_al()
         return
     assert args.name, f"{args.stage} needs a run name"
-    (run_rounds if args.stage == "rounds" else run_test)(RUNS / args.name, args)
+    global DATA
+    DATA = pring if args.data == "pring" else mus22t
+    (run_rounds if args.stage == "rounds" else run_test)(DATA().runs / args.name, args)
 
 
 if __name__ == "__main__":

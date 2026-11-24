@@ -172,3 +172,24 @@ def test_case_tools_and_test_tools(sandbox, tmp_path):
     assert "b0_p" not in row and row["case"] == "X1-X2"
     (spec,) = [s for s in specs(blind.names, blind.descriptions) if s["name"] == "cases"]
     assert "predictor" not in spec["description"]
+
+
+def test_submit_batch_rejects_tested_and_repeated_pairs_then_accepts_the_fixed_batch(sandbox, tmp_path):
+    w = RoundTools(sandbox, tmp_path / "w", {("A", "B")}, [])
+    row = lambda a, b: {"a": a, "b": b, "ranking_score": 0.9, "uncertainty": 0.1, "evidence_ids": [], "rationale": "x"}  # noqa: E731
+    with pytest.raises(ToolError, match=r"2 of its pairs.*A-B \(already tested\), C-D \(listed twice\)"):
+        w.call("submit_batch", {"pairs": [row("B", "A"), row("C", "D"), row("D", "C"), row("A", "C")]})
+    assert w.submitted is None and not (tmp_path / "w" / "submission.json").exists()  # nothing was sent
+    fixed = [row("A", "C"), row("C", "D")]
+    assert "received 2 pairs" in w.call("submit_batch", {"pairs": fixed})
+    assert json.loads((tmp_path / "w" / "submission.json").read_text()) == fixed
+
+
+def test_submit_batch_accepts_a_batch_after_three_rejections(sandbox, tmp_path):
+    w = RoundTools(sandbox, tmp_path / "w", {("A", "B")}, [])
+    bad = [{"a": "A", "b": "B", "ranking_score": 0.9, "uncertainty": 0.1, "evidence_ids": [], "rationale": "x"}]
+    for _ in range(3):
+        with pytest.raises(ToolError, match="batch rejected"):
+            w.call("submit_batch", {"pairs": bad})
+    w.call("submit_batch", {"pairs": bad})  # the session must end: the evaluator counts the pair as a miss
+    assert w.submitted == bad

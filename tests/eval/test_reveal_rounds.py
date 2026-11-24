@@ -149,3 +149,97 @@ def test_rounds_stop_without_the_development_set(tmp_path, monkeypatch):
     args = argparse.Namespace(predictor=False, until=None, model="m", thinking="t", workers=1)
     with pytest.raises(AssertionError, match="no development set"):
         reveal_rounds.run_rounds(tmp_path / "runs" / "x", args)
+
+
+def pring_setup(tmp_path, monkeypatch):
+    from src.eval import reveal_rounds
+
+    hidden = tmp_path / "hidden"
+    hidden.mkdir()
+    # round 1 lists one pair in node order (B before A): the harness makes it canonical
+    (hidden / "dev_random.csv").write_text(HEAD.strip() + ",round\nB,A,1,1\nA,C,0,1\nC,D,1,2\nB,D,0,2\n")
+    (hidden / "dev.csv").write_text(HEAD + "A,B,1\nA,C,0\nC,D,1\nB,D,0\n")
+    for name in ("final_test.csv", "val_gate.csv"):
+        (hidden / name).write_text(HEAD + "".join(f"{a},{b},{y}\n" for a, b, y in FINAL))
+    (tmp_path / "memory_split.json").write_text('{"outputs": {}}')
+    for view in ("sandbox_disc", "sandbox_val", "sandbox_final"):
+        disc_view(tmp_path / view)
+    for name, value in (
+        ("PRING", tmp_path),
+        ("DISC", tmp_path / "sandbox_disc"),
+        ("VAL", tmp_path / "sandbox_val"),
+        ("FINAL", tmp_path / "sandbox_final"),
+        ("DATA", reveal_rounds.pring),
+        ("ROUNDS", 2),
+        ("get_pi_version", lambda: "test"),
+    ):
+        monkeypatch.setattr(reveal_rounds, name, value)
+    return reveal_rounds
+
+
+def test_pring_rounds_gate_and_final_test_with_the_random_batches(tmp_path, monkeypatch):
+    reveal_rounds = pring_setup(tmp_path, monkeypatch)
+    calls = []
+    val_p = [0.4, 0.9, 0.4]  # the gate after rounds 0, 1, 2: AUPRC 0.5, 1, 0.5 -> round 1 kept, round 2 dropped
+
+    def fake_session(tools, agent_dir, system, message, nudge, **_):
+        calls.append((type(tools).__name__, system, message))
+        if isinstance(tools, RevealReviewTools):
+            first = message.split("This round's cases")[1].splitlines()[2].split("\t")[0]
+            tools.update_lessons([{"op": "add", "text": f"from {first}", "scope": "s", "supporting": [first]}])
+        else:
+            pairs = [line.split("\t") for line in message.split("\n")[3:] if line]
+            tools.predict_pairs([{"a": r[0], "b": r[2]} for r in pairs])
+            p = dict.fromkeys(((r[0], r[2]) for r in pairs), 0.7)
+            if "final test" in system and val_p:
+                x = val_p.pop(0)
+                p = {("A", "D"): x, ("B", "C"): 1 - x}
+            tools.submit_predictions([{"a": a, "b": b, "p": x, "evidence_ids": ["pred"]} for (a, b), x in p.items()])
+        return {"submission": tools.submitted, "error": None, "tool_calls": 1, "stats": {}}
+
+    import src.eval.memory_agent as memory_agent
+    import src.eval.pring_test as pring_test
+
+    monkeypatch.setattr(memory_agent, "run_session", fake_session)
+    monkeypatch.setattr(pring_test, "run_session", fake_session)
+    monkeypatch.setattr(pring_test, "predictor_p", lambda name, pairs: dict.fromkeys(pairs, 0.6))
+    args = argparse.Namespace(predictor=True, until=None, model="m", thinking="t", batch=200, workers=1, limit=None)
+    run_dir = tmp_path / "runs" / "x"
+    reveal_rounds.run_rounds(run_dir, args)
+
+    assert [c[0] for c in calls] == ["RevealTools"] * 2 + ["RevealReviewTools"] + ["RevealTools"] * 2 + [
+        "RevealReviewTools",
+        "RevealTools",
+    ]
+    assert all("human proteins" in c[1] for c in calls)  # the PRING prompts, not the mouse ones
+    assert "use the cases of their homologs" in calls[0][1] and "This is round 1 of 2" in calls[1][1]
+    assert json.loads((run_dir / "run.json").read_text())["data"] == "pring"
+    gate = json.loads((run_dir / "gate.json").read_text())
+    assert [(g["round"], g["val_auprc"], g["kept"]) for g in gate] == [(0, 0.5, True), (1, 1.0, True), (2, 0.5, False)]
+    cases = [json.loads(line) for line in open(run_dir / "memory" / "round02" / "cases.jsonl")]
+    assert [(c["a"], c["b"], c["result"], c["round"]) for c in cases] == [
+        ("A", "B", "hit", 1),  # listed as B,A
+        ("A", "C", "not detected", 1),
+    ]
+    assert cases[0]["b0_p"] == 0.1 and cases[0]["ranking_score"] == 0.7  # the frozen predictor's score of A-B
+
+    reveal_rounds.run_rounds(run_dir, args)  # resume: no new session
+    assert len(calls) == 7
+
+    val_p.clear()
+    reveal_rounds.run_test(run_dir, args)
+    summary = json.loads((run_dir / "final" / "summary.json").read_text())
+    assert summary["pairs"] == 2 and "agent_minus_b0" in summary and "v3" not in summary
+    assert "L1" in calls[-1][1] and "L2" not in calls[-1][1]  # the final test reads the kept memory only
+
+    monkeypatch.setattr(reveal_rounds, "DATA", reveal_rounds.mus22t)
+    with pytest.raises(AssertionError):  # a PRING run is not resumed as a 22T run
+        reveal_rounds.run_test(run_dir, args)
+
+
+def test_pring_rounds_stop_without_the_development_set(tmp_path, monkeypatch):
+    reveal_rounds = pring_setup(tmp_path, monkeypatch)
+    (tmp_path / "hidden" / "dev.csv").unlink()
+    args = argparse.Namespace(predictor=False, until=None, model="m", thinking="t", workers=1)
+    with pytest.raises(AssertionError, match="no development set: run build_pring_sandbox"):
+        reveal_rounds.run_rounds(tmp_path / "runs" / "x", args)

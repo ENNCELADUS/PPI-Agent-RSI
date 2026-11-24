@@ -20,10 +20,10 @@ Replace this section on every update; history lives in git and the specs.
 - **Split change of 2026-11-24 ([plan](docs/superpowers/plans/2026-11-24-node-disjoint-validation-and-development-set.md)):** code, tests and docs done; `data/` not rebuilt (plan Task 8: B0 logits of the new validation pairs, 11 V3 trainings on H20); no run on the new splits. **Every RSI number below is from the splits before it.**
 - **Private split (built):** `data/TMP/agent_split/`: `train.csv` = agent look-up; `test.csv` = 1:1 non-public positives.
 - **22T mouse sandbox (`pring_test --data mus22t`):** `agent_split/` (hidden) = transductive 8:1:1 + PRING negatives. [Test AUPRC](results/classification-test/summary.html): LLM-only 0.587, V3 0.716, [agent + V3](docs/superpowers/specs/2026-11-02-mus22t-llm-predictor-design.md) (`--predictor`) 0.708, PRING-trained B0 (no 22T training) 0.597. API cost (list prices): all runs $779 DeepSeek, ≈ $1,658 GPT-6.1 Sol; one 22T round $3.1–3.6.
-- **22T rounds (new split):** training 65,912; development set 10,000 (1,000 from test + 9,000 from train); 10 × 100 drawn at random (the control; score rules and agent picks not built); final 8,366 and validation unchanged. Old split (preset 50 + 50 batches), final AUPRC gated (ungated): V3 0.716; DL 0.735 (0.712); LLM-only 0.593 (0.573); LLM + DL 0.715 (0.691).
+- **22T rounds (new split):** training 65,912; development set 10,000 (1,000 from test + 9,000 from train); 10 × 100 drawn at random; final 8,366 and validation unchanged. **Baseline rule on both benchmarks = random draw** (as Zeng & Luo 2026; baseline arm = DL predictor + random); PRING random batches `hidden/dev_random.csv` (1,012 positives in 2,000) run in `reveal_rounds --data pring` (B0 frozen); score rules and agent picks on 22T not built. Old split (preset 50 + 50 batches), final AUPRC gated (ungated): V3 0.716; DL 0.735 (0.712); LLM-only 0.593 (0.573); LLM + DL 0.715 (0.691).
 - **SEAL-protocol splits (DL-comparable only):** random edge 80/10/10; propensity AUPRC 22T 0.944, TMP (≈ SEAL) 0.888.
 - **PRING sandbox (built, closed-world; agent sees `sandbox*/` only):** [design](docs/superpowers/specs/2026-10-23-pring-sandbox-design.md), [classification spec](docs/superpowers/specs/2026-11-01-pring-classification-test-design.md).
-  [Results](results/classification-test/summary.html) (V4 Pro): LLM-only full test AUPRC 0.799 vs B0 0.736; [two-layer memory agent](docs/superpowers/specs/2026-11-02-two-layer-memory-agent-design.md) final test 0.775 / cases 0.804 / + lessons 0.803 / cases, no predictor 0.811; B0 retrained on the round labels 0.717 (frozen 0.695; `al_predictor`).
+  [Results](results/classification-test/summary.html) (V4 Pro): LLM-only full test AUPRC 0.799 vs B0 0.736; [two-layer memory agent](docs/superpowers/specs/2026-11-02-two-layer-memory-agent-design.md) final test 0.775 / cases 0.804 / + lessons 0.803 / no predictor: empty 0.801 (run of 2026-11-24, $36), cases 0.811; B0 retrained on the round labels 0.717 (frozen 0.695; `al_predictor`).
 - **Closed-loop discovery ([spec](docs/superpowers/specs/2026-10-23-pring-wave-discovery-design.md)):** 10 × 200 picks of 2.04M pairs; ribosome dominates unless ablated. Agent = pi; B0 in `src/predictor/`; LLM `deepseek-flash` (V4.1-Flash-1017, thinking high). Never vendor/retrain DIPPI. [Public tracks](docs/research-reports/2026-10-19-public-ppi-benchmarks.md), [RSI positioning](docs/research-reports/2026-10-27-rsi-active-learning-positioning.md), [five paper features](docs/research-reports/2026-11-23-five-paper-features.md).
 
 ## Commands
@@ -47,14 +47,13 @@ uv run python -m src.data.builders.build_pring_cls && uv run python -m src.eval.
 uv run python -m src.data.builders.build_pring_memory && uv run python -m src.eval.memory_agent rounds|test <name>  # rounds: val gate in sandbox_val/; test --arm memory|cases|empty [--no-predictor]
 uv run python -m src.eval.score <labels.csv> <ranking.csv>  # private test.csv
 uv run python -m src.data.builders.build_mus22t_rsi && uv run python -m src.data.builders.build_mus22t_rsi_sandbox  # training and development sets, random batches; DL: train_mus22t_al.sh (H20)
-uv run python -m src.eval.reveal_rounds rounds|test <name> [--predictor]  # al: the DL summary; batches = random draws from the development set
+uv run python -m src.eval.reveal_rounds rounds|test <name> [--predictor] [--data pring]  # al: the DL summary; batches = random draws from the development set
 uv run --extra predictor python -m src.data.builders.build_seal_split mus22t|tmp  # SEAL-protocol split; tmp ~20 s
 uv run python -m src.data.builders.build_mus22t_agent_split && uv run python -m src.data.builders.build_mus22t_sandbox && uv run python -m src.data.builders.build_mus22t_scores  # ~75 s
 ```
 
 - `fetch_public.sh` resumes downloads (`curl -C -`), pipes each to `src.data.public_db`, then deletes it.
-- Tests use synthetic inputs; builders, fetch and live checks need real data or network, so "it imports" proves
-  nothing: rebuild and compare checksums. **Baseline the suite before changing code.**
+- Tests use synthetic inputs; builders, fetch and live checks need real data or network, so "it imports" proves nothing: rebuild and compare checksums. **Baseline the suite before changing code.**
 - A global `rtk` hook rewrites Bash output (`ruff` may print `[]`, pytest fake errors): use `.venv/bin/ruff`,
   redirect pytest, `rtk proxy <cmd>` for exact output; `rg` may fail under it, use `grep`.
 
@@ -106,10 +105,10 @@ Mistakes here produce a complete-looking **wrong artifact**, not an exception.
 Terms: use these names in every doc and reply (code names in parentheses); four disjoint sets of pairs.
 - **Training set:** labelled pairs that train the DL predictor and that the agent may look up (`kb.csv`). 22T 65,912 pairs; PRING 63,246.
 - **Validation set:** selection only: DL hyperparameters and epoch, and the gate that keeps or drops each round. No round reveals it; the agent never sees its labels or, on PRING, its 869 proteins. 22T 9,364 pairs (agents gate on 400); PRING 9,406.
-- **Development set:** pairs with hidden labels; each round reveals one batch, and these revealed labels are the only feedback. 22T `rsi/dev.csv`, 10,000 pairs, 10 × 100 revealed; PRING all 732,655 pairs of the 1,211 discovery proteins (`sandbox_disc/`), 10 × 200 picks.
+- **Development set:** pairs with hidden labels; each round reveals one batch, and these revealed labels are the only feedback. 22T `rsi/dev.csv`, 10,000 pairs, 10 × 100 revealed; PRING `hidden/dev.csv`, 20,668 labelled pairs (1:1) of the 1,211 discovery proteins (`sandbox_disc/`), 10 × 200 revealed; all 732,655 pairs of these proteins are only the candidate space of the discovery track (hits).
 - **Final test:** fixed before any run, never revealed, scored once after the last round. 22T `rsi/final.csv`, 8,366 pairs; PRING `hidden/final_test.csv`, 10,280 pairs of the other 807 test proteins.
+- **Update target (the central axis):** the part of the system state that the revealed labels change. Built: predictor weights, case memory, lessons. Not built: predictor recipe, predictor architecture, prompt, tools, workflow. An arm = update target × system × acquisition rule; the baseline arm = DL predictor, weights only, random rule.
 
-- PRING numbers are internal only (public labels the LLM can know). Only private labels support a claim: the 22T final test, the TMP `test.csv` and a future post-cutoff slice.
 - 22T is transductive on purpose: 99% of development and final-test positives have both proteins among the training positives, so its claims are for known proteins.
 - `data/MUS22T/sandbox/kb.csv` (all of `agent_split/train.csv`) holds the labels of 9,000 development pairs: RSI runs read `sandbox_rsi/kb.csv`.
 - Raw negatives (18.4M, computational) are unused: 97% of GT-test negatives recur in training negatives.

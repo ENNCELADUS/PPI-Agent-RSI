@@ -17,7 +17,7 @@ module from the repo root as `python -m src.<path>`. `data` never imports `eval`
 - `build_pring_tools`: Build the agent's tool files for PRING closed-loop discovery: calibrated predictor scores and KB homologs.
 - `build_pring_noribo`: Build the ribosome-ablation sandbox: the PRING sandbox with the cytosolic ribosome removed from the candidates.
 - `build_pring_cls`: Build the classification-test sandbox: the PRING sandbox with the KB cut to train and no predictor.
-- `build_pring_memory`: Build the two-layer memory agent's split: discovery and final-test views of the PRING test proteins, and the 400 validation gate pairs.
+- `build_pring_memory`: Build the two-layer memory agent's split: discovery and final-test views of the PRING test proteins, the development set with its random batches, and the 400 validation gate pairs.
 - `build_mus22t_agent_split`: Split the 22T mouse membrane PPIs transductively 8:1:1 by positive pairs, with new PRING negatives.
 - `build_mus22t_sandbox`: Build the 22T agent sandbox: the agent-visible files for the 22T mouse membrane split, PRING-sandbox layout.
 - `build_mus22t_rsi`: Split the 22T data for RSI under sparse labels: training set, development set (10,000 pairs), random batches and final set.
@@ -48,7 +48,7 @@ Remote runs follow the local, untracked `remote-api-agent` skill.
 - `rounds`: Run PRING closed-loop discovery with the pi agent: rounds of K submitted pairs, oracle results, true feedback.
 - `pring_test`: Classification test on PRING: the agent predicts every pair of PRING's human BFS test split. `--data mus22t`: the same agent on the 22T mouse test split.
 - `memory_agent`: Run the two-layer memory agent: discovery rounds with case memory, reviewer-updated lessons and a validation gate in every round, then the final test.
-- `reveal_rounds`: 22T reveal rounds: the agent classifies each round's batch (random draws from the development set), its labels become cases, a reviewer updates the lessons.
+- `reveal_rounds`: 22T reveal rounds (and the same on PRING with `--data pring`): the agent classifies each round's batch (random draws from the development set), its labels become cases, a reviewer updates the lessons.
 - `al_predictor`: Active-learning B0 arm of the memory agent's final test: B0 retrained on the knowledge base plus the round labels.
 - `score`: Score a global top-N ranking against a labels file (the private `test.csv`).
 - `verify_live_string`: Spot-check that sampled test pairs are absent from the live STRING API.

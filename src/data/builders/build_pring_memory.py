@@ -17,6 +17,12 @@ Design: docs/superpowers/specs/2026-11-02-two-layer-memory-agent-design.md.
   hidden/val.csv, each sorted and shuffled with random.Random(0); after every round the agent classifies them in
   sandbox_val/ (build_pring_sandbox, build_pring_tools) with its candidate memory. sandbox_val/case_homologs.tsv
   holds the hits of the validation proteins against the discovery proteins. No validation protein is in a view.
+- Development set (user decisions 2026-11-24): hidden/dev.csv = PRING's labelled test pairs with both ends among the
+  discovery proteins, no self pairs, balanced 1:1 like the final test (20,668 pairs). All pairs of the discovery
+  proteins (732,655, 1.41% positive) stay the candidate space of the discovery track only (src.eval.memory_agent
+  rounds, metric: hits): a random draw from them reveals almost only negatives.
+- Random acquisition, the baseline rule: hidden/dev_random.csv = 10 rounds of 200 development pairs
+  (build_mus22t_rsi.draw: sorted by pair, shuffled with random.Random(0); the labels play no part in the draw).
 - data/PRING/memory_split.json: counts and checksums. The ribosome stays in both views (user decision).
 """
 
@@ -27,7 +33,7 @@ import json
 import random
 import shutil
 
-from src.data.builders.build_mus22t_rsi import val_gate
+from src.data.builders.build_mus22t_rsi import draw, val_gate
 from src.data.builders.build_pring_noribo import drop_rows
 from src.data.builders.build_pring_tools import homologs
 from src.data.paths import HIDDEN, PRING, SANDBOX
@@ -38,6 +44,8 @@ FINAL_SHARE = 0.4
 DISC, FINAL = PRING / "sandbox_disc", PRING / "sandbox_final"
 FINAL_TEST = HIDDEN / "final_test.csv"
 VAL_GATE = HIDDEN / "val_gate.csv"
+DEV, DEV_RANDOM = HIDDEN / "dev.csv", HIDDEN / "dev_random.csv"
+ROUNDS, BATCH = 10, 200
 HEADER = ["uniprotID_A", "uniprotID_B", "isInteraction"]
 
 
@@ -64,9 +72,9 @@ def split(candidates, seed=SEED):
     return set(ordered) - final, final
 
 
-def final_pairs(rows, final, seed=SEED):
-    """Labelled non-self pairs with both ends in final, balanced 1:1; rows are (a, b, label) with label 0/1."""
-    inside = sorted(r for r in rows if r[0] in final and r[1] in final and r[0] != r[1])
+def balanced_pairs(rows, proteins, seed=SEED):
+    """Labelled non-self pairs with both ends in proteins, balanced 1:1; rows are (a, b, label) with label 0/1."""
+    inside = sorted(r for r in rows if r[0] in proteins and r[1] in proteins and r[0] != r[1])
     pos, neg = [r for r in inside if r[2] == 1], [r for r in inside if r[2] == 0]
     n, rng = min(len(pos), len(neg)), random.Random(seed)
     return sorted(rng.sample(pos, n) + rng.sample(neg, n))
@@ -116,27 +124,39 @@ def main():
     write_homologs(FINAL / "case_homologs.tsv", hits, final)
     write_homologs(VAL / "case_homologs.tsv", hits, val_seqs.keys())
 
-    test = final_pairs(labelled(HIDDEN / "test.csv"), final)
+    released = labelled(HIDDEN / "test.csv")
+    test, dev = balanced_pairs(released, final), balanced_pairs(released, disc)
+    assert not {r[:2] for r in test} & {r[:2] for r in dev}, "pair in the development set and the final test"
     write_pairs(FINAL_TEST, test)
+    write_pairs(DEV, dev)
     gate = gate_pairs(labelled(HIDDEN / "val.csv"))
     write_pairs(VAL_GATE, gate)
-    hits_disc = sum(
-        1
-        for r in csv.DictReader(open(HIDDEN / "test_positives.csv"))
-        if r["uniprotID_A"] in disc and r["uniprotID_B"] in disc
-    )
+    hit_pairs = {
+        tuple(sorted((r["uniprotID_A"], r["uniprotID_B"]))) for r in csv.DictReader(open(HIDDEN / "test_positives.csv"))
+    }
+    drawn = draw(dev, ROUNDS, BATCH)
+    with open(DEV_RANDOM, "w", newline="") as f:
+        w = csv.writer(f)
+        w.writerow([*HEADER, "round"])
+        w.writerows((*r, t) for t in sorted(drawn) for r in drawn[t])
+    hits_disc = sum(1 for a, b in hit_pairs if a in disc and b in disc)
     stats |= {
         "discovery_hits": hits_disc,
         "final_test_pairs": len(test),
         "final_test_positives": sum(r[2] for r in test),
         "val_gate_pairs": len(gate),
+        "dev": {"pairs": len(dev), "pos": sum(r[2] for r in dev)},
+        "dev_random": {
+            "pairs": sum(map(len, drawn.values())),
+            "pos": sum(r[2] for rows in drawn.values() for r in rows),
+        },
         "case_homolog_queries": {
             "discovery": len({h[0] for h in hits if h[0] in disc}),
             "final": len({h[0] for h in hits if h[0] in final}),
         },
         "outputs": {
             p.relative_to(PRING).as_posix(): hashlib.sha256(p.read_bytes()).hexdigest()[:16]
-            for p in (FINAL_TEST, VAL_GATE, *(d / "case_homologs.tsv" for d in (DISC, FINAL, VAL)))
+            for p in (FINAL_TEST, VAL_GATE, DEV, DEV_RANDOM, *(d / "case_homologs.tsv" for d in (DISC, FINAL, VAL)))
         },
     }
     (PRING / "memory_split.json").write_text(json.dumps(stats, indent=1) + "\n")

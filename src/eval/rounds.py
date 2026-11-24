@@ -13,6 +13,8 @@ result.json exists is replayed, so a stopped run resumes.
 
 - Validity: only the first K rows count; a row is valid if both ids are candidate proteins, it is not
   a self pair, not tested in an earlier round and not repeated. Invalid rows are misses, never refilled.
+  Since 2026-11-24 `submit_batch` rejects a batch with a tested or repeated pair and the agent sends it again
+  (up to 3 rejections per round), so such rows should no longer reach the evaluator.
 - A round that fails (provider or transport error, timeout) without a submission is rerun once; the
   failed attempt's agent/ is kept as agent_failed/. A second failure stops the run with no result.json,
   so it resumes at that round: an infrastructure failure (e.g. an empty API balance) is not the agent's

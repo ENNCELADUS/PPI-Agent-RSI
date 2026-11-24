@@ -18,7 +18,8 @@ choose and reports which of them interact.
 - A knowledge base of labelled pairs among other proteins (none of them a candidate): `similar_proteins`
   finds a protein's sequence homologs in it, `kb_partners` lists a knowledge-base protein's labelled pairs.
 - `memory`: every pair tested in earlier rounds, with its result.
-- `submit_batch`: sends the round's {k} pairs. It is final and can be called once.
+- `submit_batch`: sends the round's {k} pairs. A batch with a pair that was already tested or that is listed twice
+  is rejected: replace those pairs and call it again. An accepted batch is final.
 You have {cap} tool calls per round, `submit_batch` included.
 
 ## How to work

@@ -3,6 +3,10 @@
     uv run python -m src.eval.memory_agent rounds <name> [--rounds 10] [--until T] [--model ...] [--thinking ...]
     uv run python -m src.eval.memory_agent test <name> --arm memory|cases|empty [--no-predictor] [--limit N]
 
+These rounds are the discovery track (user decision 2026-11-24): the selector picks from all pairs of the discovery
+proteins and the metric is the hits. The benchmark's development set (hidden/dev.csv) and its random batches
+(hidden/dev_random.csv) run in src.eval.reveal_rounds --data pring.
+
 Design: docs/superpowers/specs/2026-11-02-two-layer-memory-agent-design.md. Data: build_pring_memory
 (sandbox_disc/, sandbox_final/, hidden/final_test.csv). Runs go to data/PRING/runs/<name>/.
 

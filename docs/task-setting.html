@@ -38,6 +38,9 @@ tbody tr:last-child td { border-bottom: 0 }
 tr.g td { font-size: 0.78rem; color: var(--muted); font-weight: 600; background: color-mix(in srgb, var(--rule) 35%, transparent) }
 td.n { font: 0.84rem var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap }
 td strong { color: var(--accent) }
+td.tbd { color: var(--muted); font-style: italic }
+td.tbd:not(.n) { font-style: normal }
+tr.grp td { font-size: 0.78rem; font-weight: 600; color: var(--muted); background: var(--bg, transparent) }
 figure { margin: 8px 0 0; display: grid; gap: 6px }
 figure img { max-width: 100%; height: auto; background: #fff; border: 1px solid var(--rule); border-radius: 4px }
 figcaption { font: 0.78rem var(--mono); color: var(--muted) }
@@ -86,11 +89,11 @@ figcaption { font: 0.78rem var(--mono); color: var(--muted) }
 <p>A random pick is a hit with the base rate of \(\mathcal{D}_{\text{dev}}\). Under the random rule the hits only show the base rate, so they are not a metric there.</p>
 
 <h3>Data</h3>
-<p class="cap"><b>Table 1.</b> Data splits: labelled pairs (positives). 22T: private mouse membrane PPIs, 46,821 positives split at random 8:1:1 by pair (transductive), each split filled to 1:1 with degree-preserving negatives. The test split (9,366 pairs, 2,154 proteins) is cut at random into 1,000 development pairs and the final test; 9,000 more pairs (4,500 positive) move at random from the training set to the development set, so the budget of 1,000 labels is 10% of the development set. PRING: public human breadth-first split (internal only). Its training and validation sets share no protein (the split of the motif-graph project, on which the DL predictor was trained and selected): the 869 validation proteins are one breadth-first region of the train graph, and the 11,436 positives that join a training and a validation protein are dropped. The 2,018 test proteins are split 60/40 at random into development and final-test proteins.</p>
-<div class="tw"><table><thead><tr><th>Split</th><th>Role</th><th>Labels visible</th><th>22T (random rule)</th><th>PRING (agent picks)</th></tr></thead><tbody>
+<p class="cap"><b>Table 1.</b> Data splits: labelled pairs (positives). 22T: private mouse membrane PPIs, 46,821 positives split at random 8:1:1 by pair (transductive), each split filled to 1:1 with degree-preserving negatives. The test split (9,366 pairs, 2,154 proteins) is cut at random into 1,000 development pairs and the final test; 9,000 more pairs (4,500 positive) move at random from the training set to the development set, so the budget of 1,000 labels is 10% of the development set. PRING: public human breadth-first split (internal only). Its training and validation sets share no protein (the split of the motif-graph project, on which the DL predictor was trained and selected): the 869 validation proteins are one breadth-first region of the train graph, and the 11,436 positives that join a training and a validation protein are dropped. The 2,018 test proteins are split 60/40 at random into development and final-test proteins; the development set and the final test are PRING's labelled test pairs inside each group, balanced 1:1.</p>
+<div class="tw"><table><thead><tr><th>Split</th><th>Role</th><th>Labels visible</th><th>22T</th><th>PRING</th></tr></thead><tbody>
 <tr><td>Training set \(\mathcal{K}\)</td><td>DL training; agent look-up</td><td>Always</td><td class="n">65,912 (32,956)</td><td class="n">63,246 (31,623)</td></tr>
 <tr><td>Validation \(\mathcal{D}_{\text{va}}\)</td><td>Selection and round gate</td><td>Never to the agent</td><td class="n">9,364 (4,682)</td><td class="n">9,406 (4,703)</td></tr>
-<tr><td>Development set \(\mathcal{D}_{\text{dev}}\)</td><td>Labels revealed round by round</td><td>After its round</td><td class="n">10,000 (5,000)<br>10 × 100 revealed</td><td class="n">732,655 candidates (10,334)<br>10 × 200 picks</td></tr>
+<tr><td>Development set \(\mathcal{D}_{\text{dev}}\)</td><td>Labels revealed round by round</td><td>After its round</td><td class="n">10,000 (5,000)<br>10 × 100 revealed</td><td class="n">20,668 (10,334)<br>10 × 200 revealed</td></tr>
 <tr><td>Final test \(\mathcal{D}_{\text{fin}}\)</td><td>Held-out evaluation of \(S_T\)</td><td>Never; scored once</td><td class="n">8,366 (4,183)</td><td class="n">10,280 (5,140)</td></tr>
 </tbody></table></div>
 <ul class="read">
@@ -105,33 +108,71 @@ figcaption { font: 0.78rem var(--mono); color: var(--muted) }
 <li><strong>Memory.</strong> Case memory: one record per revealed pair (label, the agent's p, the predictor's p, evidence), written by the system. Lessons: at most 30 active rules, each with supporting and contrary cases, written by a reviewer session with the same LLM. The lessons go in the prompt; the cases come through case retrieval.</li>
 <li><strong>DL predictor.</strong> An ESM-3 motif-graph pair classifier (V3). Checkpoint \(t\) is retrained from scratch on \(\mathcal{K}\) plus the kept rounds; in round \(t\) the agent sees checkpoint \(t-1\).</li>
 <li><strong>Gate.</strong> Every round has a gate on both benchmarks. The DL predictor uses the full validation set. Each agent uses 400 fixed validation pairs (200 positive), scored without memory updates. On a dropped round the revealed pairs stay spent, but their cases and lesson changes leave the memory.</li>
-<li><strong>Arms.</strong> The DL predictor retrained on the revealed labels; the LLM-only agent; the LLM agent with the DL predictor. Under the random rule every arm gets the same 10 batches, and every arm has the same final test. One run per arm.</li>
+<li><strong>Discovery track (PRING, internal).</strong> A separate experiment about the acquisition rule: the agent picks 10 × 200 pairs from all 732,655 pairs of the development proteins, and the metric is the hits. A batch with a pair that was already tested or that is listed twice is rejected at submission, and the agent sends it again (in the run of 2026-11-02, before this rule, 105 of 2,000 picks were repeats). It is not part of the update-target comparison, because a random draw from that space reveals almost only negatives (about 28 positives in 2,000).</li>
+<li><strong>Arms.</strong> An arm is an update target (Table 2), a system and an acquisition rule. The update target is the central axis: it says what the revealed labels change. Systems: the DL predictor retrained on the revealed labels; the LLM-only agent; the LLM agent with the DL predictor. The baseline rule on both benchmarks is the random draw from the development set, with a fixed seed and no use of the labels (as in Zeng and Luo, 2026). Under it every arm gets the same 10 batches. The baseline arm is the DL predictor with the random rule. Every arm has the same final test. One run per arm.</li>
 </ul>
 
-<h2>3. Current results</h2>
-<p><strong>These numbers come from the splits before 2026-11-24; the runs on the splits of Table 1 are not done yet.</strong> Then the 22T batches were preset (50 positives and 50 negatives per round, a development set equal to the budget, a training set of 74,912 pairs), and on PRING the validation pairs were in the agent's look-up set and no gate was applied.</p>
-<p class="cap"><b>Table 2.</b> 22T final test split (8,366 pairs, the same in every row); AUPRC and AUROC, higher is better, chance ≈ 0.5. \(S_0\): before the rounds; \(S_T\): after 10 rounds of preset batches with the gate. Without the gate, \(S_T\) AUPRC is 0.712, 0.573 and 0.691. Bold: best per column.</p>
-<div class="tw"><table><thead><tr><th>Model</th><th>Kept rounds</th><th>AUPRC \(S_0\)</th><th>AUPRC \(S_T\)</th><th>AUROC \(S_0\)</th><th>AUROC \(S_T\)</th></tr></thead><tbody>
-<tr><td>ESM-3 DL predictor, retrained on the revealed labels</td><td class="n">1, 3</td><td class="n"><strong>0.716</strong></td><td class="n"><strong>0.735</strong></td><td class="n"><strong>0.718</strong></td><td class="n"><strong>0.738</strong></td></tr>
-<tr><td>LLM-only agent</td><td class="n">1</td><td class="n">0.590</td><td class="n">0.593</td><td class="n">0.571</td><td class="n">0.577</td></tr>
-<tr><td>LLM agent + DL predictor</td><td class="n">1, 2, 6</td><td class="n">0.710</td><td class="n">0.715</td><td class="n">0.716</td><td class="n">0.727</td></tr>
-<tr><td>ESM-3 DL predictor trained on PRING (human), no 22T training</td><td class="n">–</td><td class="n">0.597</td><td class="n">–</td><td class="n">0.578</td><td class="n">–</td></tr>
-</tbody></table></div>
-<p class="cap"><b>Table 3.</b> PRING final test split (10,280 pairs, public labels, internal only); AUPRC and AUROC, higher is better. \(S_0\): before the rounds; \(S_T\): after 10 acquisition rounds without a gate (all rounds kept; the PRING validation pairs were in the agent's look-up set). The LLM agent with the DL predictor picked 10 × 200 pairs: 1,624 of the 1,895 valid picks were hits, against ≈ 27 at the base rate of 1.41%. Every arm uses these revealed labels. ¹ Not a matched run: the PRING classification run without rounds, scored on the same pairs. Bold: best per column.</p>
-<div class="tw"><table><thead><tr><th>Model</th><th>Kept rounds</th><th>AUPRC \(S_0\)</th><th>AUPRC \(S_T\)</th><th>AUROC \(S_0\)</th><th>AUROC \(S_T\)</th></tr></thead><tbody>
-<tr><td>ESM-3 DL predictor, retrained on the revealed labels</td><td class="n">all 10</td><td class="n">0.695</td><td class="n">0.717</td><td class="n">0.667</td><td class="n">0.695</td></tr>
-<tr><td>LLM-only agent, case memory</td><td class="n">all 10</td><td class="n"><strong>0.781</strong>¹</td><td class="n"><strong>0.811</strong></td><td class="n"><strong>0.748</strong>¹</td><td class="n"><strong>0.769</strong></td></tr>
-<tr><td>LLM agent + DL predictor, case memory</td><td class="n">all 10</td><td class="n">0.775</td><td class="n">0.804</td><td class="n">0.736</td><td class="n"><strong>0.769</strong></td></tr>
-<tr><td>LLM agent + DL predictor, cases + lessons</td><td class="n">all 10</td><td class="n">0.775</td><td class="n">0.803</td><td class="n">0.736</td><td class="n">0.767</td></tr>
+<p class="cap"><b>Table 2.</b> Update targets: the parts of the system state \(S_t\) that the revealed labels can change. The LLM weights and the protein language model stay frozen in every arm. The acquisition rule is the second axis of an arm and is not an update target here.</p>
+<div class="tw"><table><thead><tr><th>Update target</th><th>What changes</th><th>Written by</th><th>Earlier work that updates it</th><th>Status</th></tr></thead><tbody>
+<tr><td>Predictor weights</td><td>The DL predictor is trained again on the training set plus the kept revealed labels</td><td>Training code</td><td>Zeng and Luo (refit in every round); pool-based active learning</td><td>Built</td></tr>
+<tr><td>Predictor recipe</td><td>Hyperparameters, input features, curation of the revealed labels, pseudo-labels</td><td>LLM proposal, kept by the gate</td><td>Zeng and Luo (15 configuration fields)</td><td class="tbd">Not built</td></tr>
+<tr><td>Predictor architecture</td><td>The model family or its layers</td><td>LLM proposal, kept by the gate</td><td>–</td><td class="tbd">Not built</td></tr>
+<tr><td>Case memory</td><td>One case per revealed pair: label, the agent's p, the predictor's p, evidence</td><td>The system</td><td>Agent memory (Evo-Memory)</td><td>Built</td></tr>
+<tr><td>Lessons</td><td>At most 30 rules, each with supporting and contrary cases</td><td>Reviewer session</td><td>ACE (context playbook)</td><td>Built</td></tr>
+<tr><td>Prompt</td><td>The instructions of the agent</td><td>LLM proposal, kept by the gate</td><td>OPRO, GEPA</td><td class="tbd">Not built</td></tr>
+<tr><td>Tools</td><td>New or changed tools, such as a new evidence look-up</td><td>LLM proposal, kept by the gate</td><td>ADAS</td><td class="tbd">Not built</td></tr>
+<tr><td>Workflow</td><td>The order of steps and the harness code</td><td>LLM proposal, kept by the gate</td><td>AFlow, Darwin Gödel Machine</td><td class="tbd">Not built</td></tr>
 </tbody></table></div>
 
-<h3>Reading</h3>
+<h2>3. Current results</h2>
+<p>The layout follows Zeng and Luo (2026, <i>Does reflective LLM feedback survive a wet-lab-scale label budget?</i>): one row per arm, and an arm is an update target, a system and an acquisition rule. Their controller axis says who edits the predictor; our update target says what the revealed labels change (Table 2). The baseline row is the DL predictor with the random rule, where only the predictor weights change (their "no edits" arm with random acquisition), and the random rule is the baseline rule on both benchmarks. <strong>No arm has run on the current split yet;</strong> the numbers come from the splits before 2026-11-24 and are kept as separate rows.</p>
+<p class="cap"><b>Table 3.</b> 22T final test (8,366 pairs, the same in every row): AUPRC and AUROC after 10 rounds with the gate; higher is better, chance ≈ 0.5. Positives revealed: positives among the pairs that the rounds revealed. Earlier split without the gate: AUPRC 0.712, 0.573 and 0.691. Bold: best per column and block.</p>
+<div class="tw"><table><thead><tr><th>Update target</th><th>System</th><th>Acquisition rule</th><th>AUPRC</th><th>AUROC</th><th>Positives revealed</th></tr></thead><tbody>
+<tr class="grp"><td colspan="6">Current split (Table 1), random rule</td></tr>
+<tr><td>Predictor weights <b>(baseline)</b></td><td>DL predictor</td><td>Random</td><td class="n tbd">not run</td><td class="n tbd">not run</td><td class="n">484 / 1,000</td></tr>
+<tr><td>Case memory</td><td>LLM-only agent</td><td>Random</td><td class="n tbd">not run</td><td class="n tbd">not run</td><td class="n">484 / 1,000</td></tr>
+<tr><td>Case memory + lessons</td><td>LLM-only agent</td><td>Random</td><td class="n tbd">not run</td><td class="n tbd">not run</td><td class="n">484 / 1,000</td></tr>
+<tr><td>Case memory + lessons (predictor frozen)</td><td>LLM agent + DL predictor</td><td>Random</td><td class="n tbd">not run</td><td class="n tbd">not run</td><td class="n">484 / 1,000</td></tr>
+<tr><td>Predictor weights + case memory + lessons</td><td>LLM agent + DL predictor</td><td>Random</td><td class="n tbd">not run</td><td class="n tbd">not run</td><td class="n">484 / 1,000</td></tr>
+<tr><td>Predictor weights + case memory + lessons + prompt</td><td>LLM agent + DL predictor</td><td>Random</td><td class="n tbd">not run</td><td class="n tbd">not run</td><td class="n">484 / 1,000</td></tr>
+<tr><td>Predictor weights + case memory + lessons + tools</td><td>LLM agent + DL predictor</td><td>Random</td><td class="n tbd">not run</td><td class="n tbd">not run</td><td class="n">484 / 1,000</td></tr>
+<tr><td>Predictor weights + recipe</td><td>DL predictor</td><td>Random</td><td class="n tbd">not run</td><td class="n tbd">not run</td><td class="n">484 / 1,000</td></tr>
+<tr class="grp"><td colspan="6">Current split (Table 1), other rules</td></tr>
+<tr><td>Predictor weights</td><td>DL predictor</td><td>Highest predictor score</td><td class="n tbd">not run</td><td class="n tbd">not run</td><td class="n tbd">not run</td></tr>
+<tr><td>Case memory + lessons</td><td>LLM-only agent</td><td>The agent's own picks</td><td class="n tbd">not run</td><td class="n tbd">not run</td><td class="n tbd">not run</td></tr>
+<tr><td>Predictor weights + case memory + lessons</td><td>LLM agent + DL predictor</td><td>The agent's own picks</td><td class="n tbd">not run</td><td class="n tbd">not run</td><td class="n tbd">not run</td></tr>
+<tr class="grp"><td colspan="6">Earlier split (before 2026-11-24): preset batches, 50 positives and 50 negatives per round</td></tr>
+<tr><td>Predictor weights <b>(baseline)</b></td><td>DL predictor</td><td>Preset</td><td class="n"><strong>0.735</strong></td><td class="n"><strong>0.738</strong></td><td class="n">500 / 1,000</td></tr>
+<tr><td>Case memory + lessons</td><td>LLM-only agent</td><td>Preset</td><td class="n">0.593</td><td class="n">0.577</td><td class="n">500 / 1,000</td></tr>
+<tr><td>Predictor weights + case memory + lessons</td><td>LLM agent + DL predictor</td><td>Preset</td><td class="n">0.715</td><td class="n">0.727</td><td class="n">500 / 1,000</td></tr>
+<tr><td>None</td><td>DL predictor trained on PRING (human), no 22T training</td><td>None (no rounds)</td><td class="n">0.597</td><td class="n">0.578</td><td class="n">–</td></tr>
+</tbody></table></div>
+<p class="cap"><b>Table 4.</b> PRING final test (10,280 pairs, public labels, internal only); columns as in Table 3. The last block is the discovery track: there the agent picked from all 732,655 pairs of the development proteins, of which 1.41% are positive.</p>
+<div class="tw"><table><thead><tr><th>Update target</th><th>System</th><th>Acquisition rule</th><th>AUPRC</th><th>AUROC</th><th>Positives revealed</th></tr></thead><tbody>
+<tr class="grp"><td colspan="6">Current split (Table 1), random rule</td></tr>
+<tr><td>Predictor weights <b>(baseline)</b></td><td>DL predictor</td><td>Random</td><td class="n tbd">not run</td><td class="n tbd">not run</td><td class="n">1,012 / 2,000</td></tr>
+<tr><td>Case memory</td><td>LLM-only agent</td><td>Random</td><td class="n tbd">not run</td><td class="n tbd">not run</td><td class="n">1,012 / 2,000</td></tr>
+<tr><td>Case memory (predictor frozen)</td><td>LLM agent + DL predictor</td><td>Random</td><td class="n tbd">not run</td><td class="n tbd">not run</td><td class="n">1,012 / 2,000</td></tr>
+<tr><td>Case memory + lessons (predictor frozen)</td><td>LLM agent + DL predictor</td><td>Random</td><td class="n tbd">not run</td><td class="n tbd">not run</td><td class="n">1,012 / 2,000</td></tr>
+<tr><td>Predictor weights + case memory + lessons</td><td>LLM agent + DL predictor</td><td>Random</td><td class="n tbd">not run</td><td class="n tbd">not run</td><td class="n">1,012 / 2,000</td></tr>
+<tr class="grp"><td colspan="6">Current split (Table 1), other rules</td></tr>
+<tr><td>Predictor weights</td><td>DL predictor</td><td>Highest predictor score</td><td class="n tbd">not run</td><td class="n tbd">not run</td><td class="n tbd">not run</td></tr>
+<tr><td>Case memory + lessons (predictor frozen)</td><td>LLM agent + DL predictor</td><td>The agent's own picks</td><td class="n tbd">not run</td><td class="n tbd">not run</td><td class="n tbd">not run</td></tr>
+<tr class="grp"><td colspan="6">Discovery track on the earlier split (before 2026-11-24): picks of the LLM agent with the DL predictor from all 732,655 pairs of the development proteins; no gate; validation pairs in the look-up set</td></tr>
+<tr><td>Predictor weights, one retraining after round 10 <b>(baseline)</b></td><td>DL predictor</td><td>The agent's picks</td><td class="n">0.717</td><td class="n">0.695</td><td class="n">1,624 / 1,895</td></tr>
+<tr><td>Case memory</td><td>LLM-only agent</td><td>The agent's picks</td><td class="n"><strong>0.811</strong></td><td class="n"><strong>0.769</strong></td><td class="n">1,624 / 1,895</td></tr>
+<tr><td>Case memory (predictor frozen)</td><td>LLM agent + DL predictor</td><td>The agent's picks</td><td class="n">0.804</td><td class="n"><strong>0.769</strong></td><td class="n">1,624 / 1,895</td></tr>
+<tr><td>Case memory + lessons (predictor frozen)</td><td>LLM agent + DL predictor</td><td>The agent's picks</td><td class="n">0.803</td><td class="n">0.767</td><td class="n">1,624 / 1,895</td></tr>
+</tbody></table></div>
+<p>When the runs on the current split are done, a figure like Figure 1 of Zeng and Luo (2026) comes here: the curves over the rounds for each arm, and the paired differences between arms with their 95% intervals.</p>
+
+<h3>Reading (earlier split)</h3>
 <ul class="read">
-<li><strong>The DL predictor gains most from the revealed labels: +0.019 AUPRC, against +0.003 and +0.005 for the agents</strong> (Table 2).</li>
-<li><strong>The agent with the DL predictor stays below the retrained DL predictor alone (0.715 against 0.735)</strong> (Table 2).</li>
-<li><strong>The gate keeps few rounds (1 to 3 of 10), and without it every arm ends lower</strong> (Table 2 caption).</li>
-<li><strong>On PRING the agents gain more from the revealed labels (+0.03 AUPRC) than the DL predictor (+0.022), and the lessons add nothing beyond the cases</strong> (Table 3). PRING labels are public, so this is not a claim.</li>
-<li><strong>When the agent picks the batches, its picks find interactions far above the base rate</strong> (Table 3 caption).</li>
+<li><strong>The DL predictor gains most from the revealed labels: +0.019 AUPRC (0.716 before the rounds, 0.735 after), against +0.003 and +0.005 for the agents.</strong></li>
+<li><strong>The agent with the DL predictor stays below the retrained DL predictor alone (0.715 against 0.735)</strong> (Table 3).</li>
+<li><strong>The gate keeps few rounds (1 to 3 of 10), and without it every arm ends lower</strong> (Table 3 caption).</li>
+<li><strong>On PRING the case memory adds +0.028 AUPRC for the agent with the DL predictor (from 0.775) and +0.010 for the LLM-only agent (from 0.801, the matched run of 2026-11-24); the retrained DL predictor gains +0.021 (from 0.695). The lessons add nothing beyond the cases</strong> (Table 4). PRING labels are public, so this is not a claim.</li>
+<li><strong>In the discovery track the agent's picks find interactions far above the base rate: 1,624 of 1,895 valid picks, against about 27 at the base rate of 1.41%</strong> (Table 4).</li>
 <li><strong>Each arm has one run:</strong> the numbers are point estimates; the AUPRC of one 100-pair round varies by about ±0.05.</li>
 </ul>
 
@@ -139,7 +180,7 @@ figcaption { font: 0.78rem var(--mono); color: var(--muted) }
 <ul class="read">
 <li>Runs on the splits of Table 1: section 3 shows the earlier splits.</li>
 <li>Acquisition rules on 22T other than the random draw: a rule on the predictor scores (highest score, or score nearest 0.5) and the agent's own picks. The development set is built; these rules are not, so the agent does not yet guide the experiments on private data.</li>
-<li>A gate in every round for the DL predictor on PRING: it needs one retraining per round; now there is one retraining after round 10.</li>
+<li>The DL predictor arm on PRING with the random rule: it needs one retraining per round on the random batches, with the gate. The agent arms on PRING read the frozen predictor.</li>
 <li>Improvement of the prompts, tools or predictor architecture: only the memory and the predictor weights change.</li>
 <li>Replicate runs and a permuted-label control.</li>
 </ul>

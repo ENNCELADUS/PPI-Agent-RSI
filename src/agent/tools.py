@@ -22,6 +22,7 @@ from src.data.ids import pair
 
 CAP = 80
 K = 200
+RESUBMITS = 3  # rejected batches per round; the next one is accepted as it is, so a session always ends
 ANNOTATION = (
     "function",
     "subcellular_location",
@@ -194,7 +195,9 @@ SPECS = {
         ["operations"],
     ),
     "submit_batch": (
-        f"Send this round's {K} pairs to the lab. Final: call it once, with exactly {K} untested candidate pairs.",
+        f"Send this round's {K} pairs to the lab: exactly {K} untested candidate pairs. A batch with a pair that was "
+        "already tested or that is listed twice is rejected: replace those pairs and call it again. An accepted batch "
+        "is final.",
         {
             "pairs": {
                 "type": "array",
@@ -279,6 +282,7 @@ class RoundTools:
     def __init__(self, sandbox, round_dir, tested, memory, cap=CAP):
         self.s, self.dir, self.tested, self.facts, self.cap = sandbox, Path(round_dir), set(tested), memory, cap
         self.calls, self.submitted, self.lock = 0, None, threading.Lock()
+        self.rejected = 0
         self.dir.mkdir(parents=True, exist_ok=True)
         self.tested_ranks = sandbox.ranks(self.tested)
 
@@ -451,7 +455,28 @@ class RoundTools:
             self.submitted = rows
         (self.dir / "submission.json").write_text(json.dumps(rows, indent=0))
 
+    def _repeats(self, rows):
+        """The rows that waste the budget: a pair tested in an earlier round, or listed twice in this batch."""
+        seen, out = set(), []
+        for r in rows:
+            a, b = r.get("a"), r.get("b")
+            if not (isinstance(a, str) and isinstance(b, str)):
+                continue  # the evaluator marks rows without two ids
+            p = pair(a, b)
+            if p in self.tested or p in seen:
+                out.append(f"{p[0]}-{p[1]} ({'already tested' if p in self.tested else 'listed twice'})")
+            seen.add(p)
+        return out
+
     def submit_batch(self, pairs):
+        repeats = self._repeats(pairs)
+        if repeats and self.rejected < RESUBMITS:
+            self.rejected += 1
+            raise ToolError(
+                f"batch rejected, nothing was sent: {len(repeats)} of its pairs cannot be tested again: "
+                f"{', '.join(repeats)}. Replace them with untested candidate pairs and call submit_batch again "
+                f"with all {len(pairs)} pairs."
+            )
         self._submit(pairs)
         return f"received {len(pairs)} pairs; results arrive next round"
 
