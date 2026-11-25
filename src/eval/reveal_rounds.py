@@ -451,7 +451,7 @@ def run_al(data, rule):
     path = dl_rounds.work(data, rule) / "batches.csv"
     for t, rows in sorted(dl_rounds.rows_by_round(path).items() if path.exists() else []):
         point = {"round": t, "pairs": len(rows), "positives": sum(r[2] for r in rows)}
-        if t - 1 in p:
+        if t - 1 in p and 0 < point["positives"] < len(rows):  # one-class batch (greedy): no AUPRC
             point["checkpoint_before"] = classification([r[2] for r in rows], on(t - 1, rows))
         out["curve"].append(point)
     if ROUNDS in p and 0 in p:
