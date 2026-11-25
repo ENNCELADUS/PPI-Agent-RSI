@@ -73,7 +73,7 @@ for t in $(seq -f %02g 0 10); do
   d=$($RSI gate pring $RULE $((10#$t)) "$v")
   prev=$(printf %02d $((10#$t - 1)))
   if [ "$d" = keep ]; then
-    score $O/best.pt $t
+    score $W/$O/best.pt $t  # $O is relative to $W; score() runs in $A
   else
     cp $OUT/round$prev.tsv.gz $OUT/round$t.tsv.gz
   fi
