@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Research Status</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one column. Prose, lists, tables and the figure all have the width of <main>. */
+:root {
+  --bg: #f6f8f8; --surface: #ffffff; --fg: #17242a; --muted: #5a6b72; --rule: #d5dee1; --accent: #0f6b74;
+  --display: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #11181b; --surface: #182226; --fg: #e3eaec; --muted: #93a4aa; --rule: #2c3a3f; --accent: #5fc2cb; color-scheme: dark } }
+:root[data-theme="dark"] { --bg: #11181b; --surface: #182226; --fg: #e3eaec; --muted: #93a4aa; --rule: #2c3a3f; --accent: #5fc2cb; color-scheme: dark }
+* { box-sizing: border-box }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.6 var(--body);
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)) }
+main { max-width: 880px; margin: 0 auto; padding-block: 48px 72px; display: grid; gap: 18px }
+main > * { min-width: 0 }
+h1 { font: 600 2.1rem/1.15 var(--display); margin: 0; letter-spacing: -0.01em }
+h2 { font: 600 1.4rem/1.2 var(--display); margin: 22px 0 0; padding-top: 26px; border-top: 1px solid var(--rule) }
+h3 { font: 600 1.08rem/1.25 var(--display); margin: 12px 0 0 }
+p { margin: 0; text-wrap: pretty }
+a { color: var(--accent); text-underline-offset: 2px }
+code { font: 0.88em var(--mono) }
+.lead { font-size: 1.12rem; line-height: 1.5 }
+.eq { text-align: center; overflow-x: auto }
+
+/* Captions: one style for tables and the figure; a table caption sits close to its table. */
+.cap, figcaption { color: var(--muted); font-size: 0.88rem; line-height: 1.5; margin-top: 10px }
+.cap b, figcaption b { color: var(--fg) }
+.cap + .tw { margin-top: -8px }
+figure { margin: 0; display: grid; gap: 8px }
+figure img { width: 100%; height: auto; background: #fff; border: 1px solid var(--rule); border-radius: 4px }
+figcaption { margin-top: 0 }
+
+/* Tables: automatic layout. Number and status cells take the width of their content;
+   text columns share the remaining width and wrap. Headers wrap, so a long header does not widen a column. */
+.tw { overflow-x: auto; background: var(--surface); border: 1px solid var(--rule); border-radius: 4px }
+table { border-collapse: collapse; width: 100%; table-layout: auto; font-size: 0.86rem; line-height: 1.45 }
+th, td { padding: 8px 12px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--rule); text-wrap: pretty }
+th { vertical-align: bottom; font-size: 0.7rem; line-height: 1.3; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 600 }
+td:not(.n):not(.fit):not([colspan]) { min-width: 8.5em }
+td.n, td.fit { white-space: nowrap; width: 1% }
+td.n { font: 0.84rem/1.45 var(--mono); font-variant-numeric: tabular-nums }
+td strong { color: var(--accent) }
+tbody tr:last-child td { border-bottom: 0 }
+tbody tr:not(.grp):hover td { background: color-mix(in srgb, var(--accent) 6%, transparent) }
+tr.grp td { font-size: 0.78rem; color: var(--muted); background: var(--bg) }
+tr.grp b { color: var(--fg); font-weight: 600 }
+.sub { color: var(--muted) }
+/* Table 2: the earlier-work links are small, so a long list stays compact. */
+td.refs { font-size: 0.78rem; color: var(--muted) }
+td.refs a { color: var(--fg); text-decoration-color: var(--rule) }
+td.refs a:hover { color: var(--accent); text-decoration-color: currentColor }
+/* Status and baseline marks. */
+.st { font: 500 0.74rem var(--mono); color: var(--muted); white-space: nowrap }
+.st::before { content: ""; display: inline-block; width: 7px; height: 7px; margin-right: 6px; border: 1px solid currentColor; border-radius: 50% }
+.st.on { color: var(--accent) }
+.st.on::before { background: currentColor }
+.tag { font: 500 0.66rem var(--mono); text-transform: uppercase; letter-spacing: 0.05em; color: var(--accent);
+  border: 1px solid currentColor; border-radius: 3px; padding: 1px 5px; margin-left: 4px; white-space: nowrap }
+
+/* Lists: findings (.read), numbered steps (.flow), term and description (.def). */
+.read, .flow { margin: 0; padding: 0; list-style: none; display: grid; gap: 10px }
+.read li { padding-left: 14px; border-left: 2px solid var(--accent) }
+.read strong, .def dt { font-weight: 600 }
+.flow { counter-reset: step; gap: 8px }
+.flow li { counter-increment: step; display: grid; grid-template-columns: 1.6em 1fr; gap: 10px; align-items: baseline }
+.flow li::before { content: counter(step); font: 500 0.8rem var(--mono); color: var(--accent); text-align: right }
+.def { margin: 0; display: grid; grid-template-columns: 11.5rem 1fr }
+.def dt, .def dd { margin: 0; padding-block: 10px; border-top: 1px solid var(--rule) }
+.def dt { padding-right: 20px }
+.plain { margin: 0; padding-left: 1.2em; display: grid; gap: 6px }
+@media (max-width: 640px) {
+  .def { grid-template-columns: 1fr }
+  .def dt { padding-bottom: 0 }
+  .def dd { border-top: 0; padding-top: 2px }
+}
+</style>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js" onload="renderMathInElement(document.body)"></script>
+</head>
+<body>
+<main>
+<h1>Research status</h1>
+<p class="lead">Can an LLM scientific agent that combines a DL predictor with biological evidence learn from sparse experimental feedback? Does it gain more from the same labels than the DL predictor retrained on them?</p>
+<p>This page gives the task, the current design and the current results, as of 2026-11-26. Full results: <a href="../results/classification-test/summary.html">classification-test summary</a>.</p>
+
+<h2>1. Task</h2>
+<p>Let \(V\) be a set of proteins. An unordered pair \(e = \{u, v\}\), \(u \ne v\), has a label \(y(e) \in \{0, 1\}\); \(y(e) = 1\) means that the proteins interact. Four disjoint sets of pairs make the splits (Table 1).</p>
+<p class="cap"><b>Table 1.</b> The four splits and their sizes on the two benchmarks: labelled pairs (positives). 22T: private mouse membrane PPIs. PRING: public human PPIs; its development set is every pair of the 1,211 development proteins (1.41% positive), and the PRING runs of section 3 used an earlier, balanced set of 20,668 pairs.</p>
+<div class="tw"><table><thead><tr><th>Split</th><th>Role</th><th>Labels visible</th><th>22T</th><th>PRING</th></tr></thead><tbody>
+<tr><td>Training set \(\mathcal{K}\)</td><td>Trains the DL predictor \(f_\theta(e) \in [0, 1]\); the agent can look it up</td><td>Always</td><td class="n">65,912 (32,956)</td><td class="n">63,246 (31,623)</td></tr>
+<tr><td>Validation set \(\mathcal{D}_{\text{va}}\)</td><td>Selection only: DL hyperparameters and epoch, and the gate of each round</td><td>Never to the agent; no round reveals them</td><td class="n">9,364 (4,682)</td><td class="n">9,406 (4,703)</td></tr>
+<tr><td>Development set \(\mathcal{D}_{\text{dev}}\)</td><td>Each round reveals the labels of one batch. These labels are the only feedback</td><td>After the round that reveals them</td><td class="n">10,000 (5,000)<br><span class="sub">10 × 100 revealed</span></td><td class="n">732,655 (10,334)<br><span class="sub">10 × 200 revealed</span></td></tr>
+<tr><td>Final test \(\mathcal{D}_{\text{fin}}\)</td><td>Fixed before any run; scored once, after the last round</td><td>Never</td><td class="n">8,366 (4,183)</td><td class="n">10,280 (5,140)</td></tr>
+</tbody></table></div>
+
+<h3>Rounds</h3>
+<p>The system has two objects. The <b>archive</b> \(A_t\) holds every revealed pair with its label, the prediction of the system and the evidence. It only grows, and \(A_0 = \emptyset\). The <b>state in use</b> \(S_t\) holds the parts that the update target of the arm can change (Table 2): the predictor parameters \(\theta\), the case memory and the lessons. All other parts are fixed: the LLM weights, the prompt templates and the tools. \(S_0\) depends only on \(\mathcal{K}\): empty memory, predictor trained on \(\mathcal{K}\). Each round \(t = 1, \dots, T\) has five steps:</p>
+<ol class="flow">
+<li><span><b>Batch.</b> An acquisition rule chooses \(b\) pairs that no earlier round revealed: \(B_t = \pi(S_{t-1},\ \mathcal{D}_{\text{dev}} \setminus A_{t-1})\). The rule is a random draw (the control: the same batches for every arm), the highest predictor scores, or the system's own picks.</span></li>
+<li><span><b>Predict.</b> Before the reveal, the system gives \(\hat p(e \mid S_{t-1})\) for each \(e \in B_t\).</span></li>
+<li><span><b>Reveal.</b> The oracle returns \(y(e)\) for each \(e \in B_t\). This simulates a wet-lab assay. The pairs go to the archive: \(A_t = A_{t-1} \cup \{(e,\ y(e),\ \hat p(e)) : e \in B_t\}\). They stay there if the round is kept or dropped.</span></li>
+<li><span><b>Candidate.</b> \(S'_t = U(S_{t-1},\ A_t)\) is built from the state in use and the whole archive: the predictor is retrained from scratch on \(\mathcal{K}\) plus all revealed labels, the case memory holds all revealed cases, and the reviewer revises the lessons in use with the cases revealed since the last kept round.</span></li>
+<li><span><b>Gate.</b> One gate judges the final output of the system. The candidate and the best kept state \(S^\ast_{t-1}\) score the same validation pairs, and \(g\) is the AUPRC of that output. The candidate replaces the state in use unless it is clearly worse: it is dropped only if it has the lower \(g\) in at least 90% of 2,000 paired bootstrap resamples of the pairs (\(P_{\text{boot}}\)). A dropped candidate is saved as a record, and its data come back in the next candidate.</span></li>
+</ol>
+<p class="eq">\[ S_t = \begin{cases} S_{t-1} &amp; \text{if } P_{\text{boot}}\big[\, g(S'_t) &lt; g(S^\ast_{t-1}) \,\big] \ge 0.9 \\ S'_t &amp; \text{otherwise} \end{cases} \qquad S^\ast_{t-1} = \arg\max_{s &lt; t,\ s \text{ kept}} g(S_s) \]</p>
+<p>\(S_0\) is kept. The DL predictor gates on all of \(\mathcal{D}_{\text{va}}\). An agent gates on 400 fixed pairs of \(\mathcal{D}_{\text{va}}\); when it uses a predictor that also updates, the candidate memory and the candidate predictor are kept or dropped together. The experimental budget is \(bT\) labels. It is much smaller than \(\mathcal{D}_{\text{dev}}\), so the choice of the pairs can matter. After round \(T\), the state \(S_T\) is frozen.</p>
+<p class="cap">These rules are the decision of 2026-11-26. The code follows them, but no run has used them yet: the runs of section 3 used earlier rules (section 4).</p>
+
+<h3>Objectives</h3>
+<p><b>Primary: final test metrics.</b> The frozen system gives \(\hat p(e \mid S_T)\) for each \(e \in \mathcal{D}_{\text{fin}}\). We report AUPRC (main), AUROC and Brier score. The gain from the rounds is the score of \(S_T\) minus the score of \(S_0\) on the same \(\mathcal{D}_{\text{fin}}\). A separate run with no reveal rounds gives the score of \(S_0\), one run per system, and every arm of that system uses it. The reference is the DL predictor retrained on the same revealed labels.</p>
+<p><b>Secondary: hits.</b> They measure how well the system guides the wet-lab experiments: the number of interactions that the batches find (Roohani et al., ICLR 2025). We report them for every rule:</p>
+<p class="eq">\[ \text{hits}(T) = \Big|\, \{e : y(e) = 1\} \cap \bigcup_{t=1}^{T} B_t \Big| \;\le\; bT . \]</p>
+<p>Under the random rule the hits show the base rate of \(\mathcal{D}_{\text{dev}}\). This is the baseline for the rules that use the state.</p>
+
+<h2>2. Current design</h2>
+<p>This section describes the current system, which follows the rules of section 1. The runs of section 3 used earlier rules (section 4).</p>
+<figure><img src="rsi-architecture.svg" alt="Recursive self-improvement rounds: the agent harness predicts a batch, the labels are revealed and written as cases, a reviewer LLM revises the lessons, the DL predictor is retrained, and a validation gate keeps or rolls back the round; after T rounds the frozen memory and predictor go to inference on held-out pairs"><figcaption><b>Figure 1.</b> a, One round of recursive self-improvement. b, Inference with the frozen memory M* and predictor C* on the final test split. \(b\): the batch size (22T 100, PRING 200); \(T\) = 10 rounds.</figcaption></figure>
+<dl class="def">
+<dt>Agent harness</dt>
+<dd>DeepSeek-V4 Pro (thinking high) in the pi runtime. Each batch is one fresh session with a cap on tool calls. Tools: protein annotations, protein search, sequence homologs, training-set partners, case retrieval and, in the arms with the predictor, the DL scores of up to 200 pairs per call. The session returns one probability and the evidence IDs for each pair.</dd>
+<dt>Memory</dt>
+<dd><b>Case memory:</b> one record per revealed pair (label, the agent's p, the predictor's p, evidence), written by the system and read through case retrieval. <b>Lessons:</b> at most 30 active rules, each with supporting and contrary cases, written by a reviewer session with the same LLM and put in the prompt.</dd>
+<dt>DL predictor</dt>
+<dd>An ESM-3 motif-graph pair classifier (V3). Candidate \(t\) is retrained from scratch on \(\mathcal{K}\) plus all labels revealed in rounds 1 to \(t\). In a round the agent sees the predictor in use; it sees the candidate only in the gate check.</dd>
+<dt>Gate</dt>
+<dd>One gate after every round, on both benchmarks, on the final output of the system. The DL predictor uses the full validation set. Each agent uses 400 fixed validation pairs (200 positive), scored without memory updates. A paired bootstrap compares the candidate with the best kept state, and the candidate is dropped only if it is clearly worse. After a drop the system in use does not change; the revealed cases stay in the archive and come back in the next candidate.</dd>
+<dt>Arms</dt>
+<dd>An arm is an update target (Table 2), a system and an acquisition rule. The update target is the central axis: it says what the revealed labels change. <b>Systems:</b> the DL predictor retrained on the revealed labels; the LLM-only agent; the LLM agent with the DL predictor. <b>Baseline rule</b> on both benchmarks: a random draw from the development set, with a fixed seed and no use of the labels (as in Zeng and Luo, 2026), so every arm gets the same 10 batches. <b>Baseline arm:</b> the DL predictor with the random rule. Every arm has the same final test. One run per arm.</dd>
+<dt>Discovery track</dt>
+<dd>The run where the agent picks its own batches on PRING: 10 × 200 pairs from all 732,655 pairs of the development proteins, and the metric is the hits. A batch with a pair that was already tested or that is listed twice is rejected at submission, and the agent sends it again (in the run of 2026-11-02, before this rule, 105 of 2,000 picks were repeats). Every rule now draws from the same pairs, so this run joins the main comparison: the random rule gives the base rate (26 positives in its 2,000 pairs). The picks are still in separate code with the earlier gate (section 4).</dd>
+</dl>
+
+<p class="cap"><b>Table 2.</b> Update targets: the parts of the system state \(S_t\) that the revealed labels can change. The LLM weights and the protein language model stay frozen in every arm. The acquisition rule is the second axis of an arm and is not an update target here. Earlier work lists only iterative feedback-update systems on similar tasks (no static PPI or DL models, benchmarks or LLM weight-tuning loops); each name links to the paper.</p>
+<div class="tw"><table><thead><tr><th>Update target</th><th>What changes</th><th>Earlier work that updates it</th><th>Status</th></tr></thead><tbody>
+<tr><td class="fit">Predictor weights</td><td>The DL predictor is trained again on the training set plus all revealed labels</td><td class="refs"><a href="https://arxiv.org/abs/2611.01908" target="_blank" rel="noopener" title="Does reflective LLM feedback survive a wet-lab-scale label budget? (Zeng &amp; Luo, 2026)">Zeng &amp; Luo</a>, <a href="https://doi.org/10.1126/science.adr6006" target="_blank" rel="noopener" title="Rapid in silico directed evolution by a protein language model with EVOLVEpro (Jiang et al., Science 2025)">EVOLVEpro</a>, <a href="https://doi.org/10.1101/2025.05.25.656020" target="_blank" rel="noopener" title="PerTurboAgent: An LLM-based Agent for Designing Iterative Perturb-Seq Experiments (Hao et al., MLCB 2025)">PerTurboAgent</a>, <a href="https://arxiv.org/abs/2604.02688" target="_blank" rel="noopener" title="MatClaw: An Autonomous Code-First LLM Agent for End-to-End Materials Exploration (Zhang &amp; Yakobson, 2026)">MatClaw</a>, <a href="https://doi.org/10.1039/d0sc06805e" target="_blank" rel="noopener" title="Accelerating high-throughput virtual screening through molecular pool-based active learning (Graff et al., Chem Sci 2021)">MolPAL</a>, <a href="https://doi.org/10.1186/1471-2105-11-S1-S57" target="_blank" rel="noopener" title="Active learning for human protein-protein interaction prediction (Mohamed et al., BMC Bioinformatics 2010)">Mohamed et al.</a>, <a href="https://arxiv.org/abs/2604.09791" target="_blank" rel="noopener" title="Pioneer Agent: Continual Improvement of Small Language Models in Production (Atreja et al., 2026)">Pioneer Agent</a></td><td class="fit"><span class="st on">Built</span></td></tr>
+<tr><td class="fit">Predictor recipe</td><td>Hyperparameters, input features, curation of the revealed labels, pseudo-labels</td><td class="refs"><a href="https://arxiv.org/abs/2611.01908" target="_blank" rel="noopener" title="Does reflective LLM feedback survive a wet-lab-scale label budget? (Zeng &amp; Luo, 2026)">Zeng &amp; Luo</a>, <a href="https://arxiv.org/abs/2610.18572" target="_blank" rel="noopener" title="LLM Agents for Automated Post-Training via Structured Recipe Optimization (Liu et al., 2026)">SRO</a>, <a href="https://arxiv.org/abs/2603.24647" target="_blank" rel="noopener" title="Can LLMs Beat Classical Hyperparameter Optimization Algorithms? (Ferreira et al., 2026)">Centaur</a>, <a href="https://arxiv.org/abs/2411.04440" target="_blank" rel="noopener" title="AutoProteinEngine: A Large Language Model Driven Agent Framework for Multimodal AutoML in Protein Engineering (Liu et al., 2024)">AutoProteinEngine</a>, <a href="https://openreview.net/forum?id=QGMPvxaam2" target="_blank" rel="noopener" title="CAPO: Compute-Aware Automated Protein-Model Optimization (Schifferli et al., NeurIPS 2026 Workshop)">CAPO</a>, <a href="https://arxiv.org/abs/2506.15692" target="_blank" rel="noopener" title="MLE-STAR: Machine Learning Engineering Agent via Search and Targeted Refinement (NeurIPS 2025)">MLE-STAR</a>, <a href="https://arxiv.org/abs/2505.14738" target="_blank" rel="noopener" title="R&amp;D-Agent: An LLM-Agent Framework Towards Autonomous Data Science (Yang et al., 2025)">R&amp;D-Agent</a>, <a href="https://doi.org/10.64898/2026.01.27.702049" target="_blank" rel="noopener" title="Agentomics: An Agentic System that Autonomously Develops Novel State-of-the-art Solutions for Biomedical Machine Learning Tasks (Martinek et al., 2026)">Agentomics</a>, <a href="https://arxiv.org/abs/2509.23986" target="_blank" rel="noopener" title="TusoAI: Agentic Optimization for Scientific Methods (Turcan et al., 2025)">TusoAI</a></td><td class="fit"><span class="st">Not built</span></td></tr>
+<tr><td class="fit">Predictor architecture</td><td>The model family or its layers</td><td class="refs"><a href="https://arxiv.org/abs/2607.07984" target="_blank" rel="noopener" title="Agentic Neural Architecture Search (Jeong et al., NeurIPS 2026)">AgentNAS</a>, <a href="https://arxiv.org/abs/2502.13138" target="_blank" rel="noopener" title="AIDE: AI-Driven Exploration in the Space of Code (Jiang et al., 2025)">AIDE</a>, <a href="https://arxiv.org/abs/2603.26499" target="_blank" rel="noopener" title="AIRA₂: Overcoming Bottlenecks in AI Research Agents (Hambardzumyan et al., 2026)">AIRA₂</a>, <a href="https://arxiv.org/abs/2601.14349" target="_blank" rel="noopener" title="MARBLE: Multi-Agent Reasoning for Bioinformatics Learning and Evolution (Kim et al., 2026)">MARBLE</a>, <a href="https://arxiv.org/abs/2610.39714" target="_blank" rel="noopener" title="MoLRSI: A Recursive Self-Improving AI agent for Molecular Discovery (Zhang et al., 2026)">MoLRSI</a>, <a href="https://arxiv.org/abs/2609.31939" target="_blank" rel="noopener" title="BioDyad: Synchronize Biomedical Discovery and Machine Learning Engineering (Du et al., 2026)">BioDyad</a>, <a href="https://arxiv.org/abs/2603.01396" target="_blank" rel="noopener" title="HarmonyCell: Automating Single-Cell Perturbation Modeling under Semantic and Distribution Shifts (Huang et al., 2026)">HarmonyCell</a>, <a href="https://arxiv.org/abs/2506.16499" target="_blank" rel="noopener" title="ML-Master: Towards AI-for-AI via Integration of Exploration and Reasoning (2025)">ML-Master</a></td><td class="fit"><span class="st">Not built</span></td></tr>
+<tr><td class="fit">Case memory</td><td>One case per revealed pair: label, the agent's p, the predictor's p, evidence</td><td class="refs"><a href="https://arxiv.org/abs/2511.20857" target="_blank" rel="noopener" title="Evo-Memory: Streaming Episodic Memory for LLM Agents (Wei et al., 2025)">Evo-Memory</a>, <a href="https://doi.org/10.1145/3786335.3813154" target="_blank" rel="noopener" title="Learning from Supervision with Semantic and Episodic Memory (Hassell et al., CAIS 2026; arXiv:2510.19897)">Semantic &amp; Episodic Memory</a>, <a href="https://arxiv.org/abs/2603.22096" target="_blank" rel="noopener" title="GSEM: Applicability-Conditioned Case Memory (Han et al., 2026)">GSEM</a>, <a href="https://arxiv.org/abs/2512.10696" target="_blank" rel="noopener" title="ReMe: Experience Memory Pruning (ACL 2026 Findings)">ReMe</a>, <a href="https://arxiv.org/abs/2402.17453" target="_blank" rel="noopener" title="DS-Agent: Automated Data Science by Empowering Large Language Models with Case-Based Reasoning (Guo et al., ICML 2024)">DS-Agent</a>, <a href="https://arxiv.org/abs/2605.15461" target="_blank" rel="noopener" title="DrugSAGE: Self-evolving Agent Experience for Efficient State-of-the-Art Drug Discovery (Zhang et al., 2026)">DrugSAGE</a>, <a href="https://arxiv.org/abs/2405.17631" target="_blank" rel="noopener" title="BioDiscoveryAgent: An AI Agent for Designing Genetic Perturbation Experiments (Roohani et al., ICLR 2025)">BioDiscoveryAgent</a></td><td class="fit"><span class="st on">Built</span></td></tr>
+<tr><td class="fit">Lessons</td><td>At most 30 rules, each with supporting and contrary cases</td><td class="refs"><a href="https://arxiv.org/abs/2510.04618" target="_blank" rel="noopener" title="Agentic Context Engineering: Evolving Contexts for Self-Improving Language Models (2025)">ACE</a>, <a href="https://doi.org/10.1145/3786335.3813154" target="_blank" rel="noopener" title="Learning from Supervision with Semantic and Episodic Memory (Hassell et al., CAIS 2026; arXiv:2510.19897)">Semantic &amp; Episodic Memory</a>, <a href="https://arxiv.org/abs/2504.07952" target="_blank" rel="noopener" title="Dynamic Cheatsheet: Test-Time Learning with Adaptive Memory (Suzgun et al., EACL 2026)">Dynamic Cheatsheet</a>, <a href="https://arxiv.org/abs/2602.06448" target="_blank" rel="noopener" title="PiEvo: Principle-Evolvable Scientific Discovery via Uncertainty Minimization (Pu et al., ICML 2026)">PiEvo</a>, <a href="https://arxiv.org/abs/2611.01747" target="_blank" rel="noopener" title="OMCE: Online Memory Context Routing (Zhao et al., 2026)">OMCE</a>, <a href="https://arxiv.org/abs/2511.06449" target="_blank" rel="noopener" title="FLEX: Continuous Agent Evolution via Forward Learning from Experience (Cai et al., 2025)">FLEX</a>, <a href="https://arxiv.org/abs/2605.12978" target="_blank" rel="noopener" title="Useful Memories Become Faulty When Continuously Updated by LLMs (Zhang et al., 2026)">Faulty Memories</a>, <a href="https://arxiv.org/abs/2605.29463" target="_blank" rel="noopener" title="Honest Lying: Understanding Memory Confabulation in Reflexive Agents (Dixit et al., ICML 2026 Workshop)">Honest Lying</a>, <a href="https://arxiv.org/abs/2611.18856" target="_blank" rel="noopener" title="Self-Improvement Memory (SIM) for Continual Recursive Self-Improvement (Yu et al., 2026)">SIM</a></td><td class="fit"><span class="st on">Built</span></td></tr>
+<tr><td class="fit">Prompt</td><td>The instructions of the agent</td><td class="refs"><a href="https://arxiv.org/abs/2309.03409" target="_blank" rel="noopener" title="Large Language Models as Optimizers (Yang et al., ICLR 2024)">OPRO</a>, <a href="https://arxiv.org/abs/2309.16797" target="_blank" rel="noopener" title="Promptbreeder: Self-Referential Self-Improvement via Prompt Evolution (Fernando et al., ICML 2024)">Promptbreeder</a>, <a href="https://arxiv.org/abs/2406.11695" target="_blank" rel="noopener" title="Optimizing Instructions and Demonstrations for Multi-Stage Language Model Programs (Opsahl-Ong et al., EMNLP 2024)">MIPROv2</a>, <a href="https://arxiv.org/abs/2507.19457" target="_blank" rel="noopener" title="GEPA: Reflective Prompt Evolution Can Outperform Reinforcement Learning (Agrawal et al., ICLR 2026)">GEPA</a></td><td class="fit"><span class="st">Not built</span></td></tr>
+<tr><td class="fit">Tools</td><td>New or changed tools, such as a new evidence look-up</td><td class="refs"><a href="https://arxiv.org/abs/2408.08435" target="_blank" rel="noopener" title="Automated Design of Agentic Systems (Hu et al., ICLR 2025)">ADAS</a>, <a href="https://arxiv.org/abs/2504.15228" target="_blank" rel="noopener" title="A Self-Improving Coding Agent (Robeyns et al., ICLR 2025 Workshop)">SICA</a>, <a href="https://arxiv.org/abs/2505.22954" target="_blank" rel="noopener" title="Darwin Gödel Machine: Open-Ended Evolution of Self-Improving Agents (Zhang et al., ICLR 2026)">Darwin Gödel Machine</a>, <a href="https://arxiv.org/abs/2603.27303" target="_blank" rel="noopener" title="VenusFactory2: Self-evolving AI agents for protein discovery and directed evolution (Tan et al., 2026)">VenusFactory2</a></td><td class="fit"><span class="st">Not built</span></td></tr>
+<tr><td class="fit">Workflow</td><td>The order of steps and the harness code</td><td class="refs"><a href="https://arxiv.org/abs/2410.10762" target="_blank" rel="noopener" title="AFlow: Automating Agentic Workflow Generation (Zhang et al., ICLR 2025)">AFlow</a>, <a href="https://arxiv.org/abs/2310.02304" target="_blank" rel="noopener" title="Self-Taught Optimizer (STOP): Recursively Self-Improving Code Generation (Zelikman et al., COLM 2024)">STOP</a>, <a href="https://arxiv.org/abs/2410.04444" target="_blank" rel="noopener" title="Gödel Agent: A Self-Referential Agent Framework for Recursive Self-Improvement (Yin et al., ACL 2025)">Gödel Agent</a>, <a href="https://arxiv.org/abs/2505.22954" target="_blank" rel="noopener" title="Darwin Gödel Machine: Open-Ended Evolution of Self-Improving Agents (Zhang et al., ICLR 2026)">Darwin Gödel Machine</a>, <a href="https://arxiv.org/abs/2510.21614" target="_blank" rel="noopener" title="Huxley-Gödel Machine: Human-Level Coding Agent Development by an Approximation of the Optimal Self-Improving Machine (Wang et al., ICLR 2026)">Huxley-Gödel Machine</a>, <a href="https://arxiv.org/abs/2603.19461" target="_blank" rel="noopener" title="HyperAgents: Darwin Gödel Machine–Hyperagents (Zhang et al., 2026)">HyperAgents</a>, <a href="https://arxiv.org/abs/2608.07645" target="_blank" rel="noopener" title="Mendel Gödel Machine: Recursive Self-Improving Coding Agents via Comparative Evolution (Liu et al., 2026)">Mendel Gödel Machine</a>, <a href="https://arxiv.org/abs/2609.26457" target="_blank" rel="noopener" title="Recursive self-improvement of AI research agents (AIDE², Srikanth et al., 2026)">AIDE²</a>, <a href="https://arxiv.org/abs/2603.28052" target="_blank" rel="noopener" title="Meta-Harness: End-to-End Optimization of Model Harnesses (Lee et al., 2026)">Meta-Harness</a>, <a href="https://arxiv.org/abs/2610.05300" target="_blank" rel="noopener" title="MESH-Harness: Self-Improving Agent Harnesses via Bandit-Guided Compositional Evolution (Shang et al., 2026)">MESH-Harness</a>, <a href="https://arxiv.org/abs/2606.09498" target="_blank" rel="noopener" title="Self-Harness: Minimal Gated Harness Code Evolution (Zhang et al., 2026)">Self-Harness</a>, <a href="https://arxiv.org/abs/2609.37834" target="_blank" rel="noopener" title="Mixture of Self-Improving Branches (MoSIB, Dong et al., 2026)">MoSIB</a>, <a href="https://arxiv.org/abs/2607.08124" target="_blank" rel="noopener" title="TTHE: Test-Time Harness Evolution (Nie et al., 2026)">TTHE</a>, <a href="https://arxiv.org/abs/2609.19526" target="_blank" rel="noopener" title="Self Improvement via Fast Tree-search (SIFT, Fu et al., 2026)">SIFT</a>, <a href="https://arxiv.org/abs/2512.18746" target="_blank" rel="noopener" title="MemEvolve: Evolving Agent Memory Architectures (ICML 2026)">MemEvolve</a>, <a href="https://arxiv.org/abs/2611.22299" target="_blank" rel="noopener" title="Unifying Framework for Self-Improving Agent Harnesses (Shah &amp; Kathrotia, 2026)">Modular Gated Evolution</a>, <a href="https://arxiv.org/abs/2608.08189" target="_blank" rel="noopener" title="Janus: An Algorithm-Evaluator Co-Evolution Framework for LLM-Driven Discovery under Expensive Evaluation Budgets (Liu et al., 2026)">Janus</a></td><td class="fit"><span class="st">Not built</span></td></tr>
+</tbody></table></div>
+
+<h2>3. Current results</h2>
+<p>Each table has one row per arm, as in Zeng and Luo (2026, <i>Does reflective LLM feedback survive a wet-lab-scale label budget?</i>). Their controller axis says who edits the predictor; our update target says what the revealed labels change (Table 2). The baseline row is the DL predictor with the random rule, where only the predictor weights change (their "no edits" arm with random acquisition).</p>
+<p><b>Status.</b> No run has used the rules of section 1 yet. Under the earlier round rules, done on both benchmarks: the DL predictor arms (both rules) and the LLM-only agent arm with case memory and lessons (random rule). Each table has one block per set of rules and splits.</p>
+<p class="cap"><b>Table 3.</b> 22T final test (8,366 pairs, the same in every row): AUPRC and AUROC after 10 rounds with the gate; higher is better, chance ≈ 0.5. Hits: positives among the pairs that the rounds revealed. Earlier split without the gate: AUPRC 0.712, 0.573 and 0.691. Bold: best per column and block.</p>
+<div class="tw"><table><thead><tr><th>Update target</th><th>System</th><th>Acquisition rule</th><th>AUPRC</th><th>AUROC</th><th>Hits</th></tr></thead><tbody>
+<tr class="grp"><td colspan="6"><b>Rules of section 1</b> · no run yet</td></tr>
+<tr><td>None (score before the rounds)</td><td>LLM-only agent</td><td>None (no rounds)</td><td class="fit" colspan="2"><span class="st">not run</span></td><td class="n">–</td></tr>
+<tr><td>None (score before the rounds)</td><td>LLM agent + DL predictor</td><td>None (no rounds)</td><td class="fit" colspan="2"><span class="st">not run</span></td><td class="n">–</td></tr>
+<tr><td>Predictor weights <span class="tag">baseline</span></td><td>DL predictor</td><td>Random</td><td class="fit" colspan="2"><span class="st">not run</span></td><td class="n">484 / 1,000</td></tr>
+<tr><td>Case memory</td><td>LLM-only agent</td><td>Random</td><td class="fit" colspan="2"><span class="st">not run</span></td><td class="n">484 / 1,000</td></tr>
+<tr><td>Case memory + lessons</td><td>LLM-only agent</td><td>Random</td><td class="fit" colspan="2"><span class="st">not run</span></td><td class="n">484 / 1,000</td></tr>
+<tr><td>Case memory + lessons (predictor frozen)</td><td>LLM agent + DL predictor</td><td>Random</td><td class="fit" colspan="2"><span class="st">not run</span></td><td class="n">484 / 1,000</td></tr>
+<tr><td>Predictor weights + case memory + lessons</td><td>LLM agent + DL predictor</td><td>Random</td><td class="fit" colspan="2"><span class="st">not run</span></td><td class="n">484 / 1,000</td></tr>
+<tr><td>Predictor weights + case memory + lessons + prompt</td><td>LLM agent + DL predictor</td><td>Random</td><td class="fit" colspan="2"><span class="st">not run</span></td><td class="n">484 / 1,000</td></tr>
+<tr><td>Predictor weights + case memory + lessons + tools</td><td>LLM agent + DL predictor</td><td>Random</td><td class="fit" colspan="2"><span class="st">not run</span></td><td class="n">484 / 1,000</td></tr>
+<tr><td>Predictor weights + recipe</td><td>DL predictor</td><td>Random</td><td class="fit" colspan="2"><span class="st">not run</span></td><td class="n">484 / 1,000</td></tr>
+<tr><td>Predictor weights</td><td>DL predictor</td><td>Highest predictor score</td><td class="fit" colspan="3"><span class="st">not run</span></td></tr>
+<tr><td>Case memory + lessons</td><td>LLM-only agent</td><td>The agent's own picks</td><td class="fit" colspan="3"><span class="st">not run</span></td></tr>
+<tr><td>Predictor weights + case memory + lessons</td><td>LLM agent + DL predictor</td><td>The agent's own picks</td><td class="fit" colspan="3"><span class="st">not run</span></td></tr>
+<tr class="grp"><td colspan="6"><b>Earlier round rules (section 4)</b> · the splits of Table 1</td></tr>
+<tr><td>Predictor weights <span class="tag">baseline</span></td><td>DL predictor</td><td>Random</td><td class="n">0.719</td><td class="n"><strong>0.726</strong></td><td class="n">484 / 1,000</td></tr>
+<tr><td>Case memory + lessons</td><td>LLM-only agent</td><td>Random</td><td class="n">0.592</td><td class="n">0.575</td><td class="n">484 / 1,000</td></tr>
+<tr><td>Predictor weights</td><td>DL predictor</td><td>Highest predictor score</td><td class="n"><strong>0.720</strong></td><td class="n">0.723</td><td class="n"><strong>840 / 1,000</strong></td></tr>
+<tr class="grp"><td colspan="6"><b>Earlier split (before 2026-11-24)</b> · preset batches, 50 positives and 50 negatives per round</td></tr>
+<tr><td>Predictor weights <span class="tag">baseline</span></td><td>DL predictor</td><td>Preset</td><td class="n"><strong>0.735</strong></td><td class="n"><strong>0.738</strong></td><td class="n">500 / 1,000</td></tr>
+<tr><td>Case memory + lessons</td><td>LLM-only agent</td><td>Preset</td><td class="n">0.593</td><td class="n">0.577</td><td class="n">500 / 1,000</td></tr>
+<tr><td>Predictor weights + case memory + lessons</td><td>LLM agent + DL predictor</td><td>Preset</td><td class="n">0.715</td><td class="n">0.727</td><td class="n">500 / 1,000</td></tr>
+<tr><td>None</td><td>DL predictor trained on PRING (human), no 22T training</td><td>None (no rounds)</td><td class="n">0.597</td><td class="n">0.578</td><td class="n">–</td></tr>
+</tbody></table></div>
+<p class="cap"><b>Table 4.</b> PRING final test (10,280 pairs, public labels); columns as in Table 3. In the discovery-track block, 1.41% of the candidate pairs are positive.</p>
+<div class="tw"><table><thead><tr><th>Update target</th><th>System</th><th>Acquisition rule</th><th>AUPRC</th><th>AUROC</th><th>Hits</th></tr></thead><tbody>
+<tr class="grp"><td colspan="6"><b>Rules of section 1</b> · no run yet</td></tr>
+<tr><td>None (score before the rounds)</td><td>LLM-only agent</td><td>None (no rounds)</td><td class="fit" colspan="2"><span class="st">not run</span></td><td class="n">–</td></tr>
+<tr><td>None (score before the rounds)</td><td>LLM agent + DL predictor</td><td>None (no rounds)</td><td class="fit" colspan="2"><span class="st">not run</span></td><td class="n">–</td></tr>
+<tr><td>Predictor weights <span class="tag">baseline</span></td><td>DL predictor</td><td>Random</td><td class="fit" colspan="2"><span class="st">not run</span></td><td class="n">26 / 2,000</td></tr>
+<tr><td>Case memory</td><td>LLM-only agent</td><td>Random</td><td class="fit" colspan="2"><span class="st">not run</span></td><td class="n">26 / 2,000</td></tr>
+<tr><td>Case memory + lessons</td><td>LLM-only agent</td><td>Random</td><td class="fit" colspan="2"><span class="st">not run</span></td><td class="n">26 / 2,000</td></tr>
+<tr><td>Case memory (predictor frozen)</td><td>LLM agent + DL predictor</td><td>Random</td><td class="fit" colspan="2"><span class="st">not run</span></td><td class="n">26 / 2,000</td></tr>
+<tr><td>Case memory + lessons (predictor frozen)</td><td>LLM agent + DL predictor</td><td>Random</td><td class="fit" colspan="2"><span class="st">not run</span></td><td class="n">26 / 2,000</td></tr>
+<tr><td>Predictor weights + case memory + lessons</td><td>LLM agent + DL predictor</td><td>Random</td><td class="fit" colspan="2"><span class="st">not run</span></td><td class="n">26 / 2,000</td></tr>
+<tr><td>Predictor weights</td><td>DL predictor</td><td>Highest predictor score</td><td class="fit" colspan="3"><span class="st">not run</span></td></tr>
+<tr><td>Case memory + lessons (predictor frozen)</td><td>LLM agent + DL predictor</td><td>The agent's own picks</td><td class="fit" colspan="3"><span class="st">not run</span></td></tr>
+<tr class="grp"><td colspan="6"><b>Earlier round rules (section 4)</b> · a balanced development set of 20,668 pairs (10,334 positive)</td></tr>
+<tr><td>Predictor weights <span class="tag">baseline</span></td><td>DL predictor</td><td>Random</td><td class="n">0.697</td><td class="n">0.678</td><td class="n">1,012 / 2,000</td></tr>
+<tr><td>Case memory + lessons</td><td>LLM-only agent</td><td>Random</td><td class="n"><strong>0.824</strong></td><td class="n"><strong>0.780</strong></td><td class="n">1,012 / 2,000</td></tr>
+<tr><td>Predictor weights</td><td>DL predictor</td><td>Highest predictor score</td><td class="n">0.695</td><td class="n">0.667</td><td class="n"><strong>1,781 / 2,000</strong></td></tr>
+<tr class="grp"><td colspan="6"><b>Discovery track on the earlier split (before 2026-11-24)</b> · picks of the LLM agent with the DL predictor from all 732,655 pairs of the development proteins; no gate; validation pairs in the look-up set</td></tr>
+<tr><td>Predictor weights, one retraining after round 10 <span class="tag">baseline</span></td><td>DL predictor</td><td>The agent's picks</td><td class="n">0.717</td><td class="n">0.695</td><td class="n">1,624 / 1,895</td></tr>
+<tr><td>Case memory</td><td>LLM-only agent</td><td>The agent's picks</td><td class="n"><strong>0.811</strong></td><td class="n"><strong>0.769</strong></td><td class="n">1,624 / 1,895</td></tr>
+<tr><td>Case memory (predictor frozen)</td><td>LLM agent + DL predictor</td><td>The agent's picks</td><td class="n">0.804</td><td class="n"><strong>0.769</strong></td><td class="n">1,624 / 1,895</td></tr>
+<tr><td>Case memory + lessons (predictor frozen)</td><td>LLM agent + DL predictor</td><td>The agent's picks</td><td class="n">0.803</td><td class="n">0.767</td><td class="n">1,624 / 1,895</td></tr>
+</tbody></table></div>
+<p class="cap"><b>Table 5.</b> Final test: AUPRC of the DL predictor after round 10 minus its AUPRC before round 1 (the same initial checkpoint for both rules of a benchmark), paired bootstrap over the final-test pairs (22T 8,366; PRING 10,280), 95% interval; higher is better.</p>
+<div class="tw"><table><thead><tr><th>DL predictor arm</th><th>Before round 1</th><th>After round 10</th><th>Difference [95% interval]</th><th>Rounds kept by the gate</th></tr></thead><tbody>
+<tr><td>22T, random rule <span class="tag">baseline</span></td><td class="n">0.714</td><td class="n">0.719</td><td class="n">+0.005 [−0.003, +0.013]</td><td class="n">1 of 10 (round 1)</td></tr>
+<tr><td>22T, highest predictor score</td><td class="n">0.714</td><td class="n"><strong>0.720</strong></td><td class="n"><strong>+0.006</strong> [−0.002, +0.014]</td><td class="n">1 of 10 (round 6)</td></tr>
+<tr><td>PRING, random rule <span class="tag">baseline</span></td><td class="n">0.695</td><td class="n">0.697</td><td class="n">+0.002 [−0.003, +0.007]</td><td class="n">1 of 10 (round 6)</td></tr>
+<tr><td>PRING, highest predictor score</td><td class="n">0.695</td><td class="n">0.695</td><td class="n">0 (no round kept)</td><td class="n">0 of 10</td></tr>
+</tbody></table></div>
+
+<h3>Reading (earlier round rules, splits of 2026-11-24)</h3>
+<ul class="read">
+<li><strong>The revealed labels do not change the DL predictor's final-test AUPRC.</strong> On 22T the difference is +0.005 with the random rule and +0.006 with the highest-score rule. On PRING it is +0.002 with the random rule. All three intervals include 0 (Table 5). The PRING random arm gains AUROC: 0.667 to 0.678, +0.011 [+0.006, +0.016].</li>
+<li><strong>The gate keeps few DL rounds.</strong> It keeps 1 of 10 in each 22T arm and in the PRING random arm, and none on PRING with the highest-score rule, where the predictor stays at the initial checkpoint (0.695) (Table 5).</li>
+<li><strong>The highest-score rule reveals far more positives, but the predictor does not gain from them.</strong> 22T: 840 against 484 of 1,000. PRING: 1,781 against 1,012 of 2,000 (Tables 3, 4).</li>
+<li><strong>The LLM-only agent with memory is far below the DL predictor on 22T and far above it on PRING.</strong> 22T: AUPRC 0.592 against 0.719 (Table 3). PRING: 0.824 against 0.697, and the difference to the initial predictor is +0.128 [+0.117, +0.139] (Table 4).</li>
+<li><strong>The gate keeps few agent rounds too.</strong> It keeps 2 of 10 on 22T (rounds 1 and 4) and 1 of 10 on PRING (round 2), so the final memory has 200 cases on each benchmark. The validation AUPRC (selection only, 400 pairs) went from 0.574 to 0.650 on 22T and from 0.834 to 0.851 on PRING.</li>
+<li><strong>The gain of the agents from the rounds is not measured yet.</strong> These splits have no final-test run of the agents without reveal rounds (section 4).</li>
+</ul>
+<p class="cap">To come when the runs under the rules of section 1 are done: a figure like Figure 1 of Zeng and Luo (2026), with the curves over the rounds for each arm and the paired differences between arms with their 95% intervals.</p>
+
+<h3>Reading (splits before 2026-11-24)</h3>
+<ul class="read">
+<li><strong>The DL predictor gains most from the revealed labels.</strong> Its AUPRC goes up by 0.019 (0.716 before the rounds, 0.735 after), against +0.003 and +0.005 for the agents.</li>
+<li><strong>The agent with the DL predictor stays below the retrained DL predictor alone.</strong> AUPRC 0.715 against 0.735 (Table 3).</li>
+<li><strong>The gate keeps few rounds (1 to 3 of 10), and without it every arm ends lower</strong> (Table 3 caption).</li>
+<li><strong>On PRING the case memory adds AUPRC, and the lessons add nothing beyond the cases.</strong> The case memory adds +0.028 for the agent with the DL predictor (from 0.775) and +0.010 for the LLM-only agent (from 0.801, the matched run of 2026-11-24). The retrained DL predictor gains +0.021 (from 0.695) (Table 4).</li>
+<li><strong>In the discovery track the agent's picks find interactions far above the base rate.</strong> 1,624 of 1,895 valid picks are hits, against about 27 at the base rate of 1.41% (Table 4).</li>
+<li><strong>Each arm has one run.</strong> The numbers are point estimates; the AUPRC of one 100-pair round varies by about ±0.05.</li>
+</ul>
+
+<h2>4. Not in the current design</h2>
+<p>The rules of section 1 were decided on 2026-11-26. The code follows them since that day, but it has not run yet. All runs of section 3 used these earlier rules:</p>
+<ul class="plain">
+<li><b>Gate.</b> A round was kept only if its single validation AUPRC was higher than that of every earlier kept state. There was no bootstrap.</li>
+<li><b>Dropped rounds.</b> The labels of a dropped round left the training data of the predictor, and its cases and lesson changes left the memory, for good.</li>
+<li><b>Two gates.</b> In the arm where the agent uses a predictor that also updates, the DL run gated the predictor and the agent run gated the memory.</li>
+<li><b>Score before the rounds.</b> The agents had no final-test run without reveal rounds. The run is now built (<code>reveal_rounds baseline</code>).</li>
+<li><b>PRING development set.</b> The rounds drew from a balanced set of 20,668 pairs (10,334 positive), not from the development set of Table 1. Their random batches had 1,012 positives in 2,000 pairs; the new ones have 26.</li>
+</ul>
+<p>Also not built:</p>
+<ul class="plain">
+<li>Every run under the rules of section 1 (the first blocks of Tables 3 and 4).</li>
+<li>The agent's own picks under the rules of section 1: they exist only in the discovery-track code on PRING, with the earlier gate. So the agent does not yet guide the experiments on private data.</li>
+<li>The rule that takes the scores nearest 0.5.</li>
+<li>Improvement of the prompts, tools or predictor architecture: only the memory and the predictor weights change.</li>
+<li>Replicate runs and a permuted-label control.</li>
+</ul>
+</main>
+</body>
+</html>

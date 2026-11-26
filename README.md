@@ -23,8 +23,8 @@
 
 **Figure.** **a**, In each round, the agent (a frozen LLM in a tool-call harness, with memory and a DL
 predictor) predicts a batch of unlabeled pairs. Then the labels are revealed and kept as cases. A reviewer
-LLM updates the lessons, and the DL predictor is retrained. A validation gate keeps the round only if the
-validation AUPRC improves. **b**, After the last round, the memory and the predictor are frozen, and the
+LLM updates the lessons, and the DL predictor is retrained. A validation gate drops the new state only if it is
+clearly worse than the best kept state; revealed labels are never dropped. **b**, After the last round, the memory and the predictor are frozen, and the
 same harness predicts the held-out pairs.
 
 ## Why PPI-Agent-RSI?
@@ -106,10 +106,10 @@ The module map is in [`src/README.md`](src/README.md).
 | Path | Contents |
 | --- | --- |
 | `docs/introduction.md` | Motivation and the three research directions |
-| `docs/task-setting.html` | Research status: task formulation, splits, current design and results |
+| `docs/research-status.html` | Research status: task formulation, splits, current design and results |
 | `docs/literature.md` | Related work, with links to local PDFs |
 | `docs/rsi-architecture.svg` | The figure above |
 | `results/` | Readable summaries, one folder per run (raw artifacts in `data/PRING/runs/`) |
 | `tests/` | pytest suite, mirrors `src/` |
 | `literature/README.md` | Index of the PDFs by topic (the PDFs are git-ignored) |
-| `data/`, `docs/research-reports/`, `docs/superpowers/` | Git-ignored: private data, research reports, design notes |
+| `data/`, `docs/research-reports/`, `docs/superpowers/` | Git-ignored: private data, research reports and literature notes, design notes |

@@ -43,7 +43,7 @@
 <circle cx="117" cy="448" r="2.2" fill="#1f1f1f"/>
 <circle cx="117" cy="455" r="2.2" fill="#1f1f1f"/>
 <circle cx="117" cy="462" r="2.2" fill="#1f1f1f"/>
-<text x="124" y="496" font-size="17" font-weight="normal" text-anchor="middle" fill="#1f1f1f" >100 candidate pairs</text>
+<text x="124" y="496" font-size="17" font-weight="normal" text-anchor="middle" fill="#1f1f1f" ><tspan font-family="'Times New Roman', Times, serif" font-style="italic" font-size="19">b</tspan> candidate pairs</text>
 <text x="124" y="518" font-size="17" font-weight="normal" text-anchor="middle" fill="#1f1f1f" >per round</text>
 <rect x="18" y="556" width="212" height="166" rx="12" fill="#F1F7FD"/>
 <clipPath id="c3"><rect x="18" y="556" width="212" height="166" rx="12"/></clipPath>
@@ -60,8 +60,8 @@
 <path d="M350,290 L436,375 L350,460 L264,375 Z" fill="#FCEFB4" stroke="#E1BF3C" stroke-width="2.5" stroke-linejoin="round"/>
 <text x="350" y="358" font-size="21" font-weight="bold" text-anchor="middle" fill="#1f1f1f" >Validation</text>
 <text x="350" y="382" font-size="21" font-weight="bold" text-anchor="middle" fill="#1f1f1f" >gate</text>
-<text x="350" y="404" font-size="14" font-weight="normal" text-anchor="middle" fill="#1f1f1f" >val AUPRC &gt;</text>
-<text x="350" y="421" font-size="14" font-weight="normal" text-anchor="middle" fill="#1f1f1f" >best kept?</text>
+<text x="350" y="404" font-size="14" font-weight="normal" text-anchor="middle" fill="#1f1f1f" >not clearly worse</text>
+<text x="350" y="421" font-size="14" font-weight="normal" text-anchor="middle" fill="#1f1f1f" >than best kept?</text>
 <path d="M350,288 C352,225 395,196 440,190" fill="none" stroke="#2b2b2b" stroke-width="3.2" marker-end="url(#ah)"/>
 <text x="333" y="252" font-size="18" font-weight="normal" text-anchor="middle" fill="#1f1f1f" >yes</text>
 <text x="378" y="148" font-size="20" font-weight="normal" text-anchor="middle" fill="#1f1f1f" >commit</text>

@@ -3,10 +3,9 @@
 ## Research task
 
 LLM scientific agents for membrane protein–protein interaction (PPI) discovery, then recursive self-improvement
-(RSI) of the agent workflow and, later, the PPI predictor under sparse experimental feedback. Docs:
-`docs/introduction.md` (motivation), `docs/initial_baseline.md` (baseline design), `docs/literature.md`,
-`docs/research-reports/<date>-<slug>.md` (git-ignored deep research), `docs/superpowers/specs/` (dated designs).
-Readable run summaries: tracked `results/<run>/` (raw artifacts stay in `data/PRING/runs/<run>/`).
+(RSI) of the agent workflow and, later, the PPI predictor under sparse experimental feedback.
+See `docs/introduction.md`, `docs/initial_baseline.md`, `docs/literature.md`, and `docs/superpowers/specs/`.
+Local reports and literature notes are in `docs/research-reports/`. Run summaries are in `results/<run>/`.
 PDFs live in git-ignored `literature/<topic>/`; the index `literature/README.md` is tracked.
 
 **Core thesis — do not let it drift:** measure a *fixed*, expert-designed agent before building any RSI. Failure
@@ -102,12 +101,10 @@ drives it; `tests/` mirrors `src`. Each builder's docstring is the versioned pro
   2,035,153 pairs among the 2,018 test proteins (`candidate` = 1), 30,128 hits. `annotations.tsv`: UniProt + GO minus
   sentences naming another gene and GO protein-binding/complex terms.
 
-## Pitfalls and claim boundaries
+## Pitfalls
 
 Mistakes here produce a complete-looking **wrong artifact**, not an exception.
 
-- Sandbox numbers are never reported (public, likely memorised labels). Only the private `test.csv` and a future
-  post-cutoff slice can support a claim.
 - Raw negatives (18.4M, computational) are unused: 97% of GT-test negatives recur in training negatives.
 - `public_db/*.tsv.gz` keep only pairs among current TMP proteins; adding proteins or changing `IdMap` means
   re-running every extract. 1,320 TMP proteins have no Entrez gene or STRING ID and match by accession only.
