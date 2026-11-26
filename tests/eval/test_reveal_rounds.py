@@ -133,10 +133,10 @@ def test_archive_one_gate_and_the_checkpoint_in_use(tmp_path, monkeypatch):
     # with the predictor: round 1 sees checkpoint 0, its gate candidate 1; round 1 dropped, so round 2 sees
     # checkpoint 0 again and its gate candidate 2
     assert [c[3] for c in (val0, round1, val1, round2, val2)] == [{SIGMOID[t]} for t in (0, 0, 1, 0, 2)]
-    # the dropped candidate is a record; the state in use after it is still the empty memory
+    # the dropped candidate is a record; after it the lessons in use are still empty, but its cases are in use
     dropped = json.loads((run_dir / "memory" / "round01" / "lessons.json").read_text())
     assert [x["text"] for x in dropped] == ["review 1"]
-    assert "review 1" in val1[1] and "No lessons yet." in round2[1] and "Cases: 0 pairs" in round2[1]
+    assert "review 1" in val1[1] and "No lessons yet." in round2[1] and "Cases: 2 pairs" in round2[1]
     # the reviewer of round 2 gets every case since the last kept round (0): rounds 1 and 2
     assert "The cases of round 1 and of this round" in review2[2] and "2 of these 4 pairs interact" in review2[2]
     assert "This round's cases." in review1[2]

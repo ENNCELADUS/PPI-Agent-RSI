@@ -13,25 +13,28 @@ pairs), build_mus22t_rsi_sandbox (the views: the RSI training set as kb.csv, one
 acquisition rule is the random draw, the control: every arm gets the same pairs in the same rounds and is scored on
 the same final set. The agent's own picks are not built yet.
 
-rounds: the state in use is the memory (cases and lessons) and, with --predictor on 22T, DL checkpoint c of the
-random rule; it starts empty with checkpoint 0. For t = 1..10 one fresh pi session predicts round t's 100 pairs with
-the state in use (the pring_test batch protocol, RevealTools: protein and KB tools, `cases`, and with --predictor
-`predict_pairs` from sandbox_rsi/ckpt<c>_round/). Its p is scored before the labels are shown. The labels go to the
-archive as cases (label, the agent's p, the predictor's p it could see, its evidence ids); the archive only grows.
-The candidate memory: all archive cases, and the lessons in use revised by a reviewer session that gets as new cases
-all cases revealed since the last kept round. Gate (build_mus22t_rsi.gate_round): the agent with the candidate memory
-(and with --predictor the candidate checkpoint t, sandbox_rsi/ckpt<t>_val/) classifies the val gate pairs
-(rsi/val_gate.csv, 400, read-only like the final test); its per-pair p are compared with the saved per-pair p of the
-best kept state on the same pairs (a paired bootstrap). The candidate replaces the state in use (with --predictor:
-memory and checkpoint together, c = t) unless it is clearly worse. Round 0, the empty memory, is always kept. The
-LLM-only arm (no --predictor) uses sandbox_rsi/plain/ with no predictor tool and no predictor p in the cases.
+rounds: the state in use is every revealed case (the archive), the lessons in use and, with --predictor on 22T, DL
+checkpoint c of the random rule; it starts empty with checkpoint 0. The cases are facts and are never gated (user
+decision 2026-11-26): the gate decides only the lessons and the checkpoint. For t = 1..10 one fresh pi session
+predicts round t's 100 pairs with the state in use (the pring_test batch protocol, RevealTools: protein and KB tools,
+`cases`, and with --predictor `predict_pairs` from sandbox_rsi/ckpt<c>_round/). Its p is scored before the labels
+are shown. The labels go to the archive as cases (label, the agent's p, the predictor's p it could see, its evidence
+ids); the archive only grows. The candidate: the lessons in use revised by a reviewer session that gets as new cases
+all cases revealed since the last kept round (the cases are the archive, as in the state in use). Gate
+(build_mus22t_rsi.gate_round): the agent with the candidate lessons (and with --predictor the candidate checkpoint t,
+sandbox_rsi/ckpt<t>_val/) classifies the val gate pairs (rsi/val_gate.csv, 400, read-only like the final test); its
+per-pair p are compared with the saved per-pair p of the best kept state on the same pairs (a paired bootstrap). The
+candidate lessons replace the lessons in use (with --predictor: lessons and checkpoint together, c = t) unless the
+candidate is clearly worse. Round 0, the empty memory, is always kept. The LLM-only arm (no --predictor) uses
+sandbox_rsi/plain/ with no predictor tool and no predictor p in the cases.
 Run directory: rounds/batch<t>/ the round sessions and their result.json, rounds/review<t>/ the reviewer;
 memory/round<t>/ the candidate of round t, kept or dropped (cases.jsonl: the archive after round t; lessons.json;
 review.json: the review log, the gate entry and the val metrics); val/round<t>/ the gate batches of candidate t;
-gate.json the gate_round entries of rounds 0..t. The state in use after round t is the candidate of the last kept
-round s <= t with the archive cases of rounds 1..s (s = 0: empty, checkpoint 0). A round with saved memory is
-replayed, so runs resume. curve.json: per round, the agent's metrics on its batch before the reveal and the DL
-candidates' 0 and t - 1 on the same pairs; a one-class batch has no metrics.
+gate.json the gate_round entries of rounds 0..t. The state in use after round t is the whole archive with the lessons
+(and checkpoint) of the last kept round s <= t (s = 0: no lessons, checkpoint 0); after a drop this state has no
+validation score of its own. A round with saved memory is replayed, so runs resume. curve.json: per round, the
+agent's metrics on its batch before the reveal and the DL candidates' 0 and t - 1 on the same pairs; a one-class
+batch has no metrics.
 
 test: the final pairs (seed 0, batches of --batch) with the state in use after round 10 (lessons in the prompt, cases
 through the tool), read-only; with --predictor its checkpoint (sandbox_rsi/ckpt<c>_final/). final/summary.json: the
@@ -361,7 +364,7 @@ def run_rounds(run_dir, args):
             if gate[t]["kept"]:
                 kept, lessons = t, candidate
             continue
-        records = [c for c in archive if c["round"] <= kept]  # the cases in use
+        records = archive  # every revealed case is in use; the gate decides the lessons and the checkpoint
         sandbox, view = stage_sandbox("round", kept, args.predictor)
         stage = (
             f"This is round {t} of {ROUNDS}. After you submit, the labels of this batch are revealed and become "
@@ -448,8 +451,9 @@ def run_test(run_dir, args):
     args.model, args.thinking, args.predictor = cfg["model"], cfg["thinking"], cfg["predictor"]
     gate = json.loads((run_dir / "gate.json").read_text())
     assert len(gate) == ROUNDS + 1, f"no gate decision of round {ROUNDS}: run the rounds first"
-    kept = max(g["round"] for g in gate if g["kept"])  # the state in use: the last kept candidate
-    records, lessons = load_memory(run_dir / "memory" / f"round{kept:02d}") if kept else ([], Lessons())
+    kept = max(g["round"] for g in gate if g["kept"])  # the lessons (and checkpoint) in use: the last kept candidate
+    records, _ = load_memory(run_dir / "memory" / f"round{ROUNDS:02d}")  # the whole archive
+    _, lessons = load_memory(run_dir / "memory" / f"round{kept:02d}") if kept else ([], Lessons())
     final_test(run_dir, args, records, lessons, kept)
 
 
