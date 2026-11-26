@@ -106,12 +106,19 @@ def metrics(y, s):
     return {"auroc": float(auroc), "ap": ap}
 
 
-def classification(y, prob, bins=15):
-    """PRING Table 8 metrics and MCC, specificity at the max-F1 threshold chosen on these labels (oracle: val is
-    RSI data, not a selector), plus ECE and Brier."""
+def best_f1_threshold(y, prob):
+    """The threshold with the highest F1 on these labels (F1 = 2tp / (predicted + positives))."""
     y, prob = np.asarray(y), np.asarray(prob, dtype=float)
     t, tp_at, n_at = steps(y, prob)
-    threshold = float(t[np.argmax(2 * tp_at / (n_at + y.sum()))])  # F1 = 2tp / (predicted + positives)
+    return float(t[np.argmax(2 * tp_at / (n_at + y.sum()))])
+
+
+def classification(y, prob, threshold=None, bins=15):
+    """PRING Table 8 metrics, MCC and specificity at `threshold`, plus ECE. An RSI final test passes the threshold
+    with the best F1 on the validation pairs (user decision 2026-11-26). threshold None: the max-F1 threshold of
+    these labels, an oracle, for sets that are not a final test and for tests without validation scores."""
+    threshold = best_f1_threshold(y, prob) if threshold is None else threshold
+    y, prob = np.asarray(y), np.asarray(prob, dtype=float)
     pred = prob >= threshold
     tp, fp = int((pred & (y == 1)).sum()), int((pred & (y == 0)).sum())
     fn, tn = int((~pred & (y == 1)).sum()), int((~pred & (y == 0)).sum())
@@ -127,7 +134,6 @@ def classification(y, prob, bins=15):
         "f1": 2 * tp / (2 * tp + fp + fn),
         "mcc": (tp * tn - fp * fn) / mcc_den if mcc_den else 0.0,
         "ece": float(ece),
-        "brier": float(np.mean((prob - y) ** 2)),
     }
 
 
@@ -163,8 +169,10 @@ def paired_bootstrap(y, p, q, n=1000, seed=SEED):
     return {k: [whole[k], *np.percentile([b[k] for b in boot], [2.5, 97.5]).tolist()] for k in whole}
 
 
-def summarise(rows, results, predictor="b0"):
-    """predictor: "b0", "v3" or None (the agent only)."""
+def summarise(rows, results, predictor="b0", threshold=None):
+    """predictor: "b0", "v3" or None (the agent only). threshold: the agent's decision threshold chosen on
+    validation pairs; the predictor block then holds only AUROC and AP (its own threshold needs its own validation
+    scores: the DL arm summary has them)."""
     scored = [r for r in rows if r["p"] is not None]
     pred = predictor_p(predictor, [(r["a"], r["b"]) for r in rows]) if predictor else None
     stats = [x["stats"] or {} for x in results]
@@ -174,11 +182,11 @@ def summarise(rows, results, predictor="b0"):
         y = [r["label"] for r in rows]
         p = [0.5 if r["p"] is None else r["p"] for r in rows]
         if pred is None:
-            return {"agent": classification(y, p)}
+            return {"agent": classification(y, p, threshold)}
         q = [pred[(r["a"], r["b"])] for r in rows]
         return {
-            "agent": classification(y, p),
-            predictor: classification(y, q),
+            "agent": classification(y, p, threshold),
+            predictor: classification(y, q) if threshold is None else metrics(y, q),
             f"agent_minus_{predictor}": paired_bootstrap(y, p, q),
         }
 

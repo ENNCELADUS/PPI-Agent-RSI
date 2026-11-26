@@ -37,11 +37,13 @@ agent's metrics on its batch before the reveal and the DL candidates' 0 and t - 
 batch has no metrics.
 
 test: the final pairs (seed 0, batches of --batch) with the state in use after round 10 (lessons in the prompt, cases
-through the tool), read-only; with --predictor its checkpoint (sandbox_rsi/ckpt<c>_final/). final/summary.json: the
-pring_test metrics of the agent, candidate 0 ("v3": V3 trained on the RSI training set, before any reveal) and
-candidate 10 ("al_checkpoint10") on the same pairs, with paired bootstraps. baseline: the same final test with the
-empty memory and checkpoint 0 (PRING: B0) and no rounds, in its own run directory: the score of every arm of this
-system before the rounds.
+through the tool), read-only; with --predictor its checkpoint (sandbox_rsi/ckpt<c>_final/). The same state first
+classifies the val gate pairs (final/val/): the threshold with its best F1 there is the decision threshold of the final
+test (user decision 2026-11-26; "validation" in the summary). final/summary.json: the pring_test metrics of the agent,
+AUROC and AP of candidate 0 ("v3": V3 trained on the RSI training set, before any reveal) and candidate 10
+("al_checkpoint10") on the same pairs, with paired bootstraps. baseline: the same final test with the empty memory and
+checkpoint 0 (PRING: B0) and no rounds, in its own run directory: the score of every arm of this system before the
+rounds.
 
 --data pring (user decision 2026-11-24): the same rounds, gate and final test on PRING with the random acquisition
 rule. Data: build_pring_memory (hidden/dev_random.csv: 10 rounds of 200 pairs drawn at random from the development
@@ -76,7 +78,16 @@ from src.data.builders.build_mus22t_rsi_sandbox import checkpoint_p, checkpoint_
 from src.data.ids import pair
 from src.data.paths import MUS22T, PRING
 from src.eval.memory_agent import load_memory, save_memory, session_twice
-from src.eval.pring_test import batches, classification, paired_bootstrap, run_batch, summarise, test_pairs
+from src.eval.pring_test import (
+    batches,
+    best_f1_threshold,
+    classification,
+    metrics,
+    paired_bootstrap,
+    run_batch,
+    summarise,
+    test_pairs,
+)
 from src.eval.rounds import commit, set_aside
 
 FINAL_STAGE = "This is the final test. Its labels are never revealed; the cases and lessons stay as they are."
@@ -291,14 +302,17 @@ def provenance(args, **extra):
     }
 
 
-def val_check(t, args, records, lessons, run_dir):
-    """The val gate batches of candidate t (this memory; with the predictor on 22T, checkpoint t), read-only, as in the
-    final test (the agent sees the final-test stage). Returns val_rows(t)."""
-    sandbox, view = stage_sandbox("val", t, args.predictor)
+def val_dir(run_dir, t):
+    return run_dir / "val" / f"round{t:02d}"
+
+
+def val_check(c, args, records, lessons, d):
+    """The val gate batches of this memory (with the predictor on 22T: checkpoint c) in directory d, read-only, as in
+    the final test (the agent sees the final-test stage). Returns val_rows(d)."""
+    sandbox, view = stage_sandbox("val", c, args.predictor)
     book = DATA().cases(records, sandbox, view)
     system = system_prompt(sandbox, args.predictor, records, lessons, DATA().final_stage)
     todo = batches(test_pairs(DATA().gate), K)
-    d = run_dir / "val" / f"round{t:02d}"
     with ThreadPoolExecutor(args.workers) as pool:
         jobs = [
             pool.submit(
@@ -316,20 +330,16 @@ def val_check(t, args, records, lessons, run_dir):
         ]
         results = [j.result() for j in jobs]
     if None in results:
-        raise RuntimeError(f"val check of round {t}: a batch failed twice")
-    return val_rows(t, run_dir)
+        raise RuntimeError(f"val check in {d}: a batch failed twice")
+    return val_rows(d)
 
 
-def val_rows(t, run_dir):
-    """{pair: (label, p)} of candidate t's saved val gate batches (a missing p counts as 0.5); every gate pair once."""
-    rows = [
-        r
-        for f in sorted((run_dir / "val" / f"round{t:02d}").glob("batch*/result.json"))
-        for r in json.loads(f.read_text())["rows"]
-    ]
+def val_rows(d):
+    """{pair: (label, p)} of the saved val gate batches in d (a missing p counts as 0.5); every gate pair once."""
+    rows = [r for f in sorted(d.glob("batch*/result.json")) for r in json.loads(f.read_text())["rows"]]
     out = {(r["a"], r["b"]): (r["label"], 0.5 if r["p"] is None else r["p"]) for r in rows}
     want = {(a, b) for a, b, _ in test_pairs(DATA().gate)}
-    assert len(out) == len(rows) and out.keys() == want, f"val check of round {t}: not the val gate pairs"
+    assert len(out) == len(rows) and out.keys() == want, f"val check in {d}: not the val gate pairs"
     return out
 
 
@@ -339,7 +349,7 @@ def gate_step(gate, t, cand, run_dir):
     y, p = [cand[x][0] for x in pairs], [cand[x][1] for x in pairs]
     p_best = None
     if t:
-        best = val_rows(best_kept(gate), run_dir)
+        best = val_rows(val_dir(run_dir, best_kept(gate)))
         p_best = [best[x][1] for x in pairs]
     return gate_round(gate, t, y, p, p_best), classification(y, p)
 
@@ -355,7 +365,7 @@ def run_rounds(run_dir, args):
     gate_path = run_dir / "gate.json"
     gate = json.loads(gate_path.read_text()) if gate_path.exists() else []
     if not gate:
-        gate, _ = gate_step([], 0, val_check(0, args, archive, lessons, run_dir), run_dir)
+        gate, _ = gate_step([], 0, val_check(0, args, archive, lessons, val_dir(run_dir, 0)), run_dir)
         gate_path.write_text(json.dumps(gate, indent=1) + "\n")
     for t in range(1, min(ROUNDS, args.until or ROUNDS) + 1):
         mem_dir = run_dir / "memory" / f"round{t:02d}"
@@ -392,7 +402,7 @@ def run_rounds(run_dir, args):
         log = review(t, args, sandbox, view, archive, fresh, candidate, run_dir)
         # a rerun reviewed again: earlier val batches checked another memory
         set_aside(run_dir / "val", f"round{t:02d}_stale", f"round{t:02d}")
-        gate, m = gate_step(gate[:t], t, val_check(t, args, archive, candidate, run_dir), run_dir)
+        gate, m = gate_step(gate[:t], t, val_check(t, args, archive, candidate, val_dir(run_dir, t)), run_dir)
         gate_path.write_text(json.dumps(gate, indent=1) + "\n")
         log["gate"] = gate[t] | {"val": m}
         save_memory(mem_dir, archive, candidate, log)
@@ -463,7 +473,8 @@ def run_baseline(run_dir, args):
 
 
 def final_test(run_dir, args, records, lessons, kept):
-    """The final test with this memory and, with the predictor on 22T, checkpoint `kept`; final/summary.json."""
+    """The final test with this memory and, with the predictor on 22T, checkpoint `kept`; final/summary.json. The
+    decision threshold is the one with the best F1 of this same state on the val gate pairs (final/val/)."""
     predictor = args.predictor
     data = DATA()
     sandbox, view = stage_sandbox("final", kept, predictor)
@@ -476,6 +487,8 @@ def final_test(run_dir, args, records, lessons, kept):
     else:
         extra = {"batch": args.batch, "batches": len(todo), "cases": len(records), "state_round": kept}
         (test_dir / "run.json").write_text(json.dumps(provenance(args, **extra), indent=1) + "\n")
+    val = val_check(kept, args, records, lessons, test_dir / "val").values()
+    validation = classification([label for label, _ in val], [p for _, p in val])  # its threshold: the best F1
     system = system_prompt(sandbox, predictor, records, lessons, data.final_stage)
     n = len(todo)
     with ThreadPoolExecutor(args.workers) as pool:
@@ -498,7 +511,7 @@ def final_test(run_dir, args, records, lessons, kept):
     if not results:
         return
     rows = [row for r in results for row in r["rows"]]
-    summary = summarise(rows, results, data.reference)
+    summary = summarise(rows, results, data.reference, validation["threshold"]) | {"validation": validation}
     y = [r["label"] for r in rows]
     p = [0.5 if r["p"] is None else r["p"] for r in rows]
     # 22T: the DL candidates before any reveal and after all rounds
@@ -506,7 +519,7 @@ def final_test(run_dir, args, records, lessons, kept):
         if checkpoint_path(c).exists():
             scores = checkpoint_p(c)
             q = [scores[(r["a"], r["b"])] for r in rows]
-            summary[name] = classification(y, q)
+            summary[name] = metrics(y, q)
             summary[f"agent_minus_{name}"] = paired_bootstrap(y, p, q)
     (test_dir / "summary.json").write_text(json.dumps(summary, indent=1) + "\n")
     print(json.dumps(summary, indent=1))
@@ -523,7 +536,13 @@ def run_al(data, rule):
     }
     on = lambda c, rows: [p[c][pair(a, b)] for a, b, _ in rows]  # noqa: E731
     out = {"final_pairs": len(final), "gate": dl_rounds.read_gate(data, rule), "checkpoints": {}, "curve": []}
-    out["checkpoints"] = {c: classification(y, on(c, final)) for c in p}
+    val = read(bench["val"])
+
+    def threshold(c):  # the best F1 of the predictor in use after round c on all validation pairs
+        q = checkpoint_p(c, dl_rounds.checkpoint_path(data, rule, c, val=True))
+        return best_f1_threshold([label for _, _, label in val], [q[pair(a, b)] for a, b, _ in val])
+
+    out["checkpoints"] = {c: classification(y, on(c, final), threshold(c)) for c in p}
     path = dl_rounds.work(data, rule) / "batches.csv"
     for t, rows in sorted(dl_rounds.rows_by_round(path).items() if path.exists() else []):
         point = {"round": t, "pairs": len(rows), "positives": sum(r[2] for r in rows)}

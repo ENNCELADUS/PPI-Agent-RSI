@@ -162,6 +162,8 @@ def test_archive_one_gate_and_the_checkpoint_in_use(tmp_path, monkeypatch):
     summary = json.loads((run_dir / "final" / "summary.json").read_text())
     assert summary["pairs"] == 2 and summary["al_checkpoint10"]["auroc"] == 0.5  # ROUNDS = 2 here
     assert summary["v3"]["auroc"] == 0.5 and "agent_minus_v3" in summary  # "v3" is candidate 0
+    assert summary["agent"]["threshold"] == summary["validation"]["threshold"]  # the state under test on val pairs
+    assert (run_dir / "final" / "val").exists()
     assert json.loads((run_dir / "final" / "run.json").read_text())["state_round"] == 2
 
 
@@ -172,10 +174,13 @@ def test_baseline_is_the_final_test_with_the_empty_memory_and_checkpoint_0(tmp_p
     args = run_args()
     run_dir = tmp_path / "runs" / "base"
     reveal_rounds.run_baseline(run_dir, args)
-    assert len(calls) == 1 and calls[0][3] == {SIGMOID[0]} and "No lessons yet." in calls[0][1]
+    # the val gate pairs first (they give the decision threshold), then the final pairs: the same empty state
+    assert len(calls) == 2 and calls[-1][3] == {SIGMOID[0]} and all("No lessons yet." in c[1] for c in calls)
     assert not (run_dir / "rounds").exists() and not (run_dir / "gate.json").exists()
     summary = json.loads((run_dir / "final" / "summary.json").read_text())
     assert summary["pairs"] == 2 and "agent_minus_v3" in summary
+    assert summary["agent"]["threshold"] == summary["validation"]["threshold"]  # chosen on validation, not on the test
+    assert set(summary["v3"]) == {"auroc", "ap"} and "brier" not in summary["agent"]
     with pytest.raises(AssertionError, match="own stage"):  # a baseline run is not continued with rounds
         reveal_rounds.run_rounds(run_dir, args)
 

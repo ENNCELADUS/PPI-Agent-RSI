@@ -32,7 +32,9 @@ def test_classification_at_max_f1_threshold():
     assert m["threshold"] == 0.4 and abs(m["f1"] - 0.8) < 1e-12
     assert (m["accuracy"], m["precision"], m["recall"], m["specificity"]) == (0.75, 2 / 3, 1.0, 0.5)
     assert abs(m["mcc"] - 2 / 12**0.5) < 1e-12
-    assert abs(m["brier"] - (0.01 + 0.36 + 0.36 + 0.01) / 4) < 1e-12
+    assert "brier" not in m
+    m = classification([1, 1, 0, 0], [0.9, 0.4, 0.6, 0.1], threshold=0.5)  # a threshold from validation pairs
+    assert (m["threshold"], m["precision"], m["recall"], m["f1"]) == (0.5, 0.5, 0.5, 0.5)
 
 
 def test_summarise_without_b0_scores_the_agent_only():
