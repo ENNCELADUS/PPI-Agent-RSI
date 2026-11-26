@@ -17,12 +17,14 @@ Design: docs/superpowers/specs/2026-11-02-two-layer-memory-agent-design.md.
   hidden/val.csv, each sorted and shuffled with random.Random(0); after every round the agent classifies them in
   sandbox_val/ (build_pring_sandbox, build_pring_tools) with its candidate memory. sandbox_val/case_homologs.tsv
   holds the hits of the validation proteins against the discovery proteins. No validation protein is in a view.
-- Development set (user decisions 2026-11-24): hidden/dev.csv = PRING's labelled test pairs with both ends among the
-  discovery proteins, no self pairs, balanced 1:1 like the final test (20,668 pairs). All pairs of the discovery
-  proteins (732,655, 1.41% positive) stay the candidate space of the discovery track only (src.eval.memory_agent
-  rounds, metric: hits): a random draw from them reveals almost only negatives.
+- Development set (user decision 2026-11-26, replaces the balanced 1:1 set of 20,668 pairs of 2026-11-24):
+  hidden/dev.csv = every unordered non-self pair of the discovery proteins (732,655, canonical, sorted), the same
+  pairs as sandbox_disc/scores.tsv.gz. Closed world, as the discovery track's oracle: a pair of
+  hidden/test_positives.csv is a positive (10,334, 1.41%), every other pair a negative. Every acquisition rule
+  (random, highest predictor score, the system's picks) draws from this set.
 - Random acquisition, the baseline rule: hidden/dev_random.csv = 10 rounds of 200 development pairs
-  (build_mus22t_rsi.draw: sorted by pair, shuffled with random.Random(0); the labels play no part in the draw).
+  (build_mus22t_rsi.draw: sorted by pair, shuffled with random.Random(0); the labels play no part in the draw), so
+  about 28 positives in 2,000.
 - data/PRING/memory_split.json: counts and checksums. The ribosome stays in both views (user decision).
 """
 
@@ -32,6 +34,7 @@ import hashlib
 import json
 import random
 import shutil
+from itertools import combinations
 
 from src.data.builders.build_mus22t_rsi import draw, val_gate
 from src.data.builders.build_pring_noribo import drop_rows
@@ -80,6 +83,11 @@ def balanced_pairs(rows, proteins, seed=SEED):
     return sorted(rng.sample(pos, n) + rng.sample(neg, n))
 
 
+def all_pairs(proteins, hits):
+    """Every non-self pair of proteins, canonical and sorted, labelled 1 if in hits (canonical pairs), else 0."""
+    return [(a, b, int((a, b) in hits)) for a, b in combinations(sorted(proteins), 2)]
+
+
 def view(out, drop):
     out.mkdir(exist_ok=True)
     shutil.copy(SANDBOX / "kb.csv", out / "kb.csv")
@@ -124,22 +132,26 @@ def main():
     write_homologs(FINAL / "case_homologs.tsv", hits, final)
     write_homologs(VAL / "case_homologs.tsv", hits, val_seqs.keys())
 
-    released = labelled(HIDDEN / "test.csv")
-    test, dev = balanced_pairs(released, final), balanced_pairs(released, disc)
-    assert not {r[:2] for r in test} & {r[:2] for r in dev}, "pair in the development set and the final test"
+    test = balanced_pairs(labelled(HIDDEN / "test.csv"), final)
+    hit_pairs = {
+        tuple(sorted((r["uniprotID_A"], r["uniprotID_B"]))) for r in csv.DictReader(open(HIDDEN / "test_positives.csv"))
+    }
+    hits_disc = sum(1 for a, b in hit_pairs if a in disc and b in disc)
+    dev = all_pairs(disc, hit_pairs)
+    with gzip.open(DISC / "scores.tsv.gz", "rt") as f:
+        disc_pairs = {tuple(sorted((r["a"], r["b"]))) for r in csv.DictReader(f, delimiter="\t")}
+    assert {r[:2] for r in dev} == disc_pairs, "development pairs differ from the discovery view's candidate pairs"
+    assert sum(r[2] for r in dev) == hits_disc, "development positives differ from the discovery hits"
+    assert not {x for r in test for x in r[:2]} & disc, "a final-test pair has a development protein"
     write_pairs(FINAL_TEST, test)
     write_pairs(DEV, dev)
     gate = gate_pairs(labelled(HIDDEN / "val.csv"))
     write_pairs(VAL_GATE, gate)
-    hit_pairs = {
-        tuple(sorted((r["uniprotID_A"], r["uniprotID_B"]))) for r in csv.DictReader(open(HIDDEN / "test_positives.csv"))
-    }
     drawn = draw(dev, ROUNDS, BATCH)
     with open(DEV_RANDOM, "w", newline="") as f:
         w = csv.writer(f)
         w.writerow([*HEADER, "round"])
         w.writerows((*r, t) for t in sorted(drawn) for r in drawn[t])
-    hits_disc = sum(1 for a, b in hit_pairs if a in disc and b in disc)
     stats |= {
         "discovery_hits": hits_disc,
         "final_test_pairs": len(test),

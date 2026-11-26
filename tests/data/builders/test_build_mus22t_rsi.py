@@ -31,3 +31,36 @@ def test_gate_keeps_a_round_only_if_val_beats_every_kept_checkpoint():
 def test_gate_rejects_rounds_out_of_order():
     with pytest.raises(AssertionError):
         decide([], 1, 0.7)
+
+
+def test_average_precision_matches_the_evaluator_with_tied_scores():
+    import random
+
+    from src.data.builders.build_mus22t_rsi import average_precision
+    from src.eval.pring_test import metrics
+
+    rng = random.Random(1)
+    y = [rng.randrange(2) for _ in range(300)]
+    s = [round(rng.random() * 0.3 + 0.2 * label, 1) for label in y]  # few distinct scores: many ties
+    assert average_precision(y, s) == pytest.approx(metrics(y, s)["ap"])
+
+
+def test_new_gate_drops_a_candidate_only_if_it_is_clearly_worse_than_the_best_kept_state():
+    import random
+
+    from src.data.builders.build_mus22t_rsi import best_kept, gate_round
+
+    rng = random.Random(0)
+    y = [i % 2 for i in range(400)]
+    good = [0.6 * label + rng.random() for label in y]
+    close = [s + rng.gauss(0, 0.05) for s in good]  # the same system with a little noise
+    bad = [rng.random() for _ in y]  # no signal
+    gate = gate_round([], 0, y, good, None)
+    assert gate[0]["kept"] and best_kept(gate) == 0
+    gate = gate_round(gate, 1, y, close, good)
+    assert gate[1]["kept"] and gate[1]["against"] == 0 and gate[1]["worse_share"] < 0.9
+    gate = gate_round(gate, 2, y, bad, good if best_kept(gate) == 0 else close)
+    assert not gate[2]["kept"] and gate[2]["worse_share"] >= 0.9
+    assert gate_round(gate[:2], 2, y, bad, good if best_kept(gate[:2]) == 0 else close) == gate  # seeded
+    with pytest.raises(AssertionError):
+        gate_round(gate, 3, y, good, None)  # every round after 0 needs the best kept state's scores

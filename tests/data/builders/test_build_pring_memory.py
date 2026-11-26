@@ -1,4 +1,4 @@
-from src.data.builders.build_pring_memory import balanced_pairs, gate_pairs, split
+from src.data.builders.build_pring_memory import all_pairs, balanced_pairs, gate_pairs, split
 
 
 def test_val_gate_pairs_are_balanced_and_seeded():
@@ -18,3 +18,9 @@ def test_balanced_pairs_keep_inside_non_self_and_balance():
     rows = [("A", "B", 1), ("A", "C", 1), ("B", "C", 0), ("A", "A", 1), ("A", "Z", 0), ("B", "B", 0)]
     got = balanced_pairs(rows, final)
     assert sum(r[2] for r in got) == 1 and len(got) == 2 and ("B", "C", 0) in got
+
+
+def test_all_pairs_are_every_canonical_pair_closed_world():
+    got = all_pairs({"C", "A", "B", "D"}, {("A", "C"), ("B", "Z")})
+    assert [r[:2] for r in got] == [("A", "B"), ("A", "C"), ("A", "D"), ("B", "C"), ("B", "D"), ("C", "D")]
+    assert [r for r in got if r[2]] == [("A", "C", 1)]

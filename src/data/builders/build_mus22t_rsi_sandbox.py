@@ -1,11 +1,12 @@
-"""Build the agent's sandboxes for the 22T rounds: the training set as the look-up file, the newest DL checkpoint.
+"""Build the agent's sandboxes for the 22T rounds: the training set as the look-up file, one view per DL checkpoint.
 
 Run: uv run python -m src.data.builders.build_mus22t_rsi_sandbox   (~2 s; after build_mus22t_rsi, build_mus22t_sandbox)
 
-Inputs: each DL checkpoint's logits for the 18,366 development and final pairs (a, b, logit): checkpoint 0 is V3
-retrained on the RSI training set (rsi/train.csv), checkpoint t the same on the training set plus the kept rounds up
-to t under the random rule (data/MUS22T/predictor/al_random/round<t>.tsv.gz, t = 0..10, from train_mus22t_al.sh
-random on H20); and each checkpoint's logits for the validation pairs (al_random/val/round<t>.tsv.gz). Copy them with:
+Inputs: the candidate predictors of the DL arm of the random rule (src.data.builders.dl_rounds, train_mus22t_al.sh
+random on H20). Candidate t (t = 0..10) is V3 retrained from scratch on the RSI training set (rsi/train.csv) plus
+every pair revealed in rounds 1..t; candidate 0 is checkpoint 0, trained before any reveal. Under the random rule the
+batches are fixed, so the candidates do not depend on any gate. Files: al_random/candidate<t>.tsv.gz (a, b, logit for
+the 18,366 development and final pairs) and al_random/val/candidate<t>.tsv.gz (the validation pairs). Copy them with:
 
     rsync -a root@10.15.171.204:/2023533015/PPI-Agent-RSI/data/MUS22T/predictor/al_random/ -e 'ssh -p 30757' \
       data/MUS22T/predictor/al_random/
@@ -16,12 +17,11 @@ Output data/MUS22T/sandbox_rsi/:
 - Every view: a symlink to that kb.csv and symlinks to data/MUS22T/sandbox/ (proteins.tsv, annotations.tsv,
   homologs.tsv).
 - plain/: no scores; the LLM-only arm.
-- round<t>/ (t = 1..10): scores.tsv.gz (a, b, p): round t's 100 pairs scored by checkpoint t - 1, trained on every
-  pair revealed before round t. p = raw sigmoid of the logit, as for V3.
-- final/: the final pairs scored by checkpoint 10.
-- val<t>/ (t = 0..10): the validation gate pairs (rsi/val_gate.csv) scored by checkpoint t: the view in which the
-  agent's memory after round t is checked.
-A view whose checkpoint is not there yet is skipped. The scores carry no labels.
+- ckpt<c>_round/, ckpt<c>_val/, ckpt<c>_final/ (c = 0..10): scores.tsv.gz (a, b, p) of candidate c for the pairs of
+  one stage: the reveal batches (rsi/reveal.csv), the validation gate pairs (rsi/val_gate.csv), the final pairs. p =
+  raw sigmoid of the logit, as for V3. src.eval.reveal_rounds reads the view of the checkpoint in use in a round and
+  at the final test, and the view of the round's candidate at the gate.
+A checkpoint whose scores are not there yet is skipped. The scores carry no labels.
 """
 
 import csv
@@ -38,26 +38,18 @@ SHARED = ("proteins.tsv", "annotations.tsv", "homologs.tsv")
 
 
 def checkpoint_path(t):
-    """The agents read the DL predictor of the random rule (dl_rounds), whose batches they also get."""
-    return MUS22T / "predictor" / "al_random" / f"round{t:02d}.tsv.gz"
+    """The agents read the candidate predictors of the random rule (dl_rounds), whose batches they also get."""
+    return MUS22T / "predictor" / "al_random" / f"candidate{t:02d}.tsv.gz"
 
 
 def val_path(t):
-    return MUS22T / "predictor" / "al_random" / "val" / f"round{t:02d}.tsv.gz"
+    return MUS22T / "predictor" / "al_random" / "val" / f"candidate{t:02d}.tsv.gz"
 
 
 def checkpoint_p(t, path=None):
     """{canonical pair: p} of checkpoint t over the development and final pairs (path: its val logits instead)."""
     with gzip.open(path or checkpoint_path(t), "rt") as f:
         return {pair(r["a"], r["b"]): 1 / (1 + math.exp(-float(r["logit"]))) for r in csv.DictReader(f, delimiter="\t")}
-
-
-def reveal_rounds():
-    """{round: [(a, b, label)]} in reveal.csv order."""
-    out = {}
-    for r in csv.DictReader(open(RSI / "reveal.csv")):
-        out.setdefault(int(r["round"]), []).append((r["uniprotID_A"], r["uniprotID_B"], int(r["isInteraction"])))
-    return out
 
 
 def write_kb():
@@ -84,27 +76,20 @@ def view(name, rows, p):
 
 
 def main():
-    rounds, final = reveal_rounds(), read(RSI / "final.csv")
+    reveal, final, gate = (read(RSI / f) for f in ("reveal.csv", "final.csv", "val_gate.csv"))
     scored = {(a, b) for a, b, _ in read(RSI / "dev.csv") + final}
     write_kb()
     view("plain", [], None)
-    views = {f"round{t:02d}": (t - 1, rounds[t]) for t in range(1, ROUNDS + 1)} | {"final": (ROUNDS, final)}
-    for name, (t, rows) in views.items():
-        if not checkpoint_path(t).exists():
-            print(f"{name}: checkpoint {t} missing, skipped")
+    for c in range(ROUNDS + 1):
+        if not (checkpoint_path(c).exists() and val_path(c).exists()):
+            print(f"checkpoint {c}: scores missing, skipped")
             continue
-        p = checkpoint_p(t)
-        assert p.keys() == scored, f"checkpoint {t}: scored pairs differ from dev.csv + final.csv"
-        view(name, rows, p)
-        print(f"{name}: {len(rows):,} pairs scored by checkpoint {t}")
-    gate = read(RSI / "val_gate.csv")
-    for t in range(ROUNDS + 1):
-        if not val_path(t).exists():
-            print(f"val{t:02d}: checkpoint {t} val scores missing, skipped")
-            continue
-        p = checkpoint_p(t, val_path(t))
-        assert all((a, b) in p for a, b, _ in gate), f"checkpoint {t}: val gate pairs without a val score"
-        view(f"val{t:02d}", gate, p)
+        p, q = checkpoint_p(c), checkpoint_p(c, val_path(c))
+        assert p.keys() == scored, f"checkpoint {c}: scored pairs differ from dev.csv + final.csv"
+        assert all((a, b) in q for a, b, _ in gate), f"checkpoint {c}: val gate pairs without a val score"
+        for stage, rows, s in (("round", reveal, p), ("val", gate, q), ("final", final, p)):
+            view(f"ckpt{c:02d}_{stage}", rows, s)
+        print(f"checkpoint {c}: views of {len(reveal):,} batch, {len(gate):,} val gate, {len(final):,} final pairs")
 
 
 if __name__ == "__main__":

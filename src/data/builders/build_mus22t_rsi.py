@@ -19,7 +19,9 @@ Design: docs/superpowers/specs/2026-11-06-mus22t-reveal-rounds-design.md, change
   with random.Random(0), round t = pairs [(t - 1) * 100, t * 100). The labels play no part in the draw. Every arm gets
   the same pairs in the same rounds. The greedy rule on the DL scores is in dl_rounds; the agent's own picks are not
   built yet.
-- The validation gate of the DL rounds and of the agents: build_mus22t_rsi.decide (user decision 2026-11-07).
+- The validation gate of the DL rounds and of the agents: build_mus22t_rsi.gate_round (user decision 2026-11-26: a
+  candidate replaces the state in use unless a paired bootstrap shows it clearly worse than the best kept state).
+  build_mus22t_rsi.decide is the earlier rule (2026-11-07), still used by the discovery track (src.eval.memory_agent).
 - val_gate.csv: the agents' validation gate (user decision 2026-11-07), fixed VAL_GATE / 2 positives and
   VAL_GATE / 2 negatives of agent_split/val.csv whose two proteins are both test proteins, each sorted and shuffled
   with random.Random(0). An agent round's memory is kept only if the agent's validation AUPRC on these pairs beats
@@ -155,6 +157,61 @@ def decide(gate, t, val_auprc):
     assert [g["round"] for g in gate] == list(range(t)), f"gate.json must hold rounds 0..{t - 1}"
     best = max((g["val_auprc"] for g in gate if g["kept"]), default=None)
     return [*gate, {"round": t, "val_auprc": val_auprc, "kept": best is None or val_auprc > best}]
+
+
+# the gate of 2026-11-26: docs/superpowers/specs/2026-11-26-archive-and-one-gate-design.md
+RESAMPLES, CLEARLY_WORSE = 2000, 0.9
+
+
+def _ap(y, s, order, w):
+    """Average precision of scores s over the pairs in `order` (highest score first), pair i counted w[i] times; tied
+    scores are one step, as in src.eval.pring_test.metrics."""
+    tp = n = before = 0
+    total = 0.0
+    k = 0
+    while k < len(order):
+        j = k
+        while j < len(order) and s[order[j]] == s[order[k]]:
+            n += w[order[j]]
+            tp += w[order[j]] * y[order[j]]
+            j += 1
+        if tp > before:
+            total += (tp - before) * tp / n
+        before, k = tp, j
+    return total / tp if tp else 0.0
+
+
+def average_precision(y, s):
+    return _ap(y, s, sorted(range(len(y)), key=lambda i: -s[i]), [1] * len(y))
+
+
+def best_kept(gate):
+    """The round of the kept state with the highest validation AUPRC (the earliest one on a tie); None if no state."""
+    kept = [g for g in gate if g["kept"]]
+    return max(kept, key=lambda g: (g["val_auprc"], -g["round"]))["round"] if kept else None
+
+
+def gate_round(gate, t, y, p, p_best, seed=SEED):
+    """gate plus round t's decision under the rule of 2026-11-26: the candidate replaces the state in use unless it
+    is clearly worse than the best kept state. y: the validation labels; p: the candidate's scores; p_best: the scores
+    of state best_kept(gate) on the same pairs in the same order (None for round 0, which is always kept). Clearly
+    worse: the lower AUPRC in at least CLEARLY_WORSE of RESAMPLES paired bootstrap resamples of the pairs. Stdlib
+    only (H20's checkout venv has no numpy); about 30 s for 9,400 pairs."""
+    assert [g["round"] for g in gate] == list(range(t)), f"gate.json must hold rounds 0..{t - 1}"
+    assert (p_best is None) == (t == 0) and (t == 0 or len(y) == len(p) == len(p_best)), "scores of the same pairs"
+    entry = {"round": t, "val_auprc": average_precision(y, p), "kept": True}
+    if t:
+        rng, n = random.Random(seed), len(y)
+        orders = [sorted(range(n), key=lambda i: -s[i]) for s in (p, p_best)]
+        worse = 0
+        for _ in range(RESAMPLES):
+            w = [0] * n
+            for i in rng.choices(range(n), k=n):
+                w[i] += 1
+            worse += _ap(y, p, orders[0], w) < _ap(y, p_best, orders[1], w)
+        share = worse / RESAMPLES
+        entry |= {"against": best_kept(gate), "worse_share": share, "kept": share < CLEARLY_WORSE}
+    return [*gate, entry]
 
 
 if __name__ == "__main__":

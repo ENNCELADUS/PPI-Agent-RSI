@@ -22,7 +22,7 @@ module from the repo root as `python -m src.<path>`. `data` never imports `eval`
 - `build_mus22t_sandbox`: Build the 22T agent sandbox: the agent-visible files for the 22T mouse membrane split, PRING-sandbox layout.
 - `build_mus22t_rsi`: Split the 22T data for RSI under sparse labels: training set, development set (10,000 pairs), random batches and final set.
 - `build_mus22t_rsi_sandbox`: Build the agent's sandboxes for the 22T rounds: the RSI training set as the look-up file, the newest DL checkpoint in each round.
-- `dl_rounds`: DL predictor rounds on both benchmarks: each round's batch under the random or greedy (top-K score) rule, the training data of each checkpoint, the validation gate.
+- `dl_rounds`: DL predictor rounds on both benchmarks: each round's batch under the random or greedy (top-K score) rule, the training data of each candidate (training set plus all revealed labels), the validation gate (paired bootstrap against the best kept predictor).
 - `train_mus22t_al.sh <rule>`: the 22T DL rounds on H20: V3 retrained on the RSI training set (checkpoint 0) plus the kept rounds (a round is kept only if val AUPRC improves).
 - `train_pring_al.sh <rule>`: the same on PRING: checkpoint 0 = the frozen B0, then B0 retrained with the revealed pairs (motif-graph branch `al-revealed`).
 - `build_seal_split`: Split a PPI dataset (22T mouse, or human TMP) with the SEAL PPI baseline protocol, so its numbers compare with SEAL's.
@@ -50,7 +50,7 @@ Remote runs follow the local, untracked `remote-api-agent` skill.
 - `rounds`: Run PRING closed-loop discovery with the pi agent: rounds of K submitted pairs, oracle results, true feedback.
 - `pring_test`: Classification test on PRING: the agent predicts every pair of PRING's human BFS test split. `--data mus22t`: the same agent on the 22T mouse test split.
 - `memory_agent`: Run the two-layer memory agent: discovery rounds with case memory, reviewer-updated lessons and a validation gate in every round, then the final test.
-- `reveal_rounds`: 22T reveal rounds (and the same on PRING with `--data pring`): the agent classifies each round's batch (random draws from the development set), its labels become cases, a reviewer updates the lessons.
+- `reveal_rounds`: 22T reveal rounds (and the same on PRING with `--data pring`): the agent classifies each round's batch (random draws from the development set), its labels go to the archive, a reviewer updates the lessons, and one gate keeps or drops the candidate memory (with `--predictor`: and the candidate predictor); `baseline` runs the final test with no rounds.
 - `al_predictor`: Active-learning B0 arm of the memory agent's final test: B0 retrained on the knowledge base plus the round labels.
 - `score`: Score a global top-N ranking against a labels file (the private `test.csv`).
 - `verify_live_string`: Spot-check that sampled test pairs are absent from the live STRING API.
